@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Écran de LivePoule (conversion GTK4 de resources/glade/LivePoule.glade).
+
+  Correspondances avec le .glade GTK3 :
+  - les GtkViewport (qui ne servaient qu'à porter une couleur de fond) deviennent
+    des GtkBox : en GTK4 tout widget peut avoir un fond via CSS ; les identifiants
+    sont conservés ;
+  - le GtkImage « code_image » devient un GtkPicture (affiche le QR code à sa
+    taille réelle, alors qu'un GtkImage GTK4 le réduirait à la taille d'une icône) ;
+  - packing expand/fill -> hexpand/vexpand/valign ; margin_left/right -> margin-start/end ;
+  - no_show_all + visible=False -> visible=False ;
+  - les signaux delete-event et key-press-event sont branchés dans le code
+    (close-request et GtkEventControllerKey).
+-->
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <object class="GtkWindow" id="root">
+    <property name="title">LivePoule</property>
+    <child>
+      <object class="GtkBox" id="box1">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox" id="title_viewport">
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkBox" id="title_box">
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkLabel" id="strip">
+                    <property name="label">PISTE 1</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                      <attribute name="scale" value="3"/>
+                      <attribute name="foreground" value="#000000000000"/>
+                    </attributes>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="title">
+                    <property name="label">Title</property>
+                    <attributes>
+                      <attribute name="scale" value="3"/>
+                    </attributes>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="box2">
+            <property name="vexpand">True</property>
+            <property name="margin-start">10</property>
+            <property name="margin-end">10</property>
+            <property name="margin-top">10</property>
+            <property name="spacing">10</property>
+            <property name="homogeneous">True</property>
+            <child>
+              <object class="GtkBox" id="box7">
+                <property name="orientation">vertical</property>
+                <property name="spacing">10</property>
+                <child>
+                  <object class="GtkBox" id="red_hit_light">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkBox" id="red_hit_box">
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkLabel" id="red_fencer">
+                            <property name="label">Red</property>
+                            <attributes>
+                              <attribute name="weight" value="bold"/>
+                              <attribute name="scale" value="3"/>
+                              <attribute name="foreground" value="#ffffffffffff"/>
+                            </attributes>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="red_score">
+                            <property name="label">0</property>
+                            <property name="justify">right</property>
+                            <property name="vexpand">True</property>
+                            <property name="valign">center</property>
+                            <attributes>
+                              <attribute name="scale" value="8"/>
+                              <attribute name="foreground" value="#ffffffffffff"/>
+                            </attributes>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox" id="red_failure_light">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkLabel" id="label1">
+                        <attributes>
+                          <attribute name="scale" value="3"/>
+                        </attributes>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="box5">
+                <property name="orientation">vertical</property>
+                <property name="spacing">10</property>
+                <child>
+                  <object class="GtkBox" id="green_hit_light">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkBox" id="green_hit_box">
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkLabel" id="green_fencer">
+                            <property name="label">Green</property>
+                            <attributes>
+                              <attribute name="weight" value="bold"/>
+                              <attribute name="scale" value="3"/>
+                              <attribute name="foreground" value="#ffffffffffff"/>
+                            </attributes>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="green_score">
+                            <property name="label">0</property>
+                            <property name="justify">right</property>
+                            <property name="vexpand">True</property>
+                            <attributes>
+                              <attribute name="scale" value="8"/>
+                              <attribute name="foreground" value="#ffffffffffff"/>
+                            </attributes>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkBox" id="green_failure_light">
+                    <property name="orientation">vertical</property>
+                    <property name="valign">start</property>
+                    <child>
+                      <object class="GtkLabel" id="label2">
+                        <attributes>
+                          <attribute name="scale" value="3"/>
+                        </attributes>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="box4">
+            <property name="margin-start">10</property>
+            <property name="margin-end">10</property>
+            <property name="margin-top">10</property>
+            <property name="homogeneous">True</property>
+            <child>
+              <object class="GtkBox" id="viewport1">
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkBox" id="box6">
+                    <property name="orientation">vertical</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="timer">
+                <property name="label">00:00</property>
+                <attributes>
+                  <attribute name="weight" value="bold"/>
+                  <attribute name="scale" value="8"/>
+                  <attribute name="foreground" value="#ffffffffffff"/>
+                </attributes>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="viewport2">
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkBox" id="box10">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkPicture" id="code_image">
+                        <property name="visible">False</property>
+                        <property name="vexpand">True</property>
+                        <property name="can-shrink">False</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSpinner" id="spinner">
+                        <property name="visible">False</property>
+                        <property name="vexpand">True</property>
+                        <property name="spinning">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
