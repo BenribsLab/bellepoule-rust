@@ -229,6 +229,8 @@ struct Inner {
 
 #[derive(Default)]
 struct Services {
+    /// Conservé pour garder le serveur en vie tant que l'anneau existe.
+    #[allow(dead_code)]
     http_server: Option<HttpServer>,
     usb_broker: Option<UsbBroker>,
     console: Option<ConsoleServer>,

@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::usb_drive::UsbDrive;
 
@@ -171,6 +171,7 @@ impl Drop for UsbBroker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
 
     #[test]
     fn parse_stream() {

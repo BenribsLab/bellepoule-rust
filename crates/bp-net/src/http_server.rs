@@ -11,7 +11,6 @@
 //!
 //! L'écouteur est appelé depuis le thread du serveur.
 
-use std::io::Read;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver};

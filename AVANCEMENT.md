@@ -16,12 +16,12 @@ Légende : ✅ fait · 🟡 écrit, compile, non vérifié · ❌ pas commencé
 | Imports / exports (`formats`) | 🟡 | ~75 % |
 | Tableaux, barrage, scission | 🟡 | ~60 % |
 | Poules | 🟡 écrit mais non branché | ~50 % |
-| Compétition, pointage, classement | 🟡 | ~40 % |
+| Compétition, pointage, classement | ✅ logique terminée (hors réseau) | ~90 % |
 | Socle graphique + écrans `.ui` | 🟡 | ~35 % |
 | Marshaller | 🟡 | ~30 % |
 | Vague 2 (écrans des phases, impression, liaison réseau) | ❌ | 0 % |
 
-**Global : ~35 %.**
+**Global : ~40 %.**
 
 ---
 
@@ -29,18 +29,23 @@ Légende : ✅ fait · 🟡 écrit, compile, non vérifié · ❌ pas commencé
 
 Chaque étape débloque la suivante. Ne rien lancer en parallèle.
 
-### Étape 1 — Compétition (`contest`, `schedule`, `tournament`) ← PROCHAINE
-Sans elle, on ne peut ni ouvrir ni enregistrer un fichier : tout le reste en dépend.
-- `contest.rs` : chargement et enregistrement complets du `.cotcot`, propriétés, duplication, compression (`zipper`) ;
-- `schedule.rs` : suite des phases, chaînage entrée/sortie, verrouillage, phase courante, ajout automatique des phases ;
-- `tournament.rs` : tout sauf les préférences (déjà faites) ;
-- `attendees`, `error`, `score_collector`, `publication` ;
-- brancher les formats (équipes, `ConvertFromBaseToResult`, `LoadAskFred`, bloc `<Phases>`) ;
-- corriger le test `rounds::checkin::import::tests::csv` ;
-- ajouter la méthode `set_previous` sur les appels du chaînage.
+### Étape 1 — Compétition ✅ TERMINÉE (20/10/2026)
+Fait : `contest.rs` (propriétés, lecture/écriture du `.cotcot`, duplication, import AskFred et listes de
+tireurs, archive ZIP), `schedule.rs` (chaînage des phases, fournisseur d'entrée, navigation, verrouillage,
+suppression, phases ajoutées pour les fichiers externes), `tournament.rs` (ouverture de tous les types de
+fichiers, fichiers récents, sauvegardes, liste des compétitions), liste des arbitres, `sort.rs` (tri
+compatible GLib, nécessaire aux tirages au sort), test CSV corrigé, 3 avertissements réseau supprimés.
+Vérifié par des tests sur vos fichiers d'exemple : `.cotcot` (aller-retour stable), FFF, ZIP, XML FIE
+individuel et par équipes.
+**Reste de cette étape (reporté volontairement)** :
+- `score_collector` et `publication` : dépendent du réseau et des écrans de saisie → étapes 6 et 8 ;
+- aiguillage des messages réseau (`Tournament::OnMessage`, `Contest::OnMessage/ManageReferee`) → étape 8 ;
+- en attendant les poules, le tour de poules d'un fichier est conservé tel quel (`RawStage`) : l'ouverture et
+  l'enregistrement ne perdent rien.
 
 ### Étape 2 — Poules
-- déclarer `dispatcher`, `neo_swapper`, `pool`, `round` dans `rounds/pool/mod.rs` et corriger la compilation (jamais compilés) ;
+- déclarer `dispatcher`, `neo_swapper`, `pool`, `round` dans `rounds/pool/mod.rs` et corriger la compilation (jamais compilés ;
+  remplacer aussi leurs tris aléatoires par `crate::sort::glib_sort_by`, déjà fait mais non compilé) ;
 - `allocator.rs` : phase `PoolAllocator` ; `supervisor.rs` : phase `PoolSupervisor` ; `pillow.rs` ;
 - données imprimables de l'allocateur ;
 - fondation : `player::compare` avec graine doit comparer l'attribut avant le tirage au sort.
@@ -49,7 +54,7 @@ Sans elle, on ne peut ni ouvrir ni enregistrer un fichier : tout le reste en dé
 Écrits sans rapport de l'agent : comparer avec `table_set.cpp` (~4000 lignes C++), compléter.
 
 ### Étape 4 — Réseau et formats : nettoyage
-- réseau : 3 avertissements ; pages PHP du site web non portées ; FTPS absent ;
+- réseau : pages PHP du site web non portées ; FTPS absent ;
 - formats : intégration avec la compétition ; aucun test écrit sur `tests-data/`.
 
 ### Étape 5 — Socle graphique et application `bellepoule`
