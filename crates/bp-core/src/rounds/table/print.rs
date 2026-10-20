@@ -155,6 +155,12 @@ pub struct ScoreSheet {
 }
 
 impl TableSet {
+    /// Variante avec le magasin d'arbitres séparé de celui des tireurs.
+    pub fn score_sheet_with_referees(&self, node: NodeId, players: &PlayerStore, referees: &PlayerStore, contest_net_id: u32, stage_net_id: u32) -> Option<ScoreSheet> {
+        let mut sheet = self.score_sheet(node, players, contest_net_id, stage_net_id)?;
+        sheet.referee = self.bout(node)?.referees.first().and_then(|r| referees.get(*r)).map(|p| (p.name(), p.first_name()));
+        Some(sheet)
+    }
     /// `LookForMatchToPrint` : matchs prêts (deux tireurs) d'un tableau (ou
     /// de tous), éventuellement seulement ceux pas encore imprimés.
     pub fn matches_to_print(&self, table: Option<usize>, all_sheets: bool) -> Vec<NodeId> {

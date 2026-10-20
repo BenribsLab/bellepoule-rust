@@ -127,6 +127,7 @@ dependencies = [
  "glib",
  "gtk4",
  "log",
+ "rand",
  "roxmltree",
  "zip",
 ]

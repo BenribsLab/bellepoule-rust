@@ -201,7 +201,7 @@
   <object class="GtkTreeStore" id="table_set_treestore">
     <columns>
       <column type="gchararray" />
-      <column type="gpointer" />
+      <column type="guint" />
       <column type="gchararray" />
       <column type="gboolean" />
       <column type="gpointer" />

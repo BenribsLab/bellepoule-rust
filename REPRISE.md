@@ -31,9 +31,9 @@ Fenêtre principale, menus, onglets, nouvelle compétition, propriétés, ouvert
 « Appel » complet (ajout de tireurs, formulaire, présence, « tous », import, filtre).
 
 ## Point d'arrêt exact
-Les écrans de composition et de supervision des poules sont branchés et compilent.
+Les écrans de composition/supervision des poules et le superviseur de tableaux sont branchés et compilent.
 **Aucune validation interactive de ces nouveaux écrans n'a encore été faite.**
-Le chantier suivant est l'écran des tableaux ; ne pas confondre compilation et fidélité vérifiée.
+Le chantier suivant est l'interface du barrage, puis scission et classement général. Ne pas confondre compilation et fidélité vérifiée.
 
 ### Composition des poules
 - `stages/allocator.rs` : branché dans `stages/mod.rs`, rafraîchissement via `Weak<Self>` ; formules,
@@ -63,13 +63,45 @@ Le chantier suivant est l'écran des tableaux ; ne pas confondre compilation et 
 - `bp-gtk/src/print.rs::run_tiled` : pagination cairo commune aux deux écrans.
 - `bout.rs` : une saisie Unicode est rejetée sans panique ni modification du score.
 
+### Superviseur de tableaux (dernière reprise)
+- `stages/table_supervisor.rs` : branché sur `TableSupervisor`, arbre cairo, suites principale et de
+  classement, navigation entre colonnes, zoom, recherche de match et saisie rapide via `table.ui`.
+- Saisie V, W3/V3, scores numériques et effacement ; A/E/F au clavier ou par clic droit sur un score,
+  restauration par le menu contextuel. Modèle mis à jour immédiatement, dessin différé avec
+  restauration du focus/curseur et passage à la case suivante. Les matchs incohérents sont signalés.
+- Paramètres de formule : nom, score maximal, quota, aucune / 3e place / toutes les places ;
+  vue de classement, filtres et contrôle du verrouillage.
+- `stages/table_supervisor/scene.rs` : dessin commun à l'écran et au papier, construit sur les
+  coordonnées et connecteurs de `TableSet::drawing`. Noms et organismes stylés comme la référence ;
+  noms/prénoms seuls dans les colonnes compactes.
+- `stages/table_supervisor/print.rs` : aperçu, 4/8/16 matchs par feuille, pagination via `PrintSession`,
+  en-têtes répétés, classement, feuilles de match individuelles ou par tableau, toutes / en attente,
+  groupement par arbitre et adaptation portrait/paysage. Marquage des feuilles seulement après
+  confirmation de l'impression native. Les références de match sont imprimées en texte ; QR et
+  circuit smartphone restent à intégrer avec le réseau.
+- `TableSet::drawing_with_referees` et `score_sheet_with_referees` sont des API additives : elles
+  distinguent le magasin des arbitres de celui des tireurs, même si les références coïncident.
+- `table.ui` / `table_supervisor.ui` : les indices de nœuds/suites utilisent des colonnes `guint`
+  à la place des pointeurs C++. Les deux fichiers valident avec `gtk4-builder-tool validate`.
+- `CanvasView` retire les anciens widgets de score, regroupe les rafraîchissements et écoute aussi
+  les clics sur le conteneur superposé. Ses callbacks ne retiennent plus leur propre état en cycle.
+  `Canvas::reset()` réutilise le stockage entre les saisies ; il invalide les anciens identifiants,
+  conserve vues/abonnements et évite la croissance de l'arène à chaque reconstruction.
+- La police des entrées de score suit le zoom pour éviter le recouvrement des lignes.
+- Pas de validation visuelle encore : comparer surtout les grands tableaux, les noms longs,
+  les champs au zoom 0,1–1, les corrections d'un résultat et les suites de classement. Les aspects
+  graphiques des filtres et l'exacte mise en page du C++ restent à contrôler. Ne pas annoncer ces
+  fonctions comme vérifiées en compétition.
+
 ### Vérifications réalisées
 Avec `CARGO_TARGET_DIR=target/agent` :
 - `cargo check --workspace --tests` : succès (tests compilés, pas exécutés).
 - `cargo build --workspace` : succès.
 - `cargo clippy --workspace --tests` : succès avec avertissements préexistants.
-Aucun programme GTK, test interactif ou test automatisé exécuté pendant cette reprise.
-Deux régressions ajoutées et compilées : saisie Unicode et plusieurs retardataires avant renumérotation.
+Application non lancée ; aucun test interactif ni test automatisé exécuté. Validation structurelle des deux fichiers UI des tableaux réalisée avec gtk4-builder-tool.
+Régressions ajoutées et compilées : saisie Unicode, plusieurs retardataires avant renumérotation,
+`tests/table_view.rs` (collision d'identifiants arbitre/tireur, pagination 4/8/16, feuilles en attente)
+et reconstruction répétée du canevas sans croissance de son stockage.
 
 ## Suite (dans l'ordre)
 1. Vérifier les écrans de poules selon les scénarios ci-dessous. Comparer au C++ le rendu/zoom,
@@ -77,8 +109,8 @@ Deux régressions ajoutées et compilées : saisie Unicode et plusieurs retardat
    clavier et les impressions (grandes poules, noms longs). La feuille utilise des widgets GTK ;
    sa fidélité visuelle exacte au canevas C++ n'est pas encore établie. Pistes/arbitres affichés ;
    aiguillage réseau encore à faire.
-2. Écrans tableaux (`table_supervisor.ui`, `table.ui`), barrage, scission, classement général :
-   ces phases affichent toujours `Pending`.
+2. Écrans barrage, scission et classement général : ces phases affichent toujours `Pending`.
+   Les tableaux sont maintenant écrits et compilés ; validation interactive à faire.
 3. Menu des langues, impression de l'appel, publication/réseau, exports restants
    (AskFred : incohérence du magasin d'arbitres).
 4. Marshaller (interface/logique ~30 %), intégration LivePoule, routage des messages.
@@ -102,6 +134,22 @@ Deux régressions ajoutées et compilées : saisie Unicode et plusieurs retardat
   Vérifier PDF, pagination, accents et absence de coupure d'une poule.
 - Régressions ciblées à lancer : `cargo test -p bp-core --test contest_checkin` et
   `cargo test -p bp-core unicode_score_input_does_not_panic`.
+
+### Scénarios tableaux
+- Finir les poules puis « Tour suivant » : arbre avec exemptions, champs des matchs prêts,
+  tableau précédent/suivant, zoom et recherche par numéro dans l'espace de noms affiché.
+- Saisir V/3 et W3/2, effacer, corriger, passer au prochain score ; refaire en mode « Saisie »
+  avec le menu de recherche rapide. V/V doit signaler une erreur et empêcher la suite.
+- Clic droit sur un score : abandon / exclusion / forfait / restauration ; vérifier les adversaires
+  suivants et le classement. Vérifier le blocage des modifications après « Tour suivant ».
+- Dans la formule, sélectionner la phase « Tableau » et essayer les trois modes de places tirées.
+  Terminer les demi-finales : la suite de 3e place doit apparaître si elle est demandée ; toutes
+  les places doit exposer les suites correspondantes au fur et à mesure.
+- Sauvegarder à mi-parcours, réouvrir et comparer scores, identités, statuts et classement.
+- Imprimer arbre, classement, feuilles individuelles (icône près du match) et feuilles d'un tableau
+  (icône d'en-tête). Tester annulation, toutes/en attente, 4/8/16, portrait/paysage et PDF.
+- Commandes pour les régressions à exécuter par l'utilisateur : `cargo test -p bp-core --test table_view`
+  et `cargo test -p bp-gtk repeated_scene_reconstruction_keeps_storage_bounded` (PATH GTK4 pour ce dernier).
 
 ## Pièges connus
 - L'appel (pointage) est **verrouillé** après « Tour suivant » : « Tour précédent » le déverrouille. Un

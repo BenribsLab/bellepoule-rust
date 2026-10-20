@@ -960,6 +960,21 @@ impl Canvas {
         self.remove(root);
     }
 
+    /// Reconstruit une scène sans accumuler les emplacements des éléments
+    /// supprimés. Les anciens identifiants deviennent invalides et peuvent
+    /// être réutilisés. Les vues et abonnements à la scène sont conservés.
+    pub fn reset(&self) {
+        {
+            let mut scene = self.scene.borrow_mut();
+            scene.nodes.truncate(1);
+            scene.nodes[0] = Some(Node::new(None, Shape::Group));
+            scene.root = 0;
+            scene.dirty = true;
+            scene.widgets_changed = true;
+        }
+        self.changed();
+    }
+
     /// `goo_canvas_item_lower (item, NULL)` : passe en arrière-plan.
     pub fn lower(&self, id: ItemId) {
         {
@@ -1627,6 +1642,24 @@ fn render_rec(s: &Scene, id: ItemId, cr: &cairo::Context, clip: Option<&Bounds>)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repeated_scene_reconstruction_keeps_storage_bounded() {
+        let canvas = Canvas::new();
+        let notifications = Rc::new(std::cell::Cell::new(0));
+        let observed = notifications.clone();
+        canvas.connect_changed(move || observed.set(observed.get() + 1));
+        canvas.set_resolution(96.0);
+        for _ in 0..20 {
+            canvas.reset();
+            for i in 0..256 {
+                canvas.rect(canvas.root(), i as f64, 0.0, 10.0, 10.0);
+            }
+            assert!(canvas.scene.borrow().nodes.len() <= 257);
+        }
+        assert_eq!(canvas.resolution(), 96.0);
+        assert!(notifications.get() > 256, "le rafraîchissement doit rester abonné après reset");
+    }
 
     #[test]
     fn rect_bounds_and_translate() {

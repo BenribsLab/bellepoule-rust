@@ -19,9 +19,9 @@ Légende : ✅ fait · 🟡 écrit, compile, non vérifié · ❌ pas commencé
 | Tableaux, barrage, scission | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Poules | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Compétition, pointage, classement | ✅ logique terminée (hors réseau) | ~90 % |
-| Socle graphique + fenêtre principale | 🟡 fenêtre, appel et deux écrans de poules écrits ; poules à valider | ~45 % |
+| Socle graphique + fenêtre principale | 🟡 fenêtre, appel, poules et tableaux écrits ; dernières phases à valider | ~45 % |
 | Marshaller | 🟡 | ~30 % |
-| Vague 2 (écrans des phases, impression, liaison réseau) | 🟡 poules et impression compilées, non vérifiées | à réévaluer |
+| Vague 2 (écrans des phases, impression, liaison réseau) | 🟡 poules, tableaux et impressions compilés, non vérifiés | à réévaluer |
 
 **Global : ~55 %.**
 
@@ -77,7 +77,7 @@ propriétés, calendrier, enregistrement automatique 5 s, fermeture), calendrier
 suivant, barrage, erreurs). Lancement vérifié par capture d'écran.
 Écran d'appel (liste des tireurs avec icônes et cases de présence, tri, ajout/modification par le formulaire,
 suppression, import FFF/CSV, import de classement, colonnes à afficher, présents/absents, équipes) ✅.
-**Reste** : menu des langues, validation des poules, autres phases (étape 6), impression de l'appel.
+**Reste** : menu des langues, validation des poules/tableaux, autres phases (étape 6), impression de l'appel.
 
 ### Étape 6 — Écrans des phases (vague 2) ← EN COURS
 🟡 Composition des poules branchée : formules, séparation, déplacements, filtres, liste,
@@ -85,13 +85,20 @@ retardataires/absents et formulaire ; impression de la composition/liste.
 🟡 Superviseur de poules : matrice et ordre des matchs, saisie des scores et avance du focus,
 statuts, résultats, classements courant/cumulé, paramètres de phase, impressions
 (arbitres/résultats/classements, une ou toutes les poules).
+🟡 Tableaux : arbre cairo partagé écran/impression, navigation, zoom, saisie directe/rapide,
+recherche, statuts, suites de classement, paramètres, filtres et classement. Aperçu/pagination
+4/8/16, feuilles individuelles/par tableau, toutes/en attente, portrait/paysage.
+Magasin distinct des arbitres utilisé pour le dessin et les feuilles. Vue du canevas corrigée
+(retrait des anciens champs, regroupement des rafraîchissements, stockage réutilisé).
 Le calendrier expose l'onglet propre de l'allocateur et les paramètres des phases futures.
 Ces ajouts sont **compilés, sans validation interactive** ; la fidélité exacte du rendu GTK/cairo
 et des impressions doit encore être comparée à la référence.
-**Reste** : tableaux, barrage, scission, classement général, arbitres/planning et réseau.
+**Reste** : barrage, scission, classement général, arbitres/planning et réseau (dont QR des feuilles de tableau).
 `cargo check --workspace --tests`, `cargo build --workspace` et `cargo clippy --workspace --tests`
-passent ; avertissements préexistants. Tests compilés, non exécutés. Deux régressions ajoutées
-(saisie Unicode ; plusieurs retardataires avant renumérotation).
+passent ; avertissements préexistants. Tests compilés, non exécutés. Régressions ajoutées :
+saisie Unicode, plusieurs retardataires avant renumérotation, arbitres/pagination/feuilles en attente
+des tableaux, stockage du canevas après reconstructions répétées. Les deux UI des tableaux valident
+avec `gtk4-builder-tool validate`. Aucun lancement interactif de l'application.
 Détails et scénarios : `REPRISE.md`.
 
 ### Étape 7 — Marshaller
@@ -142,4 +149,6 @@ joueurs et équipes, export HTML, phase de pointage, classement général.
    classements, retour précédent et relecture des scores.
 4. Paramètres via « Poules » dans la formule ; impressions et PDF des compositions,
    listes, feuilles arbitres/résultats et classements.
+5. Poules → tableaux : saisie directe/rapide, zoom, recherche, exemptions, modifications de scores,
+   statuts, 3e place/toutes les places, sauvegarde/réouverture et impressions. Détails dans `REPRISE.md`.
 Aucun test interactif lancé par l'agent.

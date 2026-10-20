@@ -17,3 +17,4 @@ chrono = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
 zip = { workspace = true }
+rand = { workspace = true }

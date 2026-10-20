@@ -169,6 +169,18 @@ pub fn roadmap_text(m: &Match, players: &PlayerStore) -> Option<RoadmapText> {
 }
 
 impl TableSet {
+    /// Variante pour l'application : les arbitres vivent dans un magasin
+    /// distinct, dont les références peuvent coïncider avec celles des tireurs.
+    pub fn drawing_with_referees(&self, players: &PlayerStore, referees: &PlayerStore, metrics: &LayoutMetrics) -> TableSetDrawing {
+        let mut drawing = self.drawing(players, metrics);
+        for cell in &mut drawing.cells {
+            if let Some(label) = &mut cell.match_label {
+                label.roadmap = self.bout(cell.node).and_then(|m| roadmap_text(m, referees));
+            }
+        }
+        drawing
+    }
+
     /// Rectangle de la case d'un nœud affiché.
     fn cell_bounds(&self, node: NodeId, metrics: &LayoutMetrics) -> Option<Bounds> {
         let n = &self.nodes[node];

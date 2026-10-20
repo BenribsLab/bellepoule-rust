@@ -13,6 +13,7 @@ pub mod allocator;
 pub mod checkin;
 mod pillow;
 pub mod pool_supervisor;
+pub mod table_supervisor;
 
 use crate::contest_page::ContestPage;
 
@@ -35,6 +36,7 @@ pub fn build(page: &Rc<ContestPage>, index: usize) -> Rc<dyn StageScreen> {
         Some(StageKind::Checkin) => checkin::CheckinScreen::new(page),
         Some(StageKind::PoolAllocator) => allocator::AllocatorScreen::new(page, index),
         Some(StageKind::PoolSupervisor) => pool_supervisor::SupervisorScreen::new(page, index),
+        Some(StageKind::TableSupervisor) => table_supervisor::TableScreen::new(page, index),
         _ => Rc::new(Pending::new(page, index)),
     }
 }

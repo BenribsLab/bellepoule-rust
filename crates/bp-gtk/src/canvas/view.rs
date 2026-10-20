@@ -16,6 +16,7 @@ struct State {
     hovered: RefCell<Option<ItemId>>,
     area: gtk::DrawingArea,
     fixed: gtk::Fixed,
+    refresh_pending: Cell<bool>,
 }
 
 /// Vue défilante et zoomable d'un [`Canvas`].
@@ -46,6 +47,7 @@ impl CanvasView {
             hovered: RefCell::new(None),
             area: area.clone(),
             fixed,
+            refresh_pending: Cell::new(false),
         });
         let view = CanvasView { scrolled, state };
         view.install_drawing();
@@ -92,8 +94,9 @@ impl CanvasView {
     }
 
     fn install_drawing(&self) {
-        let st = self.state.clone();
+        let weak = Rc::downgrade(&self.state);
         self.state.area.set_draw_func(move |_, cr, _, _| {
+            let Some(st) = weak.upgrade() else { return };
             let bg = st.background.get();
             cr.set_source_rgba(bg.r, bg.g, bg.b, bg.a);
             let _ = cr.paint();
@@ -108,9 +111,18 @@ impl CanvasView {
             // Le dessin est reporté : plusieurs modifications de suite ne
             // provoquent qu'un seul rafraîchissement.
             if let Some(st) = weak.upgrade() {
-                let view = CanvasView { scrolled: scrolled.clone(), state: st };
+                if st.refresh_pending.replace(true) {
+                    return;
+                }
+                let view = CanvasView {
+                    scrolled: scrolled.clone(),
+                    state: st,
+                };
                 let v2 = view.clone();
-                glib_idle(move || v2.refresh());
+                glib_idle(move || {
+                    v2.state.refresh_pending.set(false);
+                    v2.refresh();
+                });
             }
         });
     }
@@ -120,8 +132,21 @@ impl CanvasView {
         let s = &self.state;
         let zoom = s.zoom.get();
         let items = s.canvas.widget_items();
+        // Les anciennes entrées ne font plus partie de la scène après Wipe.
+        // Sans retrait, elles restent au-dessus du nouveau tableau et captent
+        // les clics (en plus de conserver leurs callbacks et leurs données).
+        let mut child = s.fixed.first_child();
+        while let Some(widget) = child {
+            child = widget.next_sibling();
+            if !items.iter().any(|(_, current, _, _)| current == &widget) {
+                s.fixed.remove(&widget);
+            }
+        }
         for (_, w, b, visible) in items {
-            if w.parent().map(|p| p != *s.fixed.upcast_ref::<gtk::Widget>()).unwrap_or(true) {
+            if w.parent()
+                .map(|p| p != *s.fixed.upcast_ref::<gtk::Widget>())
+                .unwrap_or(true)
+            {
                 if let Some(p) = w.parent() {
                     let _ = p;
                     w.unparent();
@@ -129,42 +154,72 @@ impl CanvasView {
                 s.fixed.put(&w, b.x1 * zoom, b.y1 * zoom);
             }
             s.fixed.move_(&w, b.x1 * zoom, b.y1 * zoom);
-            w.set_size_request(((b.width()) * zoom).max(1.0) as i32, ((b.height()) * zoom).max(1.0) as i32);
+            w.set_size_request(
+                ((b.width()) * zoom).max(1.0) as i32,
+                ((b.height()) * zoom).max(1.0) as i32,
+            );
             w.set_visible(visible);
         }
         s.fixed.set_can_target(true);
     }
 
     fn install_events(&self) {
-        let area = &self.state.area;
+        // Les widgets de saisie sont dans un Fixed superposé à la zone de
+        // dessin. Ses espaces vides reçoivent aussi les événements : écouter
+        // les deux surfaces rend les commandes cairo cliquables dans les deux cas.
+        self.install_events_on(&self.state.area);
+        self.install_events_on(&self.state.fixed);
+    }
 
+    fn install_events_on(&self, area: &impl IsA<gtk::Widget>) {
         let click = gtk::GestureClick::new();
         click.set_button(0);
         {
-            let st = self.state.clone();
+            let weak = Rc::downgrade(&self.state);
             click.connect_pressed(move |g, n, x, y| {
-                Self::dispatch_at(&st, EventKind::Press, g.current_button(), n, x, y, g.current_event_state());
+                let Some(st) = weak.upgrade() else { return };
+                Self::dispatch_at(
+                    &st,
+                    EventKind::Press,
+                    g.current_button(),
+                    n,
+                    x,
+                    y,
+                    g.current_event_state(),
+                );
             });
         }
         {
-            let st = self.state.clone();
+            let weak = Rc::downgrade(&self.state);
             click.connect_released(move |g, n, x, y| {
-                Self::dispatch_at(&st, EventKind::Release, g.current_button(), n, x, y, g.current_event_state());
+                let Some(st) = weak.upgrade() else { return };
+                Self::dispatch_at(
+                    &st,
+                    EventKind::Release,
+                    g.current_button(),
+                    n,
+                    x,
+                    y,
+                    g.current_event_state(),
+                );
             });
         }
         area.add_controller(click);
 
         let motion = gtk::EventControllerMotion::new();
         {
-            let st = self.state.clone();
+            let weak = Rc::downgrade(&self.state);
             motion.connect_motion(move |m, x, y| {
+                let Some(st) = weak.upgrade() else { return };
                 Self::on_motion(&st, x, y, m.current_event_state());
             });
         }
         {
-            let st = self.state.clone();
+            let weak = Rc::downgrade(&self.state);
             motion.connect_leave(move |_| {
-                if let Some(old) = st.hovered.borrow_mut().take() {
+                let Some(st) = weak.upgrade() else { return };
+                let old = st.hovered.borrow_mut().take();
+                if let Some(old) = old {
                     let ev = Self::event(&st, 0.0, 0.0, 0, 0, gtk::gdk::ModifierType::empty());
                     st.canvas.dispatch(old, EventKind::Leave, &ev);
                 }
@@ -173,13 +228,38 @@ impl CanvasView {
         area.add_controller(motion);
     }
 
-    fn event(st: &State, wx: f64, wy: f64, button: u32, n_press: i32, state: gtk::gdk::ModifierType) -> CanvasEvent {
+    fn event(
+        st: &State,
+        wx: f64,
+        wy: f64,
+        button: u32,
+        n_press: i32,
+        state: gtk::gdk::ModifierType,
+    ) -> CanvasEvent {
         let z = st.zoom.get();
         let (x, y) = (wx / z, wy / z);
-        CanvasEvent { x, y, item_x: x, item_y: y, widget_x: wx, widget_y: wy, button, n_press, state }
+        CanvasEvent {
+            x,
+            y,
+            item_x: x,
+            item_y: y,
+            widget_x: wx,
+            widget_y: wy,
+            button,
+            n_press,
+            state,
+        }
     }
 
-    fn dispatch_at(st: &Rc<State>, kind: EventKind, button: u32, n: i32, wx: f64, wy: f64, state: gtk::gdk::ModifierType) {
+    fn dispatch_at(
+        st: &Rc<State>,
+        kind: EventKind,
+        button: u32,
+        n: i32,
+        wx: f64,
+        wy: f64,
+        state: gtk::gdk::ModifierType,
+    ) {
         let ev = Self::event(st, wx, wy, button, n, state);
         if let Some(target) = st.canvas.item_at(ev.x, ev.y) {
             st.canvas.dispatch(target, kind, &ev);
