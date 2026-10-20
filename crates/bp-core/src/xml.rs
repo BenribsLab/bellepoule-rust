@@ -107,6 +107,14 @@ impl XmlWriter {
         self.out.push_str(xml);
     }
 
+    /// Insère un élément XML déjà formé sur sa propre ligne, à l'indentation courante.
+    pub fn raw_indented(&mut self, xml: &str) {
+        self.close_open_tag();
+        let depth = self.stack.len();
+        self.newline_indent(depth);
+        self.out.push_str(xml);
+    }
+
     pub fn end(&mut self) {
         let name = self.stack.pop().expect("end() sans start()");
         let had_text = self.has_text.pop().unwrap_or(false);

@@ -447,7 +447,7 @@ impl Stage for RawStage {
 
     fn save(&self, ctx: &StageContext, w: &mut XmlWriter) {
         match &self.raw_xml {
-            Some(xml) => w.raw(xml),
+            Some(xml) => w.raw_indented(xml),
             None if !self.base.kind.xml_name().is_empty() => {
                 w.start(self.base.kind.xml_name());
                 self.save_configuration(w);

@@ -867,7 +867,7 @@ impl PoolRound {
 
     fn evaluate(&self, players: &PlayerStore, list: &mut [PlayerRef], sort_owner: Owner, rank_owner: Owner, policy: u32) -> Vec<u32> {
         let seed = self.sup_rand_seed;
-        list.sort_by(|a, b| compare_players(players, *a, *b, Some(sort_owner), seed, policy));
+        crate::sort::glib_sort_by(&mut list, |a, b| compare_players(players, *a, *b, Some(sort_owner), seed, policy));
         let mut ranks = Vec::with_capacity(list.len());
         let mut previous_rank = 0;
         for i in 0..list.len() {

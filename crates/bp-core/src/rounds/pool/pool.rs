@@ -453,7 +453,7 @@ impl Pool {
     fn sort_players(&mut self, players: &PlayerStore) {
         let seed = self.rand_seed;
         let mut sorted: Vec<PlayerRef> = self.fencer_list.iter().copied().filter(|f| !fencer_is_absent(players, *f)).collect();
-        sorted.sort_by(|a, b| random_compare(*a, *b, seed));
+        crate::sort::glib_sort_by(&mut sorted, |a, b| random_compare(*a, *b, seed));
         self.sorted_fencer_list = sorted;
     }
 
@@ -884,7 +884,7 @@ impl Pool {
         let owner = self.current_owner;
         let seed = self.rand_seed;
         let mut ranking = self.sorted_fencer_list.clone();
-        ranking.sort_by(|a, b| compare_players(players, *a, *b, owner, seed, WITH_CALCULUS | WITH_RANDOM));
+        crate::sort::glib_sort_by(&mut ranking, |a, b| compare_players(players, *a, *b, owner, seed, WITH_CALCULUS | WITH_RANDOM));
         let mut previous: Option<PlayerRef> = None;
         let mut previous_rank = 0;
         for (i, p) in ranking.iter().enumerate() {

@@ -68,7 +68,7 @@ impl Splitting {
     pub fn remaining(&self, players: &PlayerStore) -> Vec<PlayerRef> {
         let mut list: Vec<PlayerRef> = self.base.attendees.iter().copied().filter(|r| !exported(players, *r)).collect();
         let id = AttrId::local("stage_start_rank", self.owner());
-        list.sort_by(|a, b| compare_players(players, *a, *b, &id, self.base.rand_seed));
+        crate::sort::glib_sort_by(&mut list, |a, b| compare_players(players, *a, *b, &id, self.base.rand_seed));
         list
     }
 

@@ -6,6 +6,7 @@
 pub mod attribute;
 pub mod bout;
 pub mod i18n;
+pub mod sort;
 pub mod player;
 pub mod stage;
 pub mod xml;

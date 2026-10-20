@@ -151,6 +151,10 @@ pub fn parse_csv(bytes: &[u8], class: PlayerClass) -> ImportResult {
         })
         .collect();
     for row in &rows[1..] {
+        // `g_strsplit_set` d'une ligne vide ne donne aucun champ : pas de tireur.
+        if row.trim().is_empty() {
+            continue;
+        }
         let tokens: Vec<&str> = row.split(delimiter).collect();
         let mut player = new_player(class);
         let mut has_attribute = false;

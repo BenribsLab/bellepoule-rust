@@ -1,1 +1,512 @@
-//! À porter : voir ARCHITECTURE.md.
+//! Suite des phases d'une compétition (port de `supervisor/schedule.cpp`,
+//! partie logique).
+//!
+//! `Schedule` possède les phases dans l'ordre d'exécution. Les phases qui
+//! ont un fournisseur d'entrée (`Stage::input_provider`) sont précédées de
+//! celui-ci (ex. l'allocateur de poules avant le tour de poules).
+//!
+//! Les phases ont besoin des joueurs et des paramètres de la compétition :
+//! `Contest` les possède et passe un `StageContext` à chaque appel.
+
+use std::collections::HashMap;
+
+use crate::contest::grand::stage_rand_seed;
+use crate::player::{AttrId, Owner, PlayerRef};
+use crate::rounds::{self, checkin::CheckinStage, classification::GeneralClassificationStage};
+use crate::stage::{PreviousStage, Stage, StageContext, StageKind};
+use crate::xml::XmlWriter;
+use crate::Error;
+
+/// Ce que l'utilisateur peut faire à un instant donné (`RefreshSensitivity`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Sensitivity {
+    /// Passer à la phase suivante (la phase courante est terminée).
+    pub next: bool,
+    /// Revenir à la phase précédente.
+    pub previous: bool,
+}
+
+#[derive(Default)]
+pub struct Schedule {
+    stages: Vec<Box<dyn Stage>>,
+    current_stage: usize,
+    /// Chargement d'un fichier en cours : le pointage diffère sa renumérotation.
+    loading: bool,
+}
+
+impl Schedule {
+    pub fn new() -> Self {
+        Schedule { stages: Vec::new(), current_stage: 0, loading: false }
+    }
+
+    // ----------------------------------------------------------------------
+    // Accès
+
+    pub fn len(&self) -> usize {
+        self.stages.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.stages.is_empty()
+    }
+
+    pub fn stage(&self, index: usize) -> Option<&dyn Stage> {
+        self.stages.get(index).map(|s| s.as_ref())
+    }
+
+    pub fn stage_mut(&mut self, index: usize) -> Option<&mut (dyn Stage + 'static)> {
+        self.stages.get_mut(index).map(|s| s.as_mut())
+    }
+
+    pub fn stages(&self) -> impl Iterator<Item = &dyn Stage> {
+        self.stages.iter().map(|s| s.as_ref())
+    }
+
+    pub fn current_index(&self) -> usize {
+        self.current_stage
+    }
+
+    pub fn current(&self) -> Option<&dyn Stage> {
+        self.stage(self.current_stage)
+    }
+
+    pub fn current_mut(&mut self) -> Option<&mut (dyn Stage + 'static)> {
+        let i = self.current_stage;
+        self.stage_mut(i)
+    }
+
+    /// Index de la phase d'identifiant `id` (les identifiants sont les index).
+    pub fn index_of_id(&self, id: u32) -> Option<usize> {
+        self.stages.iter().position(|s| s.base().id == id)
+    }
+
+    /// `GetCheckinSupervisor` : le pointage est toujours la phase 0.
+    pub fn checkin(&self) -> Option<&CheckinStage> {
+        self.stages.first().and_then(|s| s.as_any().downcast_ref::<CheckinStage>())
+    }
+
+    pub fn checkin_mut(&mut self) -> Option<&mut CheckinStage> {
+        self.stages.first_mut().and_then(|s| s.as_any_mut().downcast_mut::<CheckinStage>())
+    }
+
+    /// Dernière phase = classement général : la compétition est terminée.
+    pub fn is_over(&self) -> bool {
+        if self.stages.is_empty() || self.current_stage + 1 < self.stages.len() {
+            return false;
+        }
+        self.stages[self.current_stage].as_any().is::<GeneralClassificationStage>()
+    }
+
+    // ----------------------------------------------------------------------
+    // Création
+
+    /// `CreateDefault` : pointage, tour de poules, tableaux, classement.
+    pub fn create_default(&mut self, ctx: &mut StageContext, without_pools: bool) {
+        if !self.stages.is_empty() {
+            return;
+        }
+        self.add_kind(ctx, StageKind::Checkin, None);
+        {
+            // `RetrieveAttendees` + `Garnish` + `Display` du pointage.
+            self.retrieve_attendees(ctx, 0);
+            self.stages[0].garnish(ctx);
+        }
+        if !without_pools {
+            self.add_kind(ctx, StageKind::PoolSupervisor, None);
+        }
+        self.add_kind(ctx, StageKind::TableSupervisor, None);
+        self.add_kind(ctx, StageKind::GeneralClassification, None);
+        self.set_current(0);
+    }
+
+    pub fn create_stage(&self, kind: StageKind) -> Box<dyn Stage> {
+        rounds::create_stage(kind, 0)
+    }
+
+    /// `AddStage` avec une phase du type donné. Renvoie l'index de la phase
+    /// (le fournisseur d'entrée éventuel est inséré juste avant).
+    pub fn add_kind(&mut self, ctx: &mut StageContext, kind: StageKind, after: Option<usize>) -> usize {
+        let stage = self.create_stage(kind);
+        self.add_stage(ctx, stage, after)
+    }
+
+    /// `AddStage` : insère la phase après `after` (à la fin par défaut).
+    pub fn add_stage(&mut self, ctx: &mut StageContext, stage: Box<dyn Stage>, after: Option<usize>) -> usize {
+        let _ = ctx;
+        let mut at = match after {
+            Some(a) => a + 1,
+            None => self.stages.len(),
+        }
+        .min(self.stages.len());
+
+        if let Some(provider_kind) = stage.input_provider() {
+            let provider = self.create_stage(provider_kind);
+            self.stages.insert(at, provider);
+            at += 1;
+        }
+        self.stages.insert(at, stage);
+        if self.loading {
+            if let Some(c) = self.stages[at].as_any_mut().downcast_mut::<CheckinStage>() {
+                c.set_loading(true);
+            }
+        }
+        self.after_structure_change();
+        self.give_name(at);
+        at
+    }
+
+    /// `GiveStagesAnId` + `SetPrevious` : à rappeler après toute insertion
+    /// ou suppression.
+    fn after_structure_change(&mut self) {
+        for (i, s) in self.stages.iter_mut().enumerate() {
+            s.base_mut().id = i as u32;
+        }
+        self.refresh_previous();
+    }
+
+    /// Informe chaque phase de sa voisine précédente.
+    pub fn refresh_previous(&mut self) {
+        let mut previous: Option<PreviousStage> = None;
+        for s in self.stages.iter_mut() {
+            s.set_previous(previous);
+            previous = Some(PreviousStage { id: s.base().id, quota_exceedance: s.base().quota_exceedance });
+        }
+    }
+
+    /// `GiveName` : les tours de poules s'appellent « Round #n ».
+    fn give_name(&mut self, index: usize) {
+        if self.stages[index].kind() != StageKind::PoolSupervisor {
+            return;
+        }
+        let round = self.stages[..=index].iter().filter(|s| s.kind() == StageKind::PoolSupervisor).count();
+        self.stages[index].base_mut().name = crate::i18n::tr("Round #%d").replace("%d", &round.to_string());
+    }
+
+    /// Nom complet affiché dans l'onglet (`GetFullName`).
+    pub fn full_name(&self, index: usize) -> String {
+        match self.stages.get(index) {
+            Some(s) => format!("{}\n{}", crate::i18n::tr(s.kind().class_name()), s.base().name),
+            None => String::new(),
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // Navigation
+
+    pub fn set_current(&mut self, index: usize) {
+        self.current_stage = index.min(self.stages.len().saturating_sub(1));
+    }
+
+    /// `RefreshSensitivity`.
+    pub fn sensitivity(&self, ctx: &StageContext) -> Sensitivity {
+        let mut s = Sensitivity { next: false, previous: self.current_stage > 0 };
+        if !self.stages.is_empty() && self.current_stage + 1 < self.stages.len() {
+            s.next = self.stages[self.current_stage].is_over(ctx);
+        }
+        s
+    }
+
+    /// Erreur de la phase courante (`GetError`).
+    pub fn current_error(&self, ctx: &StageContext) -> Option<crate::stage::StageError> {
+        if self.current_stage + 1 < self.stages.len() {
+            self.stages[self.current_stage].error(ctx)
+        } else {
+            None
+        }
+    }
+
+    /// Seule la phase d'index `i` ou celle d'avant peut-elle recevoir une
+    /// nouvelle phase ? (`on_stage_selected` : insertion impossible entre
+    /// deux phases dont l'une est verrouillée.)
+    pub fn can_add_after(&self, index: usize) -> bool {
+        match (self.stages.get(index), self.stages.get(index + 1)) {
+            (Some(a), Some(b)) => !(a.base().locked || b.base().locked),
+            _ => true,
+        }
+    }
+
+    /// Une phase peut-elle être supprimée (`REMOVABLE` et non verrouillée) ?
+    pub fn can_remove(&self, index: usize) -> bool {
+        self.stages.get(index).map(|s| s.kind().rights().removable && !s.base().locked).unwrap_or(false)
+    }
+
+    /// Les phases verrouillées (icône de cadenas dans la formule).
+    pub fn lock_flags(&self) -> Vec<bool> {
+        self.stages.iter().map(|s| s.base().locked).collect()
+    }
+
+    /// `PlugStage` : graine aléatoire de la phase, dérivée de celle de la
+    /// phase précédente. À appeler avant de la charger ou de la préparer.
+    fn plug_stage(&mut self, index: usize) {
+        if index == 0 {
+            return;
+        }
+        let previous_seed = self.stages[index - 1].base().rand_seed;
+        let id = self.stages[index].base().id;
+        self.stages[index].base_mut().rand_seed = stage_rand_seed(id, previous_seed);
+    }
+
+    /// `Stage::RetrieveAttendees` : les qualifiés de la phase précédente
+    /// deviennent les participants de la phase `index`, avec leur rang de
+    /// départ et le statut « Q ».
+    pub fn retrieve_attendees(&mut self, ctx: &mut StageContext, index: usize) {
+        let attendees: Vec<PlayerRef> = if index == 0 { Vec::new() } else { self.stages[index - 1].output(ctx) };
+        let data_owner = self.data_owner(index);
+        let start_id = AttrId::local("stage_start_rank", data_owner);
+        let status_id = AttrId::local("status", data_owner);
+        let global_status = AttrId::global("global_status");
+        for (i, r) in attendees.iter().enumerate() {
+            if let Some(p) = ctx.players.get_mut(*r) {
+                p.set_uint(&start_id, i as u32 + 1);
+                p.set_str(&status_id, "Q");
+                p.set_str(&global_status, "Q");
+            }
+        }
+        let n = attendees.len() as u32;
+        let stage = &mut self.stages[index];
+        stage.set_attendees(ctx, attendees);
+        if stage.base().nb_qualified.is_none() && n > 0 {
+            stage.base_mut().nb_qualified = Some(n);
+        }
+    }
+
+    /// `GetPlayerDataOwner` : pour un fournisseur d'entrée, les données des
+    /// joueurs appartiennent à la phase suivante.
+    pub fn data_owner(&self, index: usize) -> Owner {
+        match self.stages.get(index) {
+            Some(s) if s.is_input_provider() => self.stages.get(index + 1).map(|n| n.base().owner()).unwrap_or(s.base().owner()),
+            Some(s) => s.base().owner(),
+            None => Owner::Global,
+        }
+    }
+
+    /// `on_next_stage_toolbutton_clicked` (sans la boîte de dialogue du
+    /// barrage). Verrouille la phase courante et prépare la suivante.
+    /// Renvoie le dépassement de quota de la phase verrouillée : s'il est
+    /// non nul, l'interface propose d'ajouter un barrage (`add_barrage`)
+    /// **avant** d'appeler `enter_next`.
+    pub fn lock_current(&mut self, ctx: &mut StageContext) -> u32 {
+        let i = self.current_stage;
+        if i >= self.stages.len() {
+            return 0;
+        }
+        self.stages[i].lock(ctx);
+        self.apply_renumbering(ctx);
+        self.refresh_previous();
+        self.stages[i].base().quota_exceedance
+    }
+
+    /// Insère un barrage après la phase courante (`CreateStage ("Barrage")`).
+    pub fn add_barrage(&mut self, ctx: &mut StageContext) -> usize {
+        let after = self.current_stage;
+        self.add_kind(ctx, StageKind::Barrage, Some(after))
+    }
+
+    /// Entre dans la phase suivante : graine, participants, préparation.
+    pub fn enter_next(&mut self, ctx: &mut StageContext) {
+        let next = self.current_stage + 1;
+        if next >= self.stages.len() {
+            return;
+        }
+        self.plug_stage(next);
+        self.retrieve_attendees(ctx, next);
+        self.stages[next].garnish(ctx);
+        self.set_current(next);
+    }
+
+    /// `on_previous_stage_toolbutton_clicked` : annule la phase courante et
+    /// déverrouille la précédente. Un barrage est supprimé.
+    pub fn go_back(&mut self, ctx: &mut StageContext) {
+        let i = self.current_stage;
+        if i == 0 || i >= self.stages.len() {
+            return;
+        }
+        if self.stages[i].kind() == StageKind::Barrage {
+            self.remove_stage(ctx, i);
+        } else {
+            self.stages[i].reset(ctx);
+            self.set_current(i - 1);
+            let c = self.current_stage;
+            self.stages[c].unlock(ctx);
+        }
+        self.refresh_previous();
+    }
+
+    /// `RemoveStage`.
+    pub fn remove_stage(&mut self, ctx: &mut StageContext, index: usize) {
+        if index >= self.stages.len() {
+            return;
+        }
+        if self.current_stage > 0 && self.current_stage == index {
+            self.stages[index].reset(ctx);
+            self.set_current(self.current_stage - 1);
+            let c = self.current_stage;
+            self.stages[c].unlock(ctx);
+        }
+        self.stages.remove(index);
+        if self.current_stage >= self.stages.len() {
+            self.current_stage = self.stages.len().saturating_sub(1);
+        }
+        self.after_structure_change();
+    }
+
+    /// `on_stage_removed` : supprime une phase supprimable et son fournisseur
+    /// d'entrée. Renvoie vrai si quelque chose a été supprimé.
+    pub fn remove_user_stage(&mut self, ctx: &mut StageContext, index: usize) -> bool {
+        if !self.can_remove(index) {
+            return false;
+        }
+        let provider = self.stages[index].input_provider().is_some() && index > 0 && self.stages[index - 1].is_input_provider();
+        self.remove_stage(ctx, index);
+        if provider {
+            self.remove_stage(ctx, index - 1);
+        }
+        true
+    }
+
+    /// Applique la renumérotation faite par le pointage aux autres phases.
+    pub fn apply_renumbering(&mut self, ctx: &mut StageContext) {
+        let _ = ctx;
+        let map = self.checkin_mut().and_then(|c| c.take_renumbering());
+        if let Some(map) = map {
+            self.remap_players(&map);
+        }
+    }
+
+    pub fn remap_players(&mut self, map: &HashMap<PlayerRef, PlayerRef>) {
+        for s in self.stages.iter_mut().skip(1) {
+            s.remap_players(map);
+        }
+    }
+
+    // ----------------------------------------------------------------------
+    // Fichiers
+
+    /// `Schedule::Load` (partie phases). `phases` est l'élément `<Phases>`
+    /// s'il existe ; `root` la racine de la compétition. Le pointage reçoit
+    /// d'abord les joueurs (`LoadPeoples`).
+    ///
+    /// Les phases antérieures à la phase en cours sont verrouillées, comme
+    /// à l'affichage dans le C++.
+    pub fn load(&mut self, ctx: &mut StageContext, root: roxmltree::Node, extra: &[String]) -> Result<(), Error> {
+        let phases = crate::xml::child(root, "Phases");
+        let current_stage_index: i64 = phases
+            .and_then(|p| p.attribute("PhaseEnCours"))
+            .map(crate::attribute::parse_leading_int)
+            .unwrap_or(-1);
+        let display_all = current_stage_index < 0;
+        self.loading = true;
+
+        // Pointage ajouté s'il manque
+        let has_checkin = phases.map(|p| crate::xml::child(p, "Pointage").is_some()).unwrap_or(false);
+        let mut nb_stage = 0usize;
+        if !has_checkin {
+            self.add_kind(ctx, StageKind::Checkin, None);
+            self.load_peoples(ctx, root, extra);
+            self.load_stage(ctx, 0, None, 1, current_stage_index, display_all)?;
+            nb_stage = 1;
+        }
+
+        if let Some(phases) = phases {
+            let mut first = true;
+            for node in phases.children().filter(|n| n.is_element()) {
+                let Some(kind) = StageKind::from_xml_name(node.tag_name().name()) else { continue };
+                let index = self.add_kind(ctx, kind, None);
+                if first {
+                    if nb_stage == 0 {
+                        self.load_peoples(ctx, root, extra);
+                    } else {
+                        // pointage injecté : verrouillé
+                        self.stages[0].lock(ctx);
+                    }
+                    first = false;
+                }
+                // fournisseur d'entrée éventuel : chargé avant la phase
+                if self.stages[index].input_provider().is_some() && index > 0 && self.stages[index - 1].is_input_provider() {
+                    nb_stage += 1;
+                    self.load_stage(ctx, index - 1, Some(node), nb_stage, current_stage_index, display_all)?;
+                }
+                nb_stage += 1;
+                self.load_stage(ctx, index, Some(node), nb_stage, current_stage_index, display_all)?;
+            }
+        }
+
+        // Phases complémentaires pour les fichiers d'autres logiciels
+        let mut current = current_stage_index;
+        if nb_stage > 0 && !self.stages.last().map(|s| s.as_any().is::<GeneralClassificationStage>()).unwrap_or(false) {
+            current = nb_stage as i64 - 1;
+            if nb_stage == 1 {
+                self.add_kind(ctx, StageKind::PoolSupervisor, None);
+                self.add_kind(ctx, StageKind::TableSupervisor, None);
+            }
+            self.add_kind(ctx, StageKind::GeneralClassification, None);
+        }
+
+        self.set_current(current.max(0) as usize);
+        Ok(())
+    }
+
+    fn load_peoples(&mut self, ctx: &mut StageContext, root: roxmltree::Node, extra: &[String]) {
+        use crate::player::PlayerClass;
+        if let Some(checkin) = self.checkin_mut() {
+            checkin.load_list(ctx, root, PlayerClass::Team, extra);
+            checkin.load_list(ctx, root, PlayerClass::Fencer, extra);
+        }
+    }
+
+    /// `LoadStage` (version à 4 paramètres).
+    fn load_stage(
+        &mut self,
+        ctx: &mut StageContext,
+        index: usize,
+        node: Option<roxmltree::Node>,
+        nb_stage: usize,
+        current_stage_index: i64,
+        display_all: bool,
+    ) -> Result<(), Error> {
+        let shown = display_all || (nb_stage as i64 - 1) <= current_stage_index;
+        if shown {
+            self.plug_stage(index);
+        }
+        if let Some(node) = node {
+            self.stages[index].load(ctx, node)?;
+        }
+        if shown && (display_all || (nb_stage as i64 - 1) < current_stage_index) {
+            self.stages[index].lock(ctx);
+        }
+        Ok(())
+    }
+
+    /// `OnLoadingCompleted` : puis application de la renumérotation différée
+    /// du pointage à toutes les phases.
+    pub fn on_loading_completed(&mut self, ctx: &mut StageContext) {
+        for s in self.stages.iter_mut() {
+            s.on_loading_completed(ctx);
+        }
+        let map = self.checkin_mut().and_then(|c| c.apply_pending_renumbering(ctx));
+        if let Some(map) = map {
+            self.remap_players(&map);
+        }
+        if let Some(c) = self.checkin_mut() {
+            c.set_loading(false);
+        }
+        self.loading = false;
+    }
+
+    /// `Schedule::Save` : `<Phases PhaseEnCours=…>` et chaque phase.
+    pub fn save(&self, ctx: &StageContext, w: &mut XmlWriter) {
+        w.start("Phases");
+        w.attr_fmt("PhaseEnCours", self.current_stage);
+        for s in &self.stages {
+            s.save(ctx, w);
+        }
+        w.end();
+    }
+
+    /// Export HTML de toutes les phases (`DumpToHTML`).
+    pub fn dump_to_html(&self, ctx: &StageContext, html: &mut String) {
+        for s in &self.stages {
+            s.dump_to_html(ctx, html);
+        }
+    }
+}

@@ -104,7 +104,7 @@ pub fn multi_compare(a: &Player, b: &Player, ids: &[AttrId], rand_seed: u32) -> 
 
 /// Tri stable de références selon `compare_players`.
 pub fn sort_refs(store: &PlayerStore, refs: &mut [PlayerRef], id: &AttrId, rand_seed: u32) {
-    refs.sort_by(|x, y| match (store.get(*x), store.get(*y)) {
+    crate::sort::glib_sort_by(refs, |x, y| match (store.get(*x), store.get(*y)) {
         (Some(a), Some(b)) => compare_players(a, b, id, rand_seed),
         _ => Ordering::Equal,
     });

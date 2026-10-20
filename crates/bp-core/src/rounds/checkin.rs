@@ -757,7 +757,7 @@ impl CheckinStage {
         let seed = self.base.rand_seed;
         {
             let store = &*ctx.players;
-            self.list.sort_by(|a, b| match (store.get(*a), store.get(*b)) {
+            crate::sort::glib_sort_by(&mut self.list, |a, b| match (store.get(*a), store.get(*b)) {
                 (Some(x), Some(y)) => compare_players(x, y, &ranking, seed),
                 _ => std::cmp::Ordering::Equal,
             });

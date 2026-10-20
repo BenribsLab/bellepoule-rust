@@ -96,7 +96,7 @@ impl Barrage {
 
         let mut list = self.barrage_players().to_vec();
         let promoted_id = AttrId::local("promoted", owner);
-        list.sort_by(|a, b| compare_players(players, *a, *b, &promoted_id, self.base.rand_seed));
+        crate::sort::glib_sort_by(&mut list, |a, b| compare_players(players, *a, *b, &promoted_id, self.base.rand_seed));
         list.reverse();
         let len = self.base.attendees.len() as u32;
         let eliminated_rank = len - (self.ties_count - self.promoted_count(players).min(self.ties_count)) + 1;
