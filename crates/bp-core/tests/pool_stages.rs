@@ -9,7 +9,7 @@ use bp_core::player::{AttrId, PlayerClass};
 use bp_core::rounds::pool::{PoolAllocatorStage, PoolSupervisorStage};
 use bp_core::rounds::table::TableSupervisor;
 use rand::SeedableRng;
-use bp_core::stage::StageKind;
+use bp_core::stage::{Stage, StageKind};
 
 fn data(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests-data").join(name)
@@ -303,4 +303,185 @@ fn half_played_table_survives_reload() {
     again.load_xml_str(&xml).unwrap();
     assert_eq!(summary(&again), before, "les scores du tableau changent après relecture");
     assert_eq!(xml, again.to_xml());
+}
+
+/// Joue la compétition avec une option de « places tirées » et renvoie les rangs finaux.
+fn play_with_fenced_places(mode: bp_core::rounds::table::FencedPlaces, fencers: u32) -> Vec<u32> {
+    let mut c = Contest::new_with_default_stages(None);
+    for i in 0..fencers {
+        let mut p = new_player(PlayerClass::Fencer);
+        p.set_str(&AttrId::global("name"), &format!("TIREUR{i:02}"));
+        p.set_uint(&AttrId::global("ranking"), i + 1);
+        let r = c.add_fencer(p).unwrap();
+        c.with_schedule(|s, ctx| {
+            s.checkin_mut().unwrap().set_attending(ctx, r, true);
+        });
+    }
+    c.with_schedule(|s, _ctx| {
+        s.stage_mut(3).unwrap().as_any_mut().downcast_mut::<TableSupervisor>().unwrap().set_fenced_places(mode);
+    });
+    for _ in 0..2 {
+        c.with_schedule(|s, ctx| {
+            s.lock_current(ctx);
+            s.enter_next(ctx);
+        });
+    }
+    c.with_schedule(|s, ctx| {
+        s.stage_mut(2).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap().stuff(ctx);
+        s.lock_current(ctx);
+        s.enter_next(ctx);
+    });
+    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(11);
+    // Les suites des battus se remplissent au fil des tours : plusieurs passes.
+    for _ in 0..6 {
+        c.with_schedule(|s, ctx| {
+            let t = s.stage_mut(3).unwrap().as_any_mut().downcast_mut::<TableSupervisor>().unwrap();
+            for set in t.visible_table_sets() {
+                t.select_table_set(Some(set));
+                for _ in 0..10 {
+                    t.stuff(ctx, &mut rng);
+                    t.display_next(set);
+                }
+            }
+        });
+    }
+    assert!(c.with_schedule(|s, ctx| s.sensitivity(ctx).next), "{mode:?} : tableaux non terminés");
+    c.with_schedule(|s, ctx| {
+        s.lock_current(ctx);
+        s.enter_next(ctx);
+    });
+    c.with_schedule(|s, ctx| s.stage(4).unwrap().classification(ctx).iter().map(|e| e.rank).collect())
+}
+
+#[test]
+fn every_fenced_places_option_gives_a_final_ranking() {
+    use bp_core::rounds::table::FencedPlaces::*;
+    for n in [8u32, 13, 20, 33] {
+        for mode in [None, ThirdPlaces, AllPlaces] {
+            let ranks = play_with_fenced_places(mode, n);
+            assert_eq!(ranks.len(), n as usize, "{mode:?} {n}");
+            assert_eq!(ranks[0], 1, "{mode:?} {n}");
+            assert!(ranks.windows(2).all(|w| w[0] <= w[1]), "{mode:?} {n} : {ranks:?}");
+            assert_eq!(ranks.iter().filter(|r| **r == 1).count(), 1, "{mode:?} {n} : {ranks:?}");
+            if mode == AllPlaces {
+                // Toutes les places sont tirées : chaque tireur a un rang distinct.
+                let mut d = ranks.clone();
+                d.dedup();
+                assert_eq!(d.len(), ranks.len(), "{mode:?} {n} : rangs identiques {ranks:?}");
+            }
+        }
+    }
+}
+
+/// Quota dépassé par des ex æquo : un barrage départage, puis la compétition continue.
+#[test]
+fn barrage_breaks_ties_at_the_quota() {
+    use bp_core::rounds::barrage::Barrage;
+    let n = 16u32;
+    let mut found = None;
+    'search: for quota in (2..n).rev() {
+        let mut c = Contest::new_with_default_stages(None);
+        for i in 0..n {
+            let mut p = new_player(PlayerClass::Fencer);
+            p.set_str(&AttrId::global("name"), &format!("TIREUR{i:02}"));
+            p.set_uint(&AttrId::global("ranking"), i + 1);
+            let r = c.add_fencer(p).unwrap();
+            c.with_schedule(|s, ctx| {
+                s.checkin_mut().unwrap().set_attending(ctx, r, true);
+            });
+        }
+        for _ in 0..2 {
+            c.with_schedule(|s, ctx| {
+                s.lock_current(ctx);
+                s.enter_next(ctx);
+            });
+        }
+        c.with_schedule(|s, ctx| {
+            let sup = s.stage_mut(2).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap();
+            sup.round().set_nb_qualified(Some(quota));
+            sup.stuff(ctx);
+        });
+        let exceedance = c.with_schedule(|s, ctx| s.lock_current(ctx));
+        if exceedance > 0 {
+            found = Some((c, exceedance));
+            break 'search;
+        }
+    }
+    let (mut c, exceedance) = found.expect("aucun quota ne provoque d'ex æquo avec ces scores");
+
+    c.with_schedule(|s, ctx| {
+        s.add_barrage(ctx);
+        s.enter_next(ctx);
+    });
+    let kinds = kinds(&c);
+    assert_eq!(kinds[3], StageKind::Barrage, "{kinds:?}");
+    let ties = c.schedule.stage(3).unwrap().as_any().downcast_ref::<Barrage>().unwrap().ties_count();
+    assert_eq!(ties, exceedance, "le barrage doit porter sur les ex æquo");
+    // Promouvoir le premier du barrage seulement.
+    c.with_schedule(|s, ctx| {
+        let b = s.stage_mut(3).unwrap().as_any_mut().downcast_mut::<Barrage>().unwrap();
+        let players: Vec<_> = b.barrage_players().to_vec();
+        for (i, r) in players.iter().enumerate() {
+            b.set_promoted(ctx, *r, i == 0);
+        }
+    });
+    // Un seul promu : le quota est respecté exactement.
+    let b = c.schedule.stage(3).unwrap().as_any().downcast_ref::<Barrage>().unwrap();
+    assert_eq!(b.promoted_count(&c.players), 1);
+    // Le barrage disparaît si l'on revient en arrière.
+    c.with_schedule(|s, ctx| s.go_back(ctx));
+    assert!(!kinds_of(&c).contains(&StageKind::Barrage));
+}
+
+fn kinds_of(c: &Contest) -> Vec<StageKind> {
+    kinds(c)
+}
+
+/// Point de scission : les tireurs exportés ne continuent pas dans la phase suivante.
+#[test]
+fn splitting_removes_exported_fencers() {
+    use bp_core::rounds::splitting::Splitting;
+    let n = 16u32;
+    let mut c = Contest::new_with_default_stages(None);
+    for i in 0..n {
+        let mut p = new_player(PlayerClass::Fencer);
+        p.set_str(&AttrId::global("name"), &format!("TIREUR{i:02}"));
+        p.set_uint(&AttrId::global("ranking"), i + 1);
+        let r = c.add_fencer(p).unwrap();
+        c.with_schedule(|s, ctx| {
+            s.checkin_mut().unwrap().set_attending(ctx, r, true);
+        });
+    }
+    for _ in 0..2 {
+        c.with_schedule(|s, ctx| {
+            s.lock_current(ctx);
+            s.enter_next(ctx);
+        });
+    }
+    c.with_schedule(|s, ctx| {
+        s.stage_mut(2).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap().stuff(ctx);
+        s.lock_current(ctx);
+        // Point de scission inséré après le tour de poules.
+        let i = s.add_kind(ctx, StageKind::Splitting, Some(2));
+        assert_eq!(i, 3);
+        s.enter_next(ctx);
+    });
+    assert_eq!(kinds(&c)[3], StageKind::Splitting);
+
+    let (exported, remaining) = c.with_schedule(|s, ctx| {
+        let sp = s.stage_mut(3).unwrap().as_any_mut().downcast_mut::<Splitting>().unwrap();
+        let first_two: Vec<_> = sp.base().attendees.iter().take(2).copied().collect();
+        for r in &first_two {
+            sp.set_exported(ctx, *r, true);
+        }
+        (first_two.len(), sp.remaining(ctx.players).len())
+    });
+    assert_eq!(exported, 2);
+    assert_eq!(remaining, n as usize - 2);
+    c.with_schedule(|s, ctx| {
+        s.lock_current(ctx);
+        s.enter_next(ctx);
+    });
+    let tables_attendees = c.schedule.stage(4).unwrap().base().attendees.len();
+    assert_eq!(tables_attendees, n as usize - 2, "les exportés ne passent pas aux tableaux");
 }
