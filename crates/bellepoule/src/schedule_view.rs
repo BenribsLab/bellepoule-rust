@@ -1,0 +1,341 @@
+//! Calendrier des phases d'une compétition (port des parties interface de
+//! `supervisor/schedule.cpp`) : liste de la formule, boutons précédent /
+//! suivant, erreur de la phase courante et onglets des phases.
+
+use std::cell::RefCell;
+use std::rc::{Rc, Weak};
+
+use bp_core::i18n::tr;
+use bp_core::stage::StageKind;
+use bp_gtk::dialogs;
+use bp_gtk::glade::Glade;
+use gtk4 as gtk;
+use gtk::prelude::*;
+
+use crate::contest_page::ContestPage;
+use crate::stages::{self, StageScreen};
+
+/// Colonnes de `stage_liststore`.
+const COL_NAME: u32 = 0;
+const COL_LOCK: u32 = 1;
+const COL_VISIBLE: u32 = 3;
+
+pub struct ScheduleView {
+    page: Weak<ContestPage>,
+    glade: Glade,
+    store: gtk::ListStore,
+    filter: gtk::TreeModelFilter,
+    notebook: gtk::Notebook,
+    screens: RefCell<Vec<Option<Rc<dyn StageScreen>>>>,
+    /// Les modifications de la sélection venant du code ne déclenchent rien.
+    updating: std::cell::Cell<bool>,
+}
+
+impl ScheduleView {
+    pub fn new(page: &Rc<ContestPage>) -> Rc<ScheduleView> {
+        let glade = Glade::new("schedule.ui").expect("schedule.ui");
+        let store: gtk::ListStore = glade.get("stage_liststore");
+        let filter: gtk::TreeModelFilter = glade.get("stage_liststore_filter");
+        filter.set_visible_column(COL_VISIBLE as i32);
+        let notebook: gtk::Notebook = glade.get("schedule_notebook");
+
+        let view = Rc::new(ScheduleView {
+            page: Rc::downgrade(page),
+            glade,
+            store,
+            filter,
+            notebook,
+            screens: RefCell::new(Vec::new()),
+            updating: std::cell::Cell::new(false),
+        });
+
+        // Les boutons de navigation rejoignent la barre d'outils de la compétition.
+        if let Some(toolbar) = page.glade.widget("contest_toolbar") {
+            for id in ["previous_stage_toolbutton", "next_stage_toolbutton", "error_toolbutton"] {
+                if let Some(w) = view.glade.widget(id) {
+                    Glade::detach_from_parent(&w);
+                    bp_gtk::glade::container_add(&toolbar, &w);
+                }
+            }
+        }
+        view.connect_handlers();
+        view.build_add_menu();
+        view
+    }
+
+    /// Carnet des phases.
+    pub fn root(&self) -> gtk::Widget {
+        let w: gtk::Widget = self.glade.get("vbox1");
+        Glade::detach_from_parent(&w);
+        w
+    }
+
+    /// Liste de la formule et paramètres de la phase.
+    pub fn config_widget(&self) -> gtk::Widget {
+        let w: gtk::Widget = self.glade.get("config_vbox");
+        Glade::detach_from_parent(&w);
+        w
+    }
+
+    fn connect_handlers(self: &Rc<Self>) {
+        macro_rules! on {
+            ($name:expr, $method:ident) => {{
+                let w = Rc::downgrade(self);
+                self.glade.connect_simple($name, move |_| {
+                    if let Some(v) = w.upgrade() {
+                        v.$method();
+                    }
+                });
+            }};
+        }
+        on!("on_previous_stage_toolbutton_clicked", on_previous);
+        on!("on_next_stage_toolbutton_clicked", on_next);
+        on!("on_remove_stage_toolbutton_clicked", on_remove);
+        on!("on_formula_treeview_cursor_changed", on_stage_selected);
+        on!("on_print_schedule_toolbutton_clicked", on_print);
+    }
+
+    /// Menu « Ajouter » : les phases modifiables et supprimables (`Schedule`).
+    fn build_add_menu(self: &Rc<Self>) {
+        let button: gtk::MenuButton = self.glade.get("add_stage_toolbutton");
+        let popover = gtk::Popover::new();
+        let list = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        for kind in StageKind::ALL {
+            let rights = kind.rights();
+            if !(rights.editable && rights.removable) {
+                continue;
+            }
+            let item = gtk::Button::with_label(&tr(kind.class_name()));
+            item.set_has_frame(false);
+            let w = Rc::downgrade(self);
+            let pop = popover.clone();
+            item.connect_clicked(move |_| {
+                pop.popdown();
+                if let Some(v) = w.upgrade() {
+                    v.add_stage(kind);
+                }
+            });
+            list.append(&item);
+        }
+        popover.set_child(Some(&list));
+        button.set_popover(Some(&popover));
+    }
+
+    // ----------------------------------------------------------------------
+
+    fn page(&self) -> Option<Rc<ContestPage>> {
+        self.page.upgrade()
+    }
+
+    /// Index (dans la suite complète des phases) de la phase sélectionnée dans la formule.
+    fn selected_index(&self) -> Option<usize> {
+        let tree: gtk::TreeView = self.glade.get("formula_treeview");
+        let (model, iter) = tree.selection().selected()?;
+        let _ = model;
+        let child = self.filter.convert_iter_to_child_iter(&iter);
+        self.store.path(&child).indices().first().map(|i| *i as usize)
+    }
+
+    fn select_index(&self, index: usize) {
+        let tree: gtk::TreeView = self.glade.get("formula_treeview");
+        let path = gtk::TreePath::from_indices(&[index as i32]);
+        if let Some(fp) = self.filter.convert_child_path_to_path(&path) {
+            self.updating.set(true);
+            tree.selection().select_path(&fp);
+            self.updating.set(false);
+        }
+    }
+
+    /// Recompose la formule, les onglets et les boutons d'après le modèle.
+    pub fn refresh(self: &Rc<Self>) {
+        let Some(page) = self.page() else { return };
+        let Some(snapshot) = page.with_contest(|c| {
+            let current = c.schedule.current_index();
+            let stages: Vec<(StageKind, String, String, bool)> = c
+                .schedule
+                .stages()
+                .map(|s| (s.kind(), tr(s.kind().class_name()), s.name(), s.base().locked))
+                .collect();
+            (current, stages)
+        }) else {
+            return;
+        };
+        let (current, stages) = snapshot;
+        let selected = self.selected_index();
+
+        // Formule
+        self.updating.set(true);
+        self.store.clear();
+        for (kind, purpose, _, locked) in &stages {
+            let iter = self.store.append();
+            let lock = if *locked { "dialog-password" } else { "" };
+            self.store.set(&iter, &[(COL_NAME, purpose), (COL_LOCK, &lock), (COL_VISIBLE, &kind.rights().editable)]);
+        }
+        self.updating.set(false);
+        self.select_index(selected.filter(|i| *i < stages.len()).unwrap_or(current));
+
+        // Onglets : les phases jusqu'à la phase courante
+        {
+            let mut screens = self.screens.borrow_mut();
+            screens.resize_with(stages.len(), || None);
+            for (i, (kind, purpose, name, _)) in stages.iter().enumerate() {
+                if kind.xml_name().is_empty() {
+                    continue; // l'allocateur de poules partage l'onglet du tour de poules
+                }
+                let shown = i <= current;
+                match (shown, screens[i].clone()) {
+                    (true, None) => {
+                        let screen = stages::build(&page, i);
+                        let label = gtk::Label::new(Some(&format!("{purpose}\n{name}")));
+                        label.set_justify(gtk::Justification::Center);
+                        self.notebook.append_page(&screen.widget(), Some(&label));
+                        screens[i] = Some(screen);
+                    }
+                    (true, Some(screen)) => {
+                        if let Some(l) = self.notebook.tab_label(&screen.widget()).and_then(|l| l.downcast::<gtk::Label>().ok()) {
+                            l.set_text(&format!("{purpose}\n{name}"));
+                        }
+                        screen.refresh();
+                    }
+                    (false, Some(screen)) => {
+                        if let Some(n) = self.notebook.page_num(&screen.widget()) {
+                            self.notebook.remove_page(Some(n));
+                        }
+                        screens[i] = None;
+                    }
+                    (false, None) => {}
+                }
+            }
+            if let Some(Some(screen)) = screens.get(current).or(screens.get(current.saturating_sub(1))) {
+                if let Some(n) = self.notebook.page_num(&screen.widget()) {
+                    self.notebook.set_current_page(Some(n));
+                }
+            }
+        }
+        self.refresh_sensitivity();
+    }
+
+    /// `Schedule::RefreshSensitivity` et état des boutons d'édition.
+    pub fn refresh_sensitivity(&self) {
+        let Some(page) = self.page() else { return };
+        let state = page.with_contest(|c| {
+            let sensitivity = c.with_schedule(|s, ctx| s.sensitivity(ctx));
+            let error = c.with_schedule(|s, ctx| s.current_error(ctx));
+            let current = c.schedule.current_index();
+            (sensitivity, error, current, c.schedule.len())
+        });
+        let Some((sensitivity, error, current, count)) = state else { return };
+        self.glade.get::<gtk::Widget>("previous_stage_toolbutton").set_sensitive(sensitivity.previous);
+        self.glade.get::<gtk::Widget>("next_stage_toolbutton").set_sensitive(sensitivity.next && current + 1 < count);
+
+        let error_button: gtk::Widget = self.glade.get("error_toolbutton");
+        match error {
+            Some(e) => {
+                error_button.set_visible(true);
+                let text = match &e.guilty {
+                    Some(g) => format!("<b>{}</b>\n{}", gtk::glib::markup_escape_text(g), gtk::glib::markup_escape_text(&e.message)),
+                    None => gtk::glib::markup_escape_text(&e.message).to_string(),
+                };
+                self.glade.get::<gtk::Label>("error_label").set_markup(&text);
+            }
+            None => error_button.set_visible(false),
+        }
+
+        // Boutons « Ajouter » / « Supprimer » selon la phase sélectionnée
+        let selected = self.selected_index();
+        let (can_add, can_remove) = page
+            .with_contest(|c| match selected {
+                Some(i) => (c.schedule.can_add_after(i), c.schedule.can_remove(i)),
+                None => (true, false),
+            })
+            .unwrap_or((false, false));
+        self.glade.get::<gtk::Widget>("add_stage_toolbutton").set_sensitive(can_add);
+        self.glade.get::<gtk::Widget>("remove_stage_toolbutton").set_sensitive(can_remove);
+    }
+
+    // ----------------------------------------------------------------------
+    // Actions
+
+    fn on_stage_selected(self: &Rc<Self>) {
+        if self.updating.get() {
+            return;
+        }
+        self.refresh_sensitivity();
+    }
+
+    /// `on_new_stage_selected` : ajoute une phase après la phase sélectionnée.
+    fn add_stage(self: &Rc<Self>, kind: StageKind) {
+        let Some(page) = self.page() else { return };
+        let after = self.selected_index();
+        page.with_contest(|c| {
+            c.with_schedule(|s, ctx| {
+                s.add_kind(ctx, kind, after);
+            })
+        });
+        page.mark_dirty();
+        self.refresh();
+    }
+
+    /// `on_stage_removed`.
+    fn on_remove(self: &Rc<Self>) {
+        let Some(page) = self.page() else { return };
+        let Some(index) = self.selected_index() else { return };
+        page.with_contest(|c| c.with_schedule(|s, ctx| s.remove_user_stage(ctx, index)));
+        page.mark_dirty();
+        self.refresh();
+    }
+
+    /// `on_previous_stage_toolbutton_clicked`.
+    fn on_previous(self: &Rc<Self>) {
+        let Some(page) = self.page() else { return };
+        let ok = dialogs::confirm(
+            page.window().as_ref(),
+            &tr("<b><big>Do you really want to cancel the current round?</big></b>"),
+            Some(&tr("All the inputs of this round will be cancelled.")),
+            Some(&tr("Go back to the previous round?")),
+        );
+        if !ok {
+            return;
+        }
+        page.with_contest(|c| c.with_schedule(|s, ctx| s.go_back(ctx)));
+        page.mark_dirty();
+        self.refresh();
+    }
+
+    /// `on_next_stage_toolbutton_clicked`.
+    fn on_next(self: &Rc<Self>) {
+        let Some(page) = self.page() else { return };
+        let title = page.with_contest(|c| c.schedule.current().map(|s| s.name())).flatten().unwrap_or_default();
+        // Archive de la compétition avant de verrouiller la phase
+        if let Some(app) = page.app.upgrade() {
+            if let Err(e) = app.tournament.borrow_mut().archive_contest(page.id, &title) {
+                log::warn!("archive : {e}");
+            }
+        }
+        let exceedance = page.with_contest(|c| c.with_schedule(|s, ctx| s.lock_current(ctx))).unwrap_or(0);
+        if exceedance > 0 {
+            let add = dialogs::run_message(
+                page.window().as_ref(),
+                gtk::MessageType::Question,
+                gtk::ButtonsType::YesNo,
+                &tr("<b><big>Because of ties, the quota is exceeded.\nDo you wish to add a barrage round?</big></b>"),
+                None,
+                Some(&tr("Barrage")),
+            ) == gtk::ResponseType::Yes;
+            if add {
+                page.with_contest(|c| c.with_schedule(|s, ctx| s.add_barrage(ctx)));
+            }
+        }
+        page.with_contest(|c| c.with_schedule(|s, ctx| s.enter_next(ctx)));
+        page.mark_dirty();
+        self.refresh();
+    }
+
+    fn on_print(self: &Rc<Self>) {
+        dialogs::info(
+            self.page().and_then(|p| p.window()).as_ref(),
+            &tr("Print"),
+            Some(&tr("Printing is not available yet in this version.")),
+        );
+    }
+}

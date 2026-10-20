@@ -9,5 +9,4 @@ pub mod glade;
 pub mod icons;
 pub mod print;
 pub mod resources;
-pub mod user_config;
 pub mod util;
