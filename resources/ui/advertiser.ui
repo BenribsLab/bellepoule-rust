@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/advertiser.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : advertiser -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkMessageDialog" id="request_token_dialog">
+    <property name="modal">True</property>
+    <property name="destroy-with-parent">True</property>
+    <property name="message-type">other</property>
+    <property name="buttons">ok-cancel</property>
+    <property name="text" translatable="yes">BellePoule needs your agreement
+to tweet on your behalf</property>
+    <property name="secondary-text" translatable="yes">Click on the link to open a web browser:</property>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox4">
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child>
+          <object class="GtkGrid" id="table1">
+            <property name="column-spacing">13</property>
+            <child>
+              <object class="GtkLabel" id="label1">
+                <property name="label">1</property>
+                <attributes>
+                  <attribute name="weight" value="bold" />
+                  <attribute name="scale" value="2" />
+                </attributes>
+                <property name="vexpand">True</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="row">0</property>
+                </layout>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="label2">
+                <property name="label">2</property>
+                <attributes>
+                  <attribute name="weight" value="bold" />
+                  <attribute name="scale" value="2" />
+                </attributes>
+                <property name="vexpand">True</property>
+                <layout>
+                  <property name="column">0</property>
+                  <property name="row">1</property>
+                </layout>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="hbox1">
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkLabel" id="label4">
+                    <property name="xalign">0</property>
+                    <property name="label" translatable="yes">Obtain an authorization code</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLinkButton" id="pin_url">
+                    <property name="receives-default">True</property>
+                    <property name="has-tooltip">True</property>
+                    <property name="label" translatable="yes">on this web site</property>
+                    <property name="has-frame">False</property>
+                  </object>
+                </child>
+                <property name="vexpand">True</property>
+                <layout>
+                  <property name="column">1</property>
+                  <property name="row">0</property>
+                </layout>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="hbox2">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">6</property>
+                <child>
+                  <object class="GtkLabel" id="label5">
+                    <property name="xalign">0</property>
+                    <property name="label" translatable="yes">Paste the authorization code here:</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="pin_entry" />
+                </child>
+                <property name="hexpand">True</property>
+                <property name="vexpand">True</property>
+                <layout>
+                  <property name="column">1</property>
+                  <property name="row">1</property>
+                </layout>
+              </object>
+            </child>
+            <property name="margin-top">17</property>
+            <property name="margin-bottom">17</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkEntry" id="entry">
+    <property name="sensitive">False</property>
+    <property name="editable">False</property>
+    <signal name="icon-press" handler="on_entry_icon_press" swapped="no" />
+    <property name="secondary-icon-name">edit-clear</property>
+  </object>
+  <object class="GtkBox" id="header">
+    <property name="orientation">horizontal</property>
+    <property name="sensitive">False</property>
+    <property name="spacing">5</property>
+    <child>
+      <object class="GtkCheckButton" id="checkbutton">
+        <property name="receives-default">False</property>
+        <signal name="toggled" handler="on_checkbutton_toggled" swapped="no" />
+        <property name="child">
+          <object class="GtkBox">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkImage" id="logo">
+                <property name="file">../glade/images/twitter.png</property>
+                <property name="pixel-size">-1</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">Advertiser</property>
+                <property name="use-underline">True</property>
+              </object>
+            </child>
+          </object>
+        </property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkSpinner" id="spinner">
+        <property name="spinning">True</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkMessageDialog" id="webkit_dialog">
+    <property name="modal">True</property>
+    <property name="destroy-with-parent">True</property>
+    <property name="buttons">cancel</property>
+    <property name="text" translatable="yes">BellePoule needs your agreement to post announces on your behalf</property>
+    <property name="secondary-text">  Follow the instructions given by Twitter:</property>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkScrolledWindow" id="webview">
+            <property name="hscrollbar-policy">automatic</property>
+            <property name="vscrollbar-policy">automatic</property>
+            <property name="has-frame">True</property>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/pillow_list.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : pillow-list -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkWindow" id="window">
+    <child>
+      <object class="GtkScrolledWindow" id="root">
+        <property name="hscrollbar-policy">automatic</property>
+        <property name="vscrollbar-policy">automatic</property>
+        <property name="has-frame">True</property>
+        <child>
+          <object class="GtkTreeView" id="players_list">
+            <property name="search-column">0</property>
+            <property name="headers-clickable">False</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

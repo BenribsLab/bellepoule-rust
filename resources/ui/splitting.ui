@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/splitting.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : splitting -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkListStore" id="label_liststore">
+    <columns>
+      <column type="gchararray" />
+    </columns>
+    <data>
+      <row>
+        <col id="0">Tableau A</col>
+      </row>
+      <row>
+        <col id="0">Tableau B</col>
+      </row>
+      <row>
+        <col id="0">N1</col>
+      </row>
+      <row>
+        <col id="0">N2</col>
+      </row>
+    </data>
+  </object>
+  <object class="GtkWindow" id="configuration_window">
+    <child>
+      <object class="GtkFrame" id="stage_configuration">
+        <property name="label-xalign">0</property>
+        <child>
+          <object class="GtkBox" id="vbox1">
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkBox" id="hbox3">
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkBox" id="hbox1">
+                    <property name="orientation">horizontal</property>
+                    <child>
+                      <object class="GtkLabel" id="label4">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">Label </property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label23">
+                        <property name="xalign">0</property>
+                        <property name="label">&lt;span foreground="black" weight="bold"&gt;*&lt;/span&gt;</property>
+                        <property name="use-markup">True</property>
+                      </object>
+                    </child>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkComboBox" id="name_combobox">
+                    <property name="model">label_liststore</property>
+                    <property name="has-entry">True</property>
+                    <property name="entry-text-column">0</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="hbox2">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">4</property>
+                <child>
+                  <object class="GtkLabel" id="label1">
+                    <property name="xalign">1</property>
+                    <property name="yalign">1</property>
+                    <property name="label" translatable="yes">Used by GREG to distinguish
+the competions created from splitting.</property>
+                    <attributes>
+                      <attribute name="style" value="italic" />
+                    </attributes>
+                    <property name="halign">end</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label2">
+                    <property name="xalign">1</property>
+                    <property name="yalign">0</property>
+                    <property name="label">&lt;span foreground="black" weight="bold"&gt;*&lt;/span&gt;</property>
+                    <property name="use-markup">True</property>
+                    <property name="halign">end</property>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkWindow" id="window">
+    <child>
+      <object class="GtkBox" id="root">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox" id="toolbar3">
+            <property name="orientation">horizontal</property>
+            <style>
+              <class name="toolbar" />
+            </style>
+            <child>
+              <object class="GtkButton" id="splitting_filter_toolbutton">
+                <signal name="clicked" handler="on_splitting_filter_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Data</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">format-justify-fill</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Data</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="splitting_print_toolbutton">
+                <signal name="clicked" handler="on_splitting_print_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Print</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">document-print</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Print</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow" id="scrolledwindow3">
+            <property name="hscrollbar-policy">automatic</property>
+            <property name="vscrollbar-policy">automatic</property>
+            <property name="has-frame">True</property>
+            <child>
+              <object class="GtkTreeView" id="players_list">
+                <property name="reorderable">True</property>
+                <property name="search-column">0</property>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

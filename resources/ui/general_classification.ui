@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/general_classification.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : general-classification -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkFileChooserDialog" id="filechooserdialog">
+    <property name="title" translatable="yes">Choose a target file...</property>
+    <property name="action">save</property>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox5">
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+      </object>
+    </child>
+    <child type="action">
+      <object class="GtkButton" id="button1">
+        <property name="receives-default">True</property>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkImage">
+                <property name="icon-name">process-stop</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">_Cancel</property>
+                <property name="use-underline">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child type="action">
+      <object class="GtkButton" id="button2">
+        <property name="receives-default">True</property>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkImage">
+                <property name="icon-name">document-save-as</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">Save _As</property>
+                <property name="use-underline">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="cancel">button1</action-widget>
+      <action-widget response="accept">button2</action-widget>
+    </action-widgets>
+  </object>
+  <object class="GtkWindow" id="window">
+    <child>
+      <object class="GtkBox" id="root">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox" id="toolbar6">
+            <property name="orientation">horizontal</property>
+            <style>
+              <class name="toolbar" />
+            </style>
+            <child>
+              <object class="GtkButton" id="general_classification_filter_button">
+                <signal name="clicked" handler="on_general_classification_filter_button_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Data</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">format-justify-fill</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Data</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="general_classification_print_toolbutton">
+                <signal name="clicked" handler="on_general_classification_print_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Print</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">document-print</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Print</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="separatortoolitem1">
+                <property name="orientation">vertical</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="export_html_toolbutton">
+                <signal name="clicked" handler="on_export_html_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <child>
+                  <object class="GtkImage" id="image1">
+                    <property name="file">../glade/images/html.png</property>
+                    <property name="pixel-size">-1</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="export_fff_toolbutton">
+                <signal name="clicked" handler="on_export_fff_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <child>
+                  <object class="GtkImage" id="image2">
+                    <property name="file">../glade/images/fff.png</property>
+                    <property name="pixel-size">-1</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="export_pdf_toolbutton">
+                <signal name="clicked" handler="on_export_pdf_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <child>
+                  <object class="GtkImage" id="image3">
+                    <property name="file">../glade/images/pdf.png</property>
+                    <property name="pixel-size">-1</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="export_frd_toolbutton">
+                <signal name="clicked" handler="on_export_frd_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <child>
+                  <object class="GtkImage" id="image4">
+                    <property name="file">../glade/images/fred.png</property>
+                    <property name="pixel-size">-1</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkViewport" id="classification_hook">
+            <property name="visible">False</property>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkFrame" id="place_shifting">
+    <property name="label-xalign">0</property>
+    <child>
+      <object class="GtkBox" id="vbox1">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox" id="hbox2">
+            <property name="orientation">horizontal</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkImage" id="image5">
+                <property name="icon-name">dialog-question</property>
+                <property name="icon-size">large</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="label5">
+                <property name="label" translatable="yes">Place shifting</property>
+                <attributes>
+                  <attribute name="weight" value="bold" />
+                  <attribute name="scale" value="2" />
+                </attributes>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkFrame" id="aspectframe1">
+            <property name="label-xalign">0</property>
+            <child>
+              <object class="GtkBox" id="hbox1">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">6</property>
+                <child>
+                  <object class="GtkLabel" id="label6">
+                    <property name="margin-start">10</property>
+                    <property name="margin-end">10</property>
+                    <property name="label" translatable="yes">Winner's place</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="place_entry">
+                    <property name="text">1</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <property name="margin-top">6</property>
+            <property name="margin-bottom">6</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child type="label">
+      <object class="GtkLabel" id="label7">
+        <property name="use-markup">True</property>
+      </object>
+    </child>
+  </object>
+</interface>
