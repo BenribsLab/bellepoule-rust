@@ -142,6 +142,15 @@ pub enum ErrorLevel {
     Error,
 }
 
+/// Phase précédente vue par une phase (`Stage::SetPrevious`) : son
+/// identifiant (propriétaire des attributs `rank` qu'elle a calculés) et son
+/// dépassement de quota (ex-aequo, utilisé par le barrage).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PreviousStage {
+    pub id: u32,
+    pub quota_exceedance: u32,
+}
+
 /// Une ligne de classement de phase.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RankEntry {
@@ -253,6 +262,13 @@ pub trait Stage: Any + Send {
     /// Phase « fournisseur d'entrée » à créer juste avant celle-ci et chargée
     /// depuis le même élément XML (`GetInputProvider` : l'allocateur de
     /// poules pour `PoolSupervisor`).
+    /// Indique la phase précédente (`SetPrevious`), à appeler par la
+    /// compétition avant `set_attendees`/`load`. Les tableaux, le barrage et
+    /// la scission s'en servent pour départager par le rang précédent.
+    fn set_previous(&mut self, previous: Option<PreviousStage>) {
+        let _ = previous;
+    }
+
     fn input_provider(&self) -> Option<StageKind> {
         None
     }
