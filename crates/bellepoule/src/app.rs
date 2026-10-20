@@ -249,6 +249,13 @@ impl App {
         self.pages.borrow().iter().find(|p| p.id == id).cloned()
     }
 
+    /// Affiche une compétition que le modèle du tournoi vient de créer.
+    pub fn show_managed_contest(self: &Rc<Self>, id: ContestId) -> Option<Rc<ContestPage>> {
+        if let Some(page) = self.page_for(id) { return Some(page); }
+        if self.tournament.borrow().contest(id).is_none() { return None; }
+        self.add_page(id)
+    }
+
     /// Retire l'onglet d'une compétition fermée.
     pub fn close_page(&self, id: ContestId) {
         if let Some(i) = self.pages.borrow().iter().position(|p| p.id == id) {

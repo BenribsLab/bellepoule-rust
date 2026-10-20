@@ -693,6 +693,41 @@ impl Contest {
         c
     }
 
+    /// `Splitting::OnLocked` : copie des seuls participants cochés, avec les
+    /// positions de départ de la scission et les membres des équipes.
+    pub fn duplicate_split(&self, index: usize, config: Option<&mut UserConfig>) -> Result<Contest> {
+        let splitting = self.schedule.stage(index)
+            .and_then(|s| s.as_any().downcast_ref::<crate::rounds::splitting::Splitting>())
+            .ok_or_else(|| Error::Format("la phase choisie n'est pas un point de scission".into()))?;
+        let mut target = self.duplicate(Some(&crate::stage::Stage::base(splitting).name), config);
+        for (reference, rank) in splitting.exported_players(&self.players) {
+            let Some(player) = self.players.get(reference) else { continue };
+            let mut copy = split_player(player);
+            copy.set_uint(&crate::player::AttrId::global("ranking"), rank);
+            let new_ref = target.add_fencer(copy).ok_or_else(|| Error::Format("impossible d'ajouter le participant extrait".into()))?;
+            if player.class == crate::player::PlayerClass::Team {
+                for member in &player.members {
+                    if let Some(member) = self.players.get(*member) {
+                        let mut copy = split_player(member);
+                        copy.set_str(&crate::player::AttrId::global("team"), &player.name());
+                        target.add_fencer(copy).ok_or_else(|| Error::Format("impossible d'ajouter un membre de l'équipe extraite".into()))?;
+                    }
+                }
+                // L'ajout des membres peut recalculer le classement d'équipe.
+                if let Some(team) = target.players.get_mut(new_ref) {
+                    team.set_uint(&crate::player::AttrId::global("ranking"), rank);
+                }
+            }
+        }
+        target.with_schedule(|schedule, ctx| {
+            if let Some(checkin) = schedule.checkin_mut() {
+                checkin.on_list_changed(ctx);
+            }
+        });
+        target.dirty = true;
+        Ok(target)
+    }
+
     /// Un libellé est conseillé pour la publication sur GREG.
     pub fn needs_label_for_greg(&self) -> bool {
         self.label.is_empty()
@@ -700,6 +735,26 @@ impl Contest {
 }
 
 impl Contest {
+    /// Résultats AskFred avec le magasin d'arbitres distinct.
+    pub fn export_askfred(&self) -> String {
+        let header = self.header();
+        let checkin = self.schedule.checkin();
+        let people = crate::formats::fie_xml::XmlPeople {
+            fencers: checkin.map(|c| c.fencers(&self.players)).unwrap_or_default(),
+            teams: checkin.map(|c| c.teams(&self.players)).unwrap_or_default(),
+            referees: self.referees.refs().to_vec(),
+        };
+        let mut phases = crate::xml::XmlWriter::new().without_indent();
+        let mut players = self.players.clone();
+        let ctx = StageContext { players: &mut players, settings: &self.settings };
+        self.schedule.save(&ctx, &mut phases);
+        let phases = phases.finish();
+        crate::formats::askfred::writer::dump_to_frd_with_referees(
+            &crate::formats::askfred::writer::FrdInput { header: &header, store: &self.players, people: &people, phases_xml: Some(&phases) },
+            self.referees.store(),
+        )
+    }
+
     /// En-tête de la compétition pour les imports et exports (`formats`).
     pub fn header(&self) -> crate::formats::header::ContestHeader {
         crate::formats::header::ContestHeader {
@@ -773,6 +828,20 @@ impl Contest {
         let refs: Vec<PlayerRef> = self.schedule.checkin().map(|c| c.fencers(&self.players)).unwrap_or_default();
         crate::formats::csv::export(&self.players, &refs, delimiter)
     }
+}
+
+fn split_player(player: &Player) -> Player {
+    use crate::attribute::Value;
+    use crate::player::AttrId;
+    let mut copy = player.duplicate();
+    copy.set_ref(0);
+    copy.team = None;
+    copy.members.clear();
+    copy.set(&AttrId::global("exported"), Value::Bool(false));
+    copy.remove(&AttrId::global("final_rank"));
+    copy.remove(&AttrId::global("incident"));
+    copy.set_str(&AttrId::global("global_status"), if copy.attending() { "Q" } else { "F" });
+    copy
 }
 
 /// `GetUnknownAttributes` : attributs du premier `<Tireur>` que le registre

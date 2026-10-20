@@ -31,9 +31,11 @@ Fenêtre principale, menus, onglets, nouvelle compétition, propriétés, ouvert
 « Appel » complet (ajout de tireurs, formulaire, présence, « tous », import, filtre).
 
 ## Point d'arrêt exact
-Les écrans de composition/supervision des poules et le superviseur de tableaux sont branchés et compilent.
+Tous les types de phases ont maintenant leur écran : appel, composition/supervision des poules,
+tableaux, barrage, scission et classement général. Les derniers ajouts compilent.
 **Aucune validation interactive de ces nouveaux écrans n'a encore été faite.**
-Le chantier suivant est l'interface du barrage, puis scission et classement général. Ne pas confondre compilation et fidélité vérifiée.
+Le prochain chantier de code est le menu des langues puis l'impression de l'appel ; arbitres/planning
+et intégration réseau restent à terminer. Ne pas confondre compilation et fidélité vérifiée.
 
 ### Composition des poules
 - `stages/allocator.rs` : branché dans `stages/mod.rs`, rafraîchissement via `Weak<Self>` ; formules,
@@ -93,15 +95,42 @@ Le chantier suivant est l'interface du barrage, puis scission et classement gén
   graphiques des filtres et l'exacte mise en page du C++ restent à contrôler. Ne pas annoncer ces
   fonctions comme vérifiées en compétition.
 
+### Barrage, scission et classement général (dernière reprise)
+- `stages/barrage.rs` : liste des ex æquo avec cases « promu », compteurs qualifiés/éliminés,
+  classement complet, filtres et impression. Seuls les participants du barrage sont modifiables ;
+  le verrouillage interdit la saisie et les compteurs réactualisent la navigation.
+- `stages/splitting.rs` : cases « exporté », filtre, impression et nom de la compétition extraite
+  dans les paramètres de formule (champ libre avec propositions du C++).
+- Au franchissement d'une scission, `Tournament::split_current_contest` / `Contest::duplicate_split`
+  créent une compétition sans poules, ouverte dans un nouvel onglet. Seuls les participants cochés
+  sont copiés, avec leur position d'entrée (sans compacter les trous), attribut exporté remis à faux,
+  nouveaux identifiants, attributs locaux retirés. Les équipes reconstruisent leurs liens vers les
+  membres copiés et recalculent leur présence. La source poursuit avec les participants restants.
+  Revenir puis franchir de nouveau une scission crée une nouvelle compétition, comme le C++.
+- `stages/general_classification.rs` : liste finale, filtre, impression et exports HTML, FFF, PDF,
+  AskFred. Le sélecteur mémorise le dossier ; FFF expose la place du vainqueur (décalage = place − 1).
+  Les exports et rafraîchissements de vue lisent le classement calculé, sans le modifier.
+- `widgets/list_document.rs` : cellules communes aux trois écrans pour impression/PDF, pagination
+  de 25 lignes, en-têtes répétés et séparateurs de classement sur papier. Le PDF utilise cairo.
+- `Contest::export_askfred` sérialise la formule ; les nouvelles variantes additives des écrivains
+  FIE/AskFred lisent les arbitres dans leur magasin distinct, même en cas de références identiques.
+- `Schedule::refresh_general_classification` restaure les rangs des phases précédentes avant de
+  décaler les rangs pour exclus/exportés, afin de ne pas décaler plusieurs fois les anciens éliminés.
+- Validation structurelle des trois `.ui` réussie. Fidélité visuelle et mise en page exacte du C++
+  encore à contrôler : colonnes graphiques, présentation du classement et impressions/PDF.
+
 ### Vérifications réalisées
 Avec `CARGO_TARGET_DIR=target/agent` :
 - `cargo check --workspace --tests` : succès (tests compilés, pas exécutés).
 - `cargo build --workspace` : succès.
 - `cargo clippy --workspace --tests` : succès avec avertissements préexistants.
-Application non lancée ; aucun test interactif ni test automatisé exécuté. Validation structurelle des deux fichiers UI des tableaux réalisée avec gtk4-builder-tool.
+Application non lancée ; aucun test interactif ni test automatisé exécuté. Validation structurelle des UI de tableaux, barrage, scission et classement général avec gtk4-builder-tool.
 Régressions ajoutées et compilées : saisie Unicode, plusieurs retardataires avant renumérotation,
 `tests/table_view.rs` (collision d'identifiants arbitre/tireur, pagination 4/8/16, feuilles en attente)
 et reconstruction répétée du canevas sans croissance de son stockage.
+Ajouts de cette reprise : `tests/contest_splitting.rs` (individuels/équipes, positions, autonomie,
+relecture) et `tests/contest_exports.rs` (collision arbitre/tireur AskFred, décalage FFF sans mutation,
+stabilité du classement après recalcul avec export d'un éliminé). Compilés, non exécutés.
 
 ## Suite (dans l'ordre)
 1. Vérifier les écrans de poules selon les scénarios ci-dessous. Comparer au C++ le rendu/zoom,
@@ -109,10 +138,10 @@ et reconstruction répétée du canevas sans croissance de son stockage.
    clavier et les impressions (grandes poules, noms longs). La feuille utilise des widgets GTK ;
    sa fidélité visuelle exacte au canevas C++ n'est pas encore établie. Pistes/arbitres affichés ;
    aiguillage réseau encore à faire.
-2. Écrans barrage, scission et classement général : ces phases affichent toujours `Pending`.
-   Les tableaux sont maintenant écrits et compilés ; validation interactive à faire.
-3. Menu des langues, impression de l'appel, publication/réseau, exports restants
-   (AskFred : incohérence du magasin d'arbitres).
+2. Vérifier barrage, scission et classement général selon les scénarios ci-dessous.
+   Tous les types de phases sont branchés ; leur fidélité visuelle reste à valider.
+3. Menu des langues, impression de l'appel, arbitres/planning, publication/réseau.
+   AskFred est branché et son magasin d'arbitres corrigé ; contrôler les exports réels.
 4. Marshaller (interface/logique ~30 %), intégration LivePoule, routage des messages.
 5. Retirer `BP_DEBUG_SHOW_FORM`, `BP_DEBUG_TOGGLE` et `PlayersListView::debug_toggle`.
 6. Tenir `AVANCEMENT.md` à jour ; ne pas annoncer un clone terminé sans validation des fonctions
@@ -150,6 +179,21 @@ et reconstruction répétée du canevas sans croissance de son stockage.
   (icône d'en-tête). Tester annulation, toutes/en attente, 4/8/16, portrait/paysage et PDF.
 - Commandes pour les régressions à exécuter par l'utilisateur : `cargo test -p bp-core --test table_view`
   et `cargo test -p bp-gtk repeated_scene_reconstruction_keeps_storage_bounded` (PATH GTK4 pour ce dernier).
+
+### Scénarios barrage, scission et classement général
+- Fixer un quota de poules coupant des ex æquo ; accepter le barrage. Seuls les ex æquo doivent
+  figurer dans la liste de saisie. Cocher les promus, vérifier les deux compteurs et le classement,
+  imprimer, puis passer à la suite. Revenir doit retirer le barrage comme dans le C++.
+- Insérer une scission dans la formule, choisir un nom, cocher quelques tireurs et avancer :
+  un nouvel onglet doit contenir uniquement les cochés, sans poules et avec les positions initiales
+  comme classement d'entrée. La source continue sans eux. Tester aussi aucune sélection.
+- Refaire avec des équipes : membres présents, liens vers la bonne équipe, aucun doublon, pas de
+  participant importé dans la mauvaise compétition. Enregistrer/réouvrir les deux compétitions.
+- Finir les tableaux : contrôler le classement final, les abandons/exclusions et les exportés.
+  Modifier les colonnes, imprimer et exporter HTML/FFF/PDF/FRD. FFF : place du vainqueur 1 puis 9 ;
+  le classement affiché ne doit pas changer. Contrôler accents, pays, pagination et noms longs.
+- Régressions à lancer par l'utilisateur : `cargo test -p bp-core --test contest_splitting`
+  et `cargo test -p bp-core --test contest_exports`.
 
 ## Pièges connus
 - L'appel (pointage) est **verrouillé** après « Tour suivant » : « Tour précédent » le déverrouille. Un

@@ -4,3 +4,4 @@ pub mod filter_dialog;
 pub mod form;
 pub mod players_list;
 pub mod render;
+pub mod list_document;

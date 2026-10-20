@@ -277,6 +277,11 @@ pub fn write_header_attributes(w: &mut XmlWriter, h: &ContestHeader) {
 /// Sauf si `separately` (AskFred), les tireurs membres d'une équipe ne sont
 /// écrits qu'à l'intérieur de leur équipe pour une épreuve par équipes.
 pub fn write_people(w: &mut XmlWriter, team_event: bool, store: &PlayerStore, people: &XmlPeople, separately: bool) {
+    write_people_with_referees(w, team_event, store, store, people, separately);
+}
+
+/// Variante pour les compétitions dont les arbitres ont leur propre magasin.
+pub fn write_people_with_referees(w: &mut XmlWriter, team_event: bool, store: &PlayerStore, referees: &PlayerStore, people: &XmlPeople, separately: bool) {
     w.start("Tireurs");
     for r in &people.fencers {
         let Some(p) = store.get(*r) else { continue };
@@ -294,7 +299,7 @@ pub fn write_people(w: &mut XmlWriter, team_event: bool, store: &PlayerStore, pe
     w.end();
     w.start("Arbitres");
     for r in &people.referees {
-        if let Some(p) = store.get(*r) {
+        if let Some(p) = referees.get(*r) {
             p.save(w, false);
         }
     }

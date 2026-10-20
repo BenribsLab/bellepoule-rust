@@ -10,10 +10,13 @@ use gtk::prelude::*;
 use gtk4 as gtk;
 
 pub mod allocator;
+pub mod barrage;
 pub mod checkin;
+pub mod general_classification;
 mod pillow;
 pub mod pool_supervisor;
 pub mod table_supervisor;
+pub mod splitting;
 
 use crate::contest_page::ContestPage;
 
@@ -37,6 +40,9 @@ pub fn build(page: &Rc<ContestPage>, index: usize) -> Rc<dyn StageScreen> {
         Some(StageKind::PoolAllocator) => allocator::AllocatorScreen::new(page, index),
         Some(StageKind::PoolSupervisor) => pool_supervisor::SupervisorScreen::new(page, index),
         Some(StageKind::TableSupervisor) => table_supervisor::TableScreen::new(page, index),
+        Some(StageKind::Barrage) => barrage::BarrageScreen::new(page, index),
+        Some(StageKind::Splitting) => splitting::SplittingScreen::new(page, index),
+        Some(StageKind::GeneralClassification) => general_classification::ClassificationScreen::new(page, index),
         _ => Rc::new(Pending::new(page, index)),
     }
 }

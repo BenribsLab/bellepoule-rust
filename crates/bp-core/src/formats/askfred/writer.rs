@@ -12,7 +12,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::formats::fie_xml::{write_people, write_team, XmlPeople};
+use crate::formats::fie_xml::{write_people_with_referees, write_team, XmlPeople};
 use crate::formats::header::{weapon_msgid, ContestHeader};
 use crate::formats::scheme::{replay_children, XmlScheme};
 use crate::player::PlayerStore;
@@ -628,6 +628,12 @@ fn replay_fragment(xml: &str, scheme: &mut dyn XmlScheme) {
 /// (le C++ utilise le libellé traduit, que la table AskFred ne sait
 /// convertir qu'en anglais).
 pub fn dump_to_frd(input: &FrdInput) -> String {
+    dump_to_frd_with_referees(input, input.store)
+}
+
+/// Export avec magasins distincts, sans fusionner des références qui peuvent
+/// être identiques pour un tireur et un arbitre.
+pub fn dump_to_frd_with_referees(input: &FrdInput, referees: &PlayerStore) -> String {
     let h = input.header;
     let mut s = AskFredScheme::new();
     s.start_element("FencingData");
@@ -682,7 +688,7 @@ pub fn dump_to_frd(input: &FrdInput) -> String {
     // Schedule::SavePeoples
     {
         let mut w = XmlWriter::new().without_indent();
-        write_people(&mut w, h.team_event, input.store, input.people, true);
+        write_people_with_referees(&mut w, h.team_event, input.store, referees, input.people, true);
         replay_fragment(&w.finish(), &mut s);
     }
     s.write_custom("ClubDatabase");

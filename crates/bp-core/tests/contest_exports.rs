@@ -8,6 +8,10 @@ use bp_core::rounds::table::TableSupervisor;
 use rand::SeedableRng;
 
 fn finished_competition(n: u32) -> Contest {
+    finished_with_quota(n, None)
+}
+
+fn finished_with_quota(n: u32, quota: Option<u32>) -> Contest {
     let mut c = Contest::new_with_default_stages(None);
     c.name = "Challenge de test".into();
     for i in 0..n {
@@ -29,7 +33,9 @@ fn finished_competition(n: u32) -> Contest {
     }
     let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(5);
     c.with_schedule(|s, ctx| {
-        s.stage_mut(2).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap().stuff(ctx);
+        let pools = s.stage_mut(2).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap();
+        pools.round().set_nb_qualified(quota);
+        pools.stuff(ctx);
         s.lock_current(ctx);
         s.enter_next(ctx);
         let t = s.stage_mut(3).unwrap().as_any_mut().downcast_mut::<TableSupervisor>().unwrap();
@@ -76,6 +82,50 @@ fn csv_export_can_be_imported_again() {
     let imported = bp_core::formats::csv::import(csv.as_bytes(), PlayerClass::Fencer);
     assert_eq!(imported.players.len(), 10);
     assert!(imported.players.players().any(|p| p.name() == "TIREUR03"));
+}
+
+#[test]
+fn askfred_reads_referees_from_their_own_store() {
+    let mut c = finished_competition(8);
+    let fencer = c.players.iter().next().unwrap().reference;
+    let mut referee = new_player(PlayerClass::Referee);
+    referee.set_ref(fencer);
+    referee.set_str(&AttrId::global("name"), "ARBITRE TEST");
+    referee.set_str(&AttrId::global("first_name"), "Alice");
+    assert_eq!(c.referees.add(referee), fencer);
+    let before = c.to_xml();
+    let xml = c.export_askfred();
+    let doc = bp_core::xml::parse(&xml).unwrap();
+    let referee = doc.descendants().find(|n| n.has_tag_name("Referee")).unwrap();
+    assert_eq!(referee.attribute("LastName"), Some("ARBITRE TEST"));
+    assert_eq!(referee.attribute("FirstName"), Some("Alice"));
+    assert_eq!(doc.descendants().filter(|n| n.has_tag_name("Fencer")).count(), 8);
+    assert_eq!(c.to_xml(), before, "un export ne modifie pas la competition");
+}
+
+#[test]
+fn fff_start_place_does_not_change_the_final_ranks() {
+    let c = finished_competition(8);
+    let original = c.export_final_classification_fff(0).unwrap();
+    let shifted = c.export_final_classification_fff(8).unwrap();
+    let text: String = shifted.iter().map(|b| *b as char).collect();
+    assert!(text.lines().nth(2).unwrap().ends_with(";9,t"));
+    assert_eq!(c.export_final_classification_fff(0).unwrap(), original);
+}
+
+#[test]
+fn recalculating_after_an_eliminated_export_does_not_shift_ranks_again() {
+    let mut c = finished_with_quota(16, Some(8));
+    let finalists = c.schedule.current().unwrap().base().attendees.clone();
+    let eliminated = c.players.iter()
+        .filter(|p| !finalists.contains(&p.reference))
+        .min_by_key(|p| p.attr("final_rank").unwrap().as_uint())
+        .unwrap().reference;
+    c.players.get_mut(eliminated).unwrap().set_uint(&AttrId::global("exported"), 1);
+    c.with_schedule(|s, ctx| s.refresh_general_classification(ctx));
+    let first = c.export_final_classification_fff(0).unwrap();
+    c.with_schedule(|s, ctx| s.refresh_general_classification(ctx));
+    assert_eq!(c.export_final_classification_fff(0).unwrap(), first);
 }
 
 #[test]

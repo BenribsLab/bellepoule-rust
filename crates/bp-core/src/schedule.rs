@@ -364,6 +364,14 @@ impl Schedule {
             if !self.stages[i].as_any().is::<GeneralClassificationStage>() || i > self.current_stage {
                 continue;
             }
+            // Restaurer les rangs bruts des elimines avant de retrancher les
+            // exclus/exportes : les rangs finaux du calcul precedent sont
+            // deja decales et ne doivent pas etre decales une seconde fois.
+            for previous in 0..i {
+                if self.stages[previous].kind() != StageKind::GeneralClassification {
+                    self.give_eliminated_a_final_rank(ctx, previous);
+                }
+            }
             let previous_owner = self.stages[i - 1].base().owner();
             let rank = AttrId::local("rank", previous_owner);
             let ranks: HashMap<PlayerRef, u32> = self.stages[i]

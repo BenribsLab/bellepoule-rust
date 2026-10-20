@@ -19,9 +19,9 @@ Légende : ✅ fait · 🟡 écrit, compile, non vérifié · ❌ pas commencé
 | Tableaux, barrage, scission | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Poules | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Compétition, pointage, classement | ✅ logique terminée (hors réseau) | ~90 % |
-| Socle graphique + fenêtre principale | 🟡 fenêtre, appel, poules et tableaux écrits ; dernières phases à valider | ~45 % |
+| Socle graphique + fenêtre principale | 🟡 fenêtre et tous les types de phases écrits ; validation interactive restante | ~45 % |
 | Marshaller | 🟡 | ~30 % |
-| Vague 2 (écrans des phases, impression, liaison réseau) | 🟡 poules, tableaux et impressions compilés, non vérifiés | à réévaluer |
+| Vague 2 (écrans des phases, impression, liaison réseau) | 🟡 tous les types de phases et leurs impressions compilés, non vérifiés | à réévaluer |
 
 **Global : ~55 %.**
 
@@ -77,7 +77,7 @@ propriétés, calendrier, enregistrement automatique 5 s, fermeture), calendrier
 suivant, barrage, erreurs). Lancement vérifié par capture d'écran.
 Écran d'appel (liste des tireurs avec icônes et cases de présence, tri, ajout/modification par le formulaire,
 suppression, import FFF/CSV, import de classement, colonnes à afficher, présents/absents, équipes) ✅.
-**Reste** : menu des langues, validation des poules/tableaux, autres phases (étape 6), impression de l'appel.
+**Reste** : menu des langues, validation des phases (étape 6), impression de l'appel.
 
 ### Étape 6 — Écrans des phases (vague 2) ← EN COURS
 🟡 Composition des poules branchée : formules, séparation, déplacements, filtres, liste,
@@ -93,12 +93,23 @@ Magasin distinct des arbitres utilisé pour le dessin et les feuilles. Vue du ca
 Le calendrier expose l'onglet propre de l'allocateur et les paramètres des phases futures.
 Ces ajouts sont **compilés, sans validation interactive** ; la fidélité exacte du rendu GTK/cairo
 et des impressions doit encore être comparée à la référence.
-**Reste** : barrage, scission, classement général, arbitres/planning et réseau (dont QR des feuilles de tableau).
+🟡 Barrage : cases de promotion, compteurs, classement, filtres et impression.
+🟡 Scission : sélection et nom ; nouvelle compétition dans un onglet, classement d'entrée conservé,
+équipes et membres copiés avec leurs propres liens. Présence recalculée après copie.
+🟡 Classement général : liste, filtre, impression et exports HTML/FFF/PDF/AskFred, place du vainqueur
+pour FFF et dossier d'export mémorisé. Documents cairo paginés communs aux trois écrans.
+AskFred lit maintenant le magasin distinct d'arbitres. Le recalcul du classement général restaure
+les rangs bruts avant de décaler les exclus/exportés pour éviter les décalages répétés.
+Ces derniers ajouts sont également **compilés, sans validation interactive**.
+**Reste** : validation des écrans, arbitres/planning et réseau (dont QR des feuilles de tableau).
 `cargo check --workspace --tests`, `cargo build --workspace` et `cargo clippy --workspace --tests`
 passent ; avertissements préexistants. Tests compilés, non exécutés. Régressions ajoutées :
 saisie Unicode, plusieurs retardataires avant renumérotation, arbitres/pagination/feuilles en attente
 des tableaux, stockage du canevas après reconstructions répétées. Les deux UI des tableaux valident
-avec `gtk4-builder-tool validate`. Aucun lancement interactif de l'application.
+avec `gtk4-builder-tool validate`, ainsi que barrage, scission et classement général.
+Nouvelles régressions compilées : scission individuelle/par équipes, relecture et liens autonomes ;
+AskFred avec collision arbitre/tireur, décalage FFF sans mutation et recalcul stable du classement.
+Aucun lancement interactif de l'application.
 Détails et scénarios : `REPRISE.md`.
 
 ### Étape 7 — Marshaller
@@ -151,4 +162,7 @@ joueurs et équipes, export HTML, phase de pointage, classement général.
    listes, feuilles arbitres/résultats et classements.
 5. Poules → tableaux : saisie directe/rapide, zoom, recherche, exemptions, modifications de scores,
    statuts, 3e place/toutes les places, sauvegarde/réouverture et impressions. Détails dans `REPRISE.md`.
+6. Barrage : quota avec ex æquo, cases de promotion, compteurs et retour précédent.
+7. Scission : sélection, nouvel onglet, équipes et membres, poursuite de la source et relecture.
+8. Classement général : filtre, impressions et exports HTML/FFF/PDF/AskFred ; place FFF 1 puis 9.
 Aucun test interactif lancé par l'agent.

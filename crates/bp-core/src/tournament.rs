@@ -94,6 +94,21 @@ impl Tournament {
         self.manage(contest)
     }
 
+    /// Prépare la compétition créée au franchissement d'un point de scission.
+    /// Cette méthode n'avance pas la source : l'interface verrouille ensuite
+    /// la phase et affiche l'onglet de la nouvelle compétition.
+    pub fn split_current_contest(&mut self, source: ContestId) -> Result<ContestId> {
+        let at = self.contests.iter().position(|(id, _)| *id == source)
+            .ok_or_else(|| Error::Format("compétition source introuvable".into()))?;
+        let source = &self.contests[at].1;
+        let index = source.schedule.current_index();
+        if source.schedule.current().is_none_or(|s| s.base().locked) {
+            return Err(Error::Format("le point de scission n'est pas modifiable".into()));
+        }
+        let target = source.duplicate_split(index, Some(&mut self.config))?;
+        Ok(self.manage(target))
+    }
+
     /// `OnContestDeleted`.
     pub fn close(&mut self, id: ContestId) -> Option<Contest> {
         let i = self.contests.iter().position(|(c, _)| *c == id)?;
