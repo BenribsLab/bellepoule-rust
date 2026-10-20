@@ -152,6 +152,15 @@ pub struct RankEntry {
     pub status: char,
 }
 
+/// Phase précédente vue par une phase (`Stage::SetPrevious`) : son
+/// identifiant (propriétaire des attributs `rank` qu'elle a calculés) et son
+/// dépassement de quota (ex-aequo, utilisé par le barrage).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PreviousStage {
+    pub id: u32,
+    pub quota_exceedance: u32,
+}
+
 /// Données communes à toutes les phases (champs privés de `Stage`).
 #[derive(Debug, Clone)]
 pub struct StageBase {
@@ -311,6 +320,13 @@ pub trait Stage: Any + Send {
         entries.retain(|e| e.status == 'Q');
         let limit = self.base().nb_qualified.map(|n| n as usize).unwrap_or(usize::MAX);
         entries.into_iter().take(limit).map(|e| e.player).collect()
+    }
+
+    /// Indique la phase précédente (`SetPrevious`), à appeler par la
+    /// compétition avant `set_attendees`/`load`. Les tableaux, le barrage et
+    /// la scission s'en servent pour départager par le rang précédent.
+    fn set_previous(&mut self, previous: Option<PreviousStage>) {
+        let _ = previous;
     }
 
     fn lock(&mut self, ctx: &mut StageContext) {
