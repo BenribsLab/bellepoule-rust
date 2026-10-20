@@ -4,4 +4,32 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "marshaller"
+path = "src/main.rs"
+
 [dependencies]
+bp-core = { workspace = true }
+bp-net = { workspace = true }
+gtk4 = { workspace = true }
+cairo-rs = { workspace = true }
+pango = { workspace = true }
+pangocairo = { workspace = true }
+glib = { workspace = true }
+gio = { workspace = true }
+gdk-pixbuf = { workspace = true }
+chrono = { workspace = true }
+roxmltree = { workspace = true }
+serde_json = { workspace = true }
+sha1 = { workspace = true }
+sha2 = { workspace = true }
+aes = { workspace = true }
+cbc = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+qrcode = { workspace = true }
+encoding_rs = { workspace = true }
+ureq = { workspace = true }
