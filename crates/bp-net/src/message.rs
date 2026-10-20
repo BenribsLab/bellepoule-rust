@@ -171,6 +171,37 @@ impl Message {
             .unwrap_or_default()
     }
 
+    /// `Message::Spread` : diffusion par l'anneau global ([`crate::Ring::broker`]).
+    pub fn spread(&mut self) {
+        match crate::ring::Ring::broker() {
+            Some(ring) => ring.spread_message(self),
+            None => {
+                self.set_fitness(1);
+                self.spread = true;
+            }
+        }
+    }
+
+    /// `Message::Recall` : rappel par l'anneau global.
+    pub fn recall(&mut self) {
+        if let Some(ring) = crate::ring::Ring::broker() {
+            ring.recall_message(self);
+        }
+        self.spread = false;
+    }
+
+    /// `Dump` : trace du message (texte complet, ou nom seul coloré selon
+    /// la « fitness »).
+    pub fn dump(&self, regular: bool) -> String {
+        use crate::netutil::color::{BLUE, ESC, RED};
+        if regular {
+            format!("{BLUE}-----------------\n{ESC}{}\n", self.parcel())
+        } else {
+            let color = if self.fitness() != 0 { BLUE } else { RED };
+            format!("{color}< {} >\n{ESC}", self.name().unwrap_or("(null)"))
+        }
+    }
+
     /// Texte sérialisé (`GetParcel`, `g_key_file_to_data`).
     pub fn parcel(&self) -> String {
         let mut out = String::new();
@@ -204,7 +235,7 @@ fn set(entries: &mut Vec<(String, String)>, key: &str, value: String) {
 }
 
 /// Échappement `GKeyFile` des valeurs chaînes.
-fn escape(v: &str) -> String {
+pub(crate) fn escape(v: &str) -> String {
     let mut out = String::with_capacity(v.len());
     for (i, c) in v.chars().enumerate() {
         match c {
@@ -220,7 +251,7 @@ fn escape(v: &str) -> String {
     out
 }
 
-fn unescape(v: &str) -> String {
+pub(crate) fn unescape(v: &str) -> String {
     let mut out = String::with_capacity(v.len());
     let mut chars = v.chars();
     while let Some(c) = chars.next() {
