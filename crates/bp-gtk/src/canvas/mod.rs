@@ -23,12 +23,13 @@ pub use view::CanvasView;
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 use gtk4 as gtk;
 use gtk::gdk;
 use gtk::gdk_pixbuf::Pixbuf;
 use gtk::pango;
+use gtk::pango::prelude::FontMapExt;
 
 /// Police par défaut de BellePoule (`BP_FONT`).
 pub const BP_FONT: &str = "Sans ";
@@ -366,7 +367,7 @@ thread_local! {
     static PANGO_CONTEXT: pango::Context = {
         let fm = pangocairo::FontMap::default();
         let ctx = fm.create_context();
-        let opts = cairo::FontOptions::new().expect("cairo::FontOptions");
+        let mut opts = cairo::FontOptions::new().expect("cairo::FontOptions");
         opts.set_hint_metrics(cairo::HintMetrics::Off);
         opts.set_hint_style(cairo::HintStyle::None);
         pangocairo::functions::context_set_font_options(&ctx, Some(&opts));
@@ -686,14 +687,6 @@ impl Canvas {
                 widgets_changed: false,
             })),
         }
-    }
-
-    pub(crate) fn downgrade(&self) -> Weak<RefCell<Scene>> {
-        Rc::downgrade(&self.scene)
-    }
-
-    pub(crate) fn from_weak(w: &Weak<RefCell<Scene>>) -> Option<Canvas> {
-        w.upgrade().map(|scene| Canvas { scene })
     }
 
     pub fn ptr_eq(&self, other: &Canvas) -> bool {
@@ -1198,10 +1191,6 @@ impl Canvas {
             }
         }
         v
-    }
-
-    pub(crate) fn take_widgets_changed(&self) -> bool {
-        std::mem::take(&mut self.scene.borrow_mut().widgets_changed)
     }
 
     // --- Rendu ----------------------------------------------------------
