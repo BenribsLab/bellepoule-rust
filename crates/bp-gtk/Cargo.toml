@@ -1,8 +1,19 @@
 [package]
 name = "bp-gtk"
+description = "Briques GTK4 communes de BellePoule : interfaces .ui, modules, canevas cairo, impression, listes de joueurs"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
+bp-core = { workspace = true }
 gtk4 = { workspace = true }
+cairo-rs = { workspace = true }
+pango = { workspace = true }
+pangocairo = { workspace = true }
+glib = { workspace = true }
+gio = { workspace = true }
+gdk-pixbuf = { workspace = true }
+roxmltree = { workspace = true }
+qrcode = { workspace = true }
+log = { workspace = true }
