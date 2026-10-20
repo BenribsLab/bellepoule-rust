@@ -1,0 +1,482 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/pool_allocator.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : pool-allocator -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkListStore" id="combo_liststore">
+    <columns>
+      <column type="gchararray" />
+      <column type="gchararray" />
+      <column type="gchararray" />
+    </columns>
+  </object>
+  <object class="GtkMessageDialog" id="latecomer_dialog">
+    <property name="title" translatable="yes">Latecomer</property>
+    <property name="message-type">other</property>
+    <property name="buttons">ok-cancel</property>
+    <property name="text" translatable="yes">Latecomer</property>
+    <property name="secondary-text" translatable="yes">Check the fencers you wish to include</property>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child>
+          <object class="GtkScrolledWindow" id="scrolledwindow1">
+            <property name="hscrollbar-policy">automatic</property>
+            <property name="vscrollbar-policy">automatic</property>
+            <child>
+              <object class="GtkViewport" id="latecomer_list">
+                <property name="width-request">400</property>
+                <property name="height-request">200</property>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="hbox7">
+            <property name="orientation">horizontal</property>
+            <child>
+              <object class="GtkBox" id="toolbar1">
+                <property name="orientation">horizontal</property>
+                <style>
+                  <class name="toolbar" />
+                </style>
+                <child>
+                  <object class="GtkButton" id="new_latecomer">
+                    <signal name="clicked" handler="on_new_latecomer_clicked" swapped="no" />
+                    <property name="has-frame">False</property>
+                    <property name="tooltip-text" translatable="yes">New fencer...</property>
+                    <child>
+                      <object class="GtkBox">
+                        <property name="orientation">vertical</property>
+                        <property name="spacing">2</property>
+                        <child>
+                          <object class="GtkImage">
+                            <property name="icon-name">list-add</property>
+                            <property name="icon-size">large</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel">
+                            <property name="label" translatable="yes">New fencer...</property>
+                            <property name="use-underline">True</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="latecomer_warning_box">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">6</property>
+                <child>
+                  <object class="GtkImage" id="image5">
+                    <property name="icon-name">dialog-warning</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="latecomer_warning_label">
+                    <property name="label">Impossible to apply with 3 pools</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkMessageDialog" id="absent_dialog">
+    <property name="title" translatable="yes">Absent</property>
+    <property name="message-type">other</property>
+    <property name="buttons">ok-cancel</property>
+    <property name="text" translatable="yes">Absent</property>
+    <property name="secondary-text" translatable="yes">Uncheck the fencers you wish to withdraw</property>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox1">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkScrolledWindow" id="scrolledwindow2">
+            <property name="hscrollbar-policy">automatic</property>
+            <property name="vscrollbar-policy">automatic</property>
+            <child>
+              <object class="GtkViewport" id="absent_list">
+                <property name="width-request">400</property>
+                <property name="height-request">200</property>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="hbox2">
+            <property name="orientation">horizontal</property>
+            <child>
+              <object class="GtkBox" id="absent_warning_box">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">5</property>
+                <child>
+                  <object class="GtkImage" id="image6">
+                    <property name="icon-name">dialog-warning</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="absent_warning_label">
+                    <property name="label">Impossible to apply with 3 pools</property>
+                  </object>
+                </child>
+                <property name="halign">end</property>
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+            <property name="margin-top">8</property>
+            <property name="margin-bottom">8</property>
+            <property name="valign">end</property>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkListStore" id="swapping_liststore">
+    <columns>
+      <column type="gpointer" />
+      <column type="gchararray" />
+    </columns>
+  </object>
+  <object class="GtkWindow" id="window1">
+    <child>
+      <object class="GtkBox" id="root">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox" id="toolbar2">
+            <property name="orientation">horizontal</property>
+            <style>
+              <class name="toolbar" />
+            </style>
+            <child>
+              <object class="GtkButton" id="filter_button">
+                <property name="tooltip-text" translatable="yes">Mask or unmask some data type as well as define their display order.</property>
+                <signal name="clicked" handler="on_filter_button_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">format-justify-fill</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Data</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="print_toolbutton">
+                <signal name="clicked" handler="on_print_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Print</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">document-print</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Print</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="toolbutton1">
+                <property name="orientation">vertical</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkToggleButton" id="fencer_list">
+                <signal name="toggled" handler="on_fencer_list_toggled" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Fencer list</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">format-justify-fill</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Fencer list</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="separatortoolitem2">
+                <property name="orientation">vertical</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="latecomer_toolbutton">
+                <signal name="clicked" handler="on_latecomer_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Latecomer</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage" id="image2">
+                        <property name="file">../glade/images/gate.png</property>
+                        <property name="pixel-size">-1</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Latecomer</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="absent_toolbutton">
+                <signal name="clicked" handler="on_absent_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Absent</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage" id="image3">
+                        <property name="file">../glade/images/pillow.png</property>
+                        <property name="pixel-size">-1</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Absent</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="separatortoolitem1">
+                <property name="orientation">vertical</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparator" id="hseparator1">
+            <property name="orientation">horizontal</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="hbox4">
+            <property name="orientation">horizontal</property>
+            <property name="spacing">10</property>
+            <child>
+              <object class="GtkBox" id="hbox5">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">5</property>
+                <child>
+                  <object class="GtkLabel" id="label2">
+                    <property name="label" translatable="yes">Number of pools</property>
+                    <attributes>
+                      <attribute name="weight" value="bold" />
+                    </attributes>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkComboBox" id="nb_pools_combobox">
+                    <property name="model">combo_liststore</property>
+                    <signal name="changed" handler="on_nb_pools_combobox_changed" swapped="no" />
+                    <child>
+                      <object class="GtkCellRendererPixbuf" id="combo_icon_renderer" />
+                      <attributes>
+                        <attribute name="icon-name">2</attribute>
+                      </attributes>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="combo_text_renderer" />
+                      <attributes>
+                        <attribute name="text">1</attribute>
+                      </attributes>
+                    </child>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <property name="margin-start">5</property>
+                <property name="margin-end">5</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="vseparator1">
+                <property name="orientation">vertical</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="hbox6">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">5</property>
+                <child>
+                  <object class="GtkLabel" id="label4">
+                    <property name="label" translatable="yes">Fencers / pools</property>
+                    <attributes>
+                      <attribute name="weight" value="bold" />
+                    </attributes>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkComboBox" id="pool_size_combobox">
+                    <property name="model">combo_liststore</property>
+                    <signal name="changed" handler="on_pool_size_combobox_changed" swapped="no" />
+                    <child>
+                      <object class="GtkCellRendererPixbuf" id="cellrenderer1" />
+                      <attributes>
+                        <attribute name="icon-name">2</attribute>
+                      </attributes>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="cellrenderertext1" />
+                      <attributes>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="vseparator2">
+                <property name="orientation">vertical</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkBox" id="swapping_hbox">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">5</property>
+                <child>
+                  <object class="GtkBox" id="swapping_box">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkLabel" id="label1">
+                        <property name="label" translatable="yes">Swapping</property>
+                        <attributes>
+                          <attribute name="weight" value="bold" />
+                        </attributes>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                      </object>
+                    </child>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkViewport" id="viewport">
+                    <child>
+                      <object class="GtkBox" id="swapping_criteria_hbox">
+                        <property name="orientation">horizontal</property>
+                        <child>
+                          <object class="GtkBox" id="hbox3">
+                            <property name="orientation">horizontal</property>
+                            <child>
+                              <object class="GtkCheckButton" id="extra_toggle">
+                                <property name="receives-default">False</property>
+                                <property name="hexpand">True</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkComboBox" id="extra_combobox">
+                                <property name="model">swapping_liststore</property>
+                                <child>
+                                  <object class="GtkCellRendererText" id="cellrenderertext2" />
+                                  <attributes>
+                                    <attribute name="text">1</attribute>
+                                  </attributes>
+                                </child>
+                                <property name="hexpand">True</property>
+                              </object>
+                            </child>
+                            <property name="hexpand">True</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkBox" id="regular_swapping_hbox">
+                            <property name="orientation">horizontal</property>
+                            <property name="hexpand">True</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="hbox1">
+            <property name="orientation">horizontal</property>
+            <child>
+              <object class="GtkViewport" id="main_hook">
+                <child>
+                  <object class="GtkScrolledWindow" id="canvas_scrolled_window">
+                    <property name="hscrollbar-policy">automatic</property>
+                    <property name="vscrollbar-policy">automatic</property>
+                  </object>
+                </child>
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkViewport" id="fencer_list_hook">
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

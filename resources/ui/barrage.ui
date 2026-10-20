@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/barrage.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : barrage -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkWindow" id="configuration_window">
+    <child>
+      <object class="GtkFrame" id="stage_configuration">
+        <property name="label-xalign">0</property>
+        <child>
+          <object class="GtkGrid" id="table1">
+            <property name="row-spacing">10</property>
+            <property name="column-spacing">10</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkDialog" id="print_pool_dialog">
+    <child internal-child="content_area">
+      <object class="GtkBox" id="print_dialog-vbox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child>
+          <object class="GtkFrame" id="frame1">
+            <property name="label-xalign">0</property>
+            <child>
+              <object class="GtkFrame" id="aspectframe2">
+                <property name="label-xalign">0</property>
+                <child>
+                  <object class="GtkBox" id="vbox2">
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <object class="GtkCheckButton" id="for_referees_radiobutton">
+                        <property name="receives-default">False</property>
+                        <property name="tooltip-text" translatable="yes">Content designed for the referees.</property>
+                        <property name="label" translatable="yes">For arbitration</property>
+                        <property name="active">True</property>
+                        <property name="vexpand">True</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkCheckButton" id="for_display_radiobutton">
+                        <property name="receives-default">False</property>
+                        <property name="label" translatable="yes">For the bulletin board</property>
+                        <property name="group">for_referees_radiobutton</property>
+                        <property name="vexpand">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child type="label">
+              <object class="GtkLabel" id="label5">
+                <property name="label" translatable="yes">&lt;b&gt;For what?&lt;/b&gt;</property>
+                <property name="use-markup">True</property>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+            <property name="valign">center</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkWindow" id="supervisor_window">
+    <child>
+      <object class="GtkBox" id="root">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkBox" id="toolbar3">
+            <property name="orientation">horizontal</property>
+            <style>
+              <class name="toolbar" />
+            </style>
+            <child>
+              <object class="GtkBox" id="toolitem1">
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkGrid" id="table2">
+                    <property name="column-spacing">4</property>
+                    <child>
+                      <object class="GtkLabel" id="dropped_label">
+                        <property name="label">999</property>
+                        <attributes>
+                          <attribute name="weight" value="bold" />
+                          <attribute name="scale" value="1.2" />
+                        </attributes>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                        <layout>
+                          <property name="column">2</property>
+                          <property name="row">1</property>
+                        </layout>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkImage" id="image1">
+                        <property name="file">../glade/images/exit.png</property>
+                        <property name="pixel-size">-1</property>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                        <layout>
+                          <property name="column">1</property>
+                          <property name="row">1</property>
+                        </layout>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="promoted_label">
+                        <property name="label">999</property>
+                        <attributes>
+                          <attribute name="weight" value="bold" />
+                          <attribute name="scale" value="1.2" />
+                        </attributes>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                        <layout>
+                          <property name="column">2</property>
+                          <property name="row">0</property>
+                        </layout>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkImage" id="image2">
+                        <property name="file">../glade/images/normal.png</property>
+                        <property name="pixel-size">-1</property>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                        <layout>
+                          <property name="column">1</property>
+                          <property name="row">0</property>
+                        </layout>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label1">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">Promoted</property>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                        <layout>
+                          <property name="column">0</property>
+                          <property name="row">0</property>
+                        </layout>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="label2">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">Eliminated</property>
+                        <property name="hexpand">True</property>
+                        <property name="vexpand">True</property>
+                        <layout>
+                          <property name="column">0</property>
+                          <property name="row">1</property>
+                        </layout>
+                      </object>
+                    </child>
+                    <property name="hexpand">True</property>
+                    <property name="vexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="separatortoolitem2">
+                <property name="orientation">vertical</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="barrage_filter_toolbutton">
+                <signal name="clicked" handler="on_barrage_filter_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Data</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">format-justify-fill</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Data</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="print_barrage_toolbutton">
+                <signal name="clicked" handler="on_barrage_print_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Print</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">document-print</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">_Print</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkSeparator" id="separatortoolitem1">
+                <property name="orientation">vertical</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkToggleButton" id="barrage_classification_toggletoolbutton">
+                <signal name="toggled" handler="on_barrage_classification_toggletoolbutton_toggled" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Classification</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage" id="score_image1">
+                        <property name="file">../glade/images/stock_scores.png</property>
+                        <property name="pixel-size">-1</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Classification</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="hbox1">
+            <property name="orientation">horizontal</property>
+            <child>
+              <object class="GtkScrolledWindow" id="main_hook">
+                <property name="hscrollbar-policy">automatic</property>
+                <property name="vscrollbar-policy">automatic</property>
+                <child>
+                  <object class="GtkTreeView" id="players_list">
+                    <property name="reorderable">True</property>
+                    <property name="search-column">0</property>
+                  </object>
+                </child>
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkViewport" id="classification_hook">
+                <property name="visible">False</property>
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

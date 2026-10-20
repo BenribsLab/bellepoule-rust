@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/form.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : form -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkDialog" id="FillInForm">
+    <property name="title" translatable="yes">Form</property>
+    <property name="resizable">False</property>
+    <signal name="close" handler="on_close_button_clicked" swapped="no" />
+    <signal name="close-request" handler="on_delete_event" swapped="no" />
+    <!-- GTK2 : unmap-event -> on_FillInForm_unmap_event (géré dans le code) -->
+    <child>
+      <object class="GtkEventControllerKey">
+        <signal name="key-pressed" handler="on_FillInForm_key_press_event" />
+      </object>
+    </child>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox3">
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child>
+          <object class="GtkNotebook" id="notebook" />
+        </child>
+      </object>
+    </child>
+    <child type="action">
+      <object class="GtkButton" id="add_button">
+        <property name="receives-default">True</property>
+        <signal name="clicked" handler="on_add_button_clicked" swapped="no" />
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkImage">
+                <property name="icon-name">list-add</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">_Add</property>
+                <property name="use-underline">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child type="action">
+      <object class="GtkButton" id="apply_button">
+        <property name="receives-default">True</property>
+        <signal name="clicked" handler="on_add_button_clicked" swapped="no" />
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkImage">
+                <property name="icon-name">emblem-ok-symbolic</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">_Apply</property>
+                <property name="use-underline">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child type="action">
+      <object class="GtkButton" id="close_button">
+        <property name="receives-default">True</property>
+        <signal name="clicked" handler="on_close_button_clicked" swapped="no" />
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkImage">
+                <property name="icon-name">window-close</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">_Close</property>
+                <property name="use-underline">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="0">add_button</action-widget>
+      <action-widget response="0">apply_button</action-widget>
+      <action-widget response="0">close_button</action-widget>
+    </action-widgets>
+  </object>
+</interface>

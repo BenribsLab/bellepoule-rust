@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/pool.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : pool -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkWindow" id="pool_window">
+    <child>
+      <object class="GtkScrolledWindow" id="canvas_scrolled_window">
+        <property name="hscrollbar-policy">automatic</property>
+        <property name="vscrollbar-policy">automatic</property>
+      </object>
+    </child>
+  </object>
+</interface>
