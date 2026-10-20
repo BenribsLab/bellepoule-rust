@@ -1,0 +1,4 @@
+[env]
+PKG_CONFIG = "C:/Users/ben/gtk4/bin/pkg-config.exe"
+PKG_CONFIG_PATH = "C:/Users/ben/gtk4/lib/pkgconfig"
+LIB = { value = "C:/Users/ben/gtk4/lib", force = false }

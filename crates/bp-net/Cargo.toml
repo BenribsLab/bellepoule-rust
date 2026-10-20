@@ -1,0 +1,10 @@
+[package]
+name = "bp-net"
+description = "Réseau BellePoule : messages, anneau de partenaires, serveurs HTTP, chiffrement, envois"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rand = { workspace = true }
+log = { workspace = true }

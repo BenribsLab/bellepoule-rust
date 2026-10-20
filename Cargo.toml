@@ -1,0 +1,61 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/bp-core",
+    "crates/bp-net",
+    "crates/bp-gtk",
+    "crates/bellepoule",
+    "crates/marshaller",
+    "crates/livepoule",
+    "crates/bp-usb-backend",
+]
+
+[workspace.package]
+version = "5.7.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+authors = ["Yannick Le Roux (original C++)", "BellePoule Rust contributors"]
+
+# Toutes les dépendances sont déclarées ici : les crates membres utilisent
+# `dep = { workspace = true }` pour éviter les conflits de versions.
+[workspace.dependencies]
+bp-core = { path = "crates/bp-core" }
+bp-net = { path = "crates/bp-net" }
+bp-gtk = { path = "crates/bp-gtk" }
+
+roxmltree = "0.20"
+encoding_rs = "0.8"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+rand = "0.8"
+rand_chacha = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+log = "0.4"
+env_logger = "0.11"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+csv = "1"
+
+# Réseau
+tiny_http = "0.12"
+ureq = { version = "2", features = ["json"] }
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
+base64 = "0.22"
+sha2 = "0.10"
+hmac = "0.12"
+socket2 = "0.5"
+get_if_addrs = "0.5"
+qrcode = { version = "0.14", default-features = false }
+
+# Interface graphique
+gtk4 = { version = "0.9", features = ["v4_12"] }
+cairo-rs = { version = "0.20", features = ["pdf", "svg", "png"] }
+pango = "0.20"
+pangocairo = "0.20"
+glib = "0.20"
+gio = "0.20"
+gdk-pixbuf = "0.20"
+
+# Matériel
+rusb = "0.9"
