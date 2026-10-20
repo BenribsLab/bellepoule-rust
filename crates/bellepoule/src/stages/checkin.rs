@@ -82,6 +82,14 @@ impl CheckinScreen {
         if std::env::var_os("BP_DEBUG_SHOW_FORM").is_some() {
             screen.on_add();
         }
+        if std::env::var_os("BP_DEBUG_TOGGLE").is_some() {
+            let s2 = screen.clone();
+            gtk::glib::timeout_add_local_once(std::time::Duration::from_millis(800), move || {
+                s2.list.debug_toggle(0);
+                s2.refresh();
+                eprintln!("DBG présents={}", s2.glade.get::<gtk::Label>("attending_label").text());
+            });
+        }
         screen
     }
 

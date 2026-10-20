@@ -1,5 +1,7 @@
 # État d'avancement du portage — 20/10/2026
 
+**→ Pour reprendre le travail : lire `REPRISE.md` (point d’arrêt exact et suite).**
+
 **Tout est fusionné dans `master`** (une seule branche) et `cargo check --workspace` passe sans erreur.
 Aucun agent n'est actif. On avance **un chantier à la fois**, et les tests sont lancés
 par l'utilisateur à la demande (voir « Tests demandés » en bas).

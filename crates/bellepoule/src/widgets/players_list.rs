@@ -75,6 +75,7 @@ struct Inner {
     on_selection: RefCell<Option<Rc<SelectionFn>>>,
     /// Édition suspendue (phase verrouillée).
     locked: std::cell::Cell<bool>,
+    toggles: RefCell<Vec<gtk::CellRendererToggle>>,
 }
 
 #[derive(Clone)]
@@ -110,6 +111,7 @@ impl PlayersListView {
                 on_activate: RefCell::new(None),
                 on_selection: RefCell::new(None),
                 locked: std::cell::Cell::new(false),
+                toggles: RefCell::new(Vec::new()),
             }),
         };
         {
@@ -182,6 +184,15 @@ impl PlayersListView {
         });
     }
 
+    /// Simule un clic sur la case de la ligne `row` (mise au point).
+    pub fn debug_toggle(&self, row: u32) {
+        let renderer = self.inner.toggles.borrow().first().cloned();
+        eprintln!("DBG toggle: {} case(s), editable={:?}", self.inner.toggles.borrow().len(), renderer.as_ref().map(|r| r.is_activatable()));
+        if let Some(r) = renderer {
+            r.emit_by_name::<()>("toggled", &[&row.to_string()]);
+        }
+    }
+
     pub fn expand_all(&self) {
         self.inner.tree.expand_all();
     }
@@ -200,6 +211,7 @@ impl PlayersListView {
             return;
         }
         let tree = &self.inner.tree;
+        self.inner.toggles.borrow_mut().clear();
         while let Some(c) = tree.column(0) {
             tree.remove_column(&c);
         }
@@ -238,6 +250,7 @@ impl PlayersListView {
                 CellKind::Toggle => {
                     let r = gtk::CellRendererToggle::new();
                     r.set_activatable(spec.editable);
+                    self.inner.toggles.borrow_mut().push(r.clone());
                     column.pack_start(&r, false);
                     column.add_attribute(&r, "active", col as i32);
                     if spec.editable {
