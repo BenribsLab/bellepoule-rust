@@ -8,10 +8,11 @@ Portage complet de **BellePoule 5.7** (C++/GTK2, branche `5.0/master`) en Rust/G
 
 ## Objectif
 
-Un clone **fonctionnellement identique** à la v5.7 :
+Un clone **fonctionnellement identique** à la v5.7, mais **entièrement autonome** :
+- aucun lien avec la version C++ (ni code, ni bibliothèque, ni communication à l'exécution) ; `reference/` ne sert qu'à lire les sources pendant le portage ;
 - mêmes fonctionnalités, même ergonomie générale, mêmes libellés (traduits via `bp_core::i18n::tr`) ;
-- **compatibilité des fichiers** : un `.cotcot` lu puis réenregistré doit rester lisible par la v5.7 C++ (mêmes balises, mêmes attributs, même ordre) ;
-- **compatibilité réseau** : mêmes messages (`bp_net::Message`, format GKeyFile), mêmes ports, même chiffrement, pour dialoguer avec les applis smartphone et un Marshaller C++.
+- **formats de données de l'escrime conservés** : `.cotcot` (fichiers de compétition existants des utilisateurs), imports FFF / XML FIE / classements, exports GREG / escrime-info / AskFred. Ce sont des formats d'échange fédéraux, pas un lien avec le C++ ;
+- le réseau ne relie que les programmes Rust entre eux (BellePoule ↔ Marshaller ↔ LivePoule ↔ pages web/smartphones). On garde le format de message existant (`bp_net::Message`) par simplicité, sans contrainte d'interopérabilité avec le C++ ;
 - Facebook/Twitter (OAuth) **ne sont pas portés**.
 
 ## Crates

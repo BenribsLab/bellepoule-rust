@@ -3,7 +3,7 @@
 //!
 //! Le C++ sérialise un `GKeyFile` (format INI) avec deux groupes : `[Header]`
 //! (`name`, `netid`, `fitness`…) et `[Body]`. Ce module produit et lit
-//! exactement le même texte pour rester compatible avec les versions C++.
+//! le même texte (format éprouvé, aucune interopérabilité C++ requise).
 
 use std::fmt::Write as _;
 
