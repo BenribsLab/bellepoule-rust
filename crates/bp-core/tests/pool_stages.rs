@@ -7,6 +7,8 @@ use bp_core::contest::players::new_player;
 use bp_core::contest::Contest;
 use bp_core::player::{AttrId, PlayerClass};
 use bp_core::rounds::pool::{PoolAllocatorStage, PoolSupervisorStage};
+use bp_core::rounds::table::TableSupervisor;
+use rand::SeedableRng;
 use bp_core::stage::StageKind;
 
 fn data(name: &str) -> PathBuf {
@@ -163,4 +165,63 @@ fn going_back_unlocks_the_previous_stage() {
     });
     let alloc = c.schedule.stage(1).unwrap().as_any().downcast_ref::<PoolAllocatorStage>().unwrap();
     assert!(alloc.round().pools().iter().all(|p| !p.has_matches()), "les matchs doivent être supprimés");
+}
+
+/// Compétition complète : pointage, poules, tableaux, classement général.
+#[test]
+fn whole_competition_gives_a_final_ranking() {
+    let mut c = Contest::new_with_default_stages(None);
+    let n = 24u32;
+    for i in 0..n {
+        let mut p = new_player(PlayerClass::Fencer);
+        p.set_str(&AttrId::global("name"), &format!("TIREUR{i:02}"));
+        p.set_uint(&AttrId::global("ranking"), i + 1);
+        let r = c.add_fencer(p).unwrap();
+        c.with_schedule(|s, ctx| {
+            s.checkin_mut().unwrap().set_attending(ctx, r, true);
+        });
+    }
+    // pointage → composition → poules
+    for _ in 0..2 {
+        c.with_schedule(|s, ctx| {
+            s.lock_current(ctx);
+            s.enter_next(ctx);
+        });
+    }
+    c.with_schedule(|s, ctx| {
+        s.stage_mut(2).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap().stuff(ctx);
+        assert!(s.sensitivity(ctx).next);
+        s.lock_current(ctx);
+        s.enter_next(ctx);
+    });
+    assert_eq!(c.schedule.current_index(), 3, "on doit être aux tableaux");
+
+    // tableaux : tous les matchs sont tirés au sort
+    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(7);
+    c.with_schedule(|s, ctx| {
+        let t = s.stage_mut(3).unwrap().as_any_mut().downcast_mut::<TableSupervisor>().unwrap();
+        let set = t.visible_table_sets()[0];
+        t.select_table_set(Some(set));
+        // Un tour du tableau est joué à chaque appel : on passe au suivant ensuite.
+        for _ in 0..10 {
+            t.stuff(ctx, &mut rng);
+            t.display_next(set);
+        }
+    });
+    let over = c.with_schedule(|s, ctx| s.sensitivity(ctx).next);
+    assert!(over, "le tableau doit être terminé");
+    c.with_schedule(|s, ctx| {
+        s.lock_current(ctx);
+        s.enter_next(ctx);
+    });
+    assert_eq!(c.schedule.current_index(), 4, "on doit être au classement général");
+    assert!(c.schedule.is_over());
+
+    // Classement final : chaque présent a un rang, le premier est unique.
+    let ranks: Vec<u32> = c.with_schedule(|s, ctx| s.stage(4).unwrap().classification(ctx).iter().map(|e| e.rank).collect());
+    assert_eq!(ranks.len(), n as usize);
+    assert_eq!(ranks[0], 1);
+    assert!(ranks.windows(2).all(|w| w[0] <= w[1]), "classement trié : {ranks:?}");
+    assert!(ranks.iter().all(|r| *r >= 1 && *r <= n), "rangs hors bornes : {ranks:?}");
+    assert_eq!(ranks.iter().filter(|r| **r == 1).count(), 1, "un seul vainqueur");
 }

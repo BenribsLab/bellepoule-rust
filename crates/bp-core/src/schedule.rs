@@ -348,6 +348,35 @@ impl Schedule {
         self.retrieve_attendees(ctx, next);
         self.stages[next].garnish(ctx);
         self.set_current(next);
+        self.refresh_general_classification(ctx);
+    }
+
+    /// `GeneralClassification::GetCurrentClassification` : le classement
+    /// général est recalculé à partir des présents du pointage et du rang de
+    /// chaque qualifié dans la phase précédente. À rappeler après toute
+    /// modification des phases qui le précèdent.
+    pub fn refresh_general_classification(&mut self, ctx: &mut StageContext) {
+        let presents: Vec<PlayerRef> = match self.checkin() {
+            Some(c) => c.presents().to_vec(),
+            None => return,
+        };
+        for i in 1..self.stages.len() {
+            if !self.stages[i].as_any().is::<GeneralClassificationStage>() || i > self.current_stage {
+                continue;
+            }
+            let previous_owner = self.stages[i - 1].base().owner();
+            let rank = AttrId::local("rank", previous_owner);
+            let ranks: HashMap<PlayerRef, u32> = self.stages[i]
+                .base()
+                .attendees
+                .iter()
+                .filter_map(|r| ctx.players.get(*r).and_then(|p| p.get(&rank)).map(|v| (*r, v.as_uint())))
+                .collect();
+            if let Some(gc) = self.stages[i].as_any_mut().downcast_mut::<GeneralClassificationStage>() {
+                gc.set_context(presents.clone(), ranks);
+                gc.refresh(ctx);
+            }
+        }
     }
 
     /// `on_previous_stage_toolbutton_clicked` : annule la phase courante et
@@ -506,6 +535,9 @@ impl Schedule {
         }
         if let Some(node) = node {
             self.stages[index].load(ctx, node)?;
+            if self.stages[index].as_any().is::<GeneralClassificationStage>() && index > 0 && self.stages[index - 1].base().locked {
+                self.retrieve_attendees(ctx, index);
+            }
         }
         if shown && (display_all || (nb_stage as i64 - 1) < current_stage_index) {
             self.stages[index].lock(ctx);
@@ -527,6 +559,7 @@ impl Schedule {
             c.set_loading(false);
         }
         self.loading = false;
+        self.refresh_general_classification(ctx);
     }
 
     /// `Schedule::Save` : `<Phases PhaseEnCours=…>` et chaque phase.

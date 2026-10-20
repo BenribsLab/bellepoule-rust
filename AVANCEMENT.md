@@ -14,14 +14,14 @@ Légende : ✅ fait · 🟡 écrit, compile, non vérifié · ❌ pas commencé
 | LivePoule + détecteur USB | ✅ | ~95 % |
 | Réseau (`bp-net`) | 🟡 | ~85 % |
 | Imports / exports (`formats`) | 🟡 | ~75 % |
-| Tableaux, barrage, scission | 🟡 | ~60 % |
-| Poules | 🟡 écrit mais non branché | ~50 % |
+| Tableaux, barrage, scission | 🟡 fonctionne de bout en bout, relecture détaillée à faire | ~75 % |
+| Poules | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Compétition, pointage, classement | ✅ logique terminée (hors réseau) | ~90 % |
 | Socle graphique + écrans `.ui` | 🟡 | ~35 % |
 | Marshaller | 🟡 | ~30 % |
 | Vague 2 (écrans des phases, impression, liaison réseau) | ❌ | 0 % |
 
-**Global : ~40 %.**
+**Global : ~45 %.**
 
 ---
 
@@ -43,15 +43,23 @@ individuel et par équipes.
 - en attendant les poules, le tour de poules d'un fichier est conservé tel quel (`RawStage`) : l'ouverture et
   l'enregistrement ne perdent rien.
 
-### Étape 2 — Poules
-- déclarer `dispatcher`, `neo_swapper`, `pool`, `round` dans `rounds/pool/mod.rs` et corriger la compilation (jamais compilés ;
-  remplacer aussi leurs tris aléatoires par `crate::sort::glib_sort_by`, déjà fait mais non compilé) ;
-- `allocator.rs` : phase `PoolAllocator` ; `supervisor.rs` : phase `PoolSupervisor` ; `pillow.rs` ;
-- données imprimables de l'allocateur ;
-- fondation : `player::compare` avec graine doit comparer l'attribut avant le tirage au sort.
+### Étape 2 — Poules ✅ TERMINÉE
+Fait : l'allocateur et le superviseur sont de vraies phases (`PoolAllocatorStage`, `PoolSupervisorStage`)
+qui partagent un tour (`PoolRound`) ; composition des poules, séparation, saisie, classement, qualifiés,
+XML `<TourDePoules>` ; `Schedule` gère maintenant le fournisseur d'entrée, les noms partagés, le propriétaire
+des données joueurs, le rang final des éliminés et le classement général.
+Vérifié : les **46 poules de `melun.cotcot`** (victoires, touches données et reçues, place) sont identiques
+au fichier d'origine ; ordre des matchs FIE conforme à `test.cpp` ; compétition complète de 24 tireurs
+(pointage → poules → tableaux → classement final) ; enregistrement stable.
+Défauts corrigés : arbitres écrits comme des tireurs (listes distinctes), ordre des arbitres inversé à chaque
+relecture, tri aléatoire qui faisait planter Rust (`sort.rs`).
+**Reste (reporté)** : dialogues « retardataires/absents » (la logique est dans `PoolRound`, l'écran est à faire),
+impression de l'allocateur, aiguillage des messages réseau (`SmartPoule::Score`…) → étapes 5, 6 et 8.
 
-### Étape 3 — Tableaux : relecture de complétude
-Écrits sans rapport de l'agent : comparer avec `table_set.cpp` (~4000 lignes C++), compléter.
+### Étape 3 — Tableaux : relecture de complétude ← PROCHAINE
+Les tableaux se chargent (127 matchs de `melun.cotcot` conservés), se jouent et se classent de bout en bout.
+Reste à comparer avec `table_set.cpp` (~4000 lignes C++) fonction par fonction : places tirées, tableaux de
+classement, exempts, barrage, scission, export HTML, feuilles de match.
 
 ### Étape 4 — Réseau et formats : nettoyage
 - réseau : pages PHP du site web non portées ; FTPS absent ;
