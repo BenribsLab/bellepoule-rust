@@ -133,6 +133,8 @@ pub struct PoolRound {
     /// Qualifiés figés au verrouillage (`_output_short_list`).
     pub(crate) output: Option<Vec<PlayerRef>>,
     pub(crate) quota_exceedance: u32,
+    /// Les références ont été renumérotées : la composition est à re-vérifier.
+    pub(crate) distribution_dirty: bool,
 }
 
 /// Attributs exclus des listes d'affichage (`CreateExcludingList`).
@@ -280,6 +282,7 @@ impl PoolRound {
             result: None,
             output: None,
             quota_exceedance: 0,
+            distribution_dirty: false,
         }
     }
 
@@ -867,7 +870,7 @@ impl PoolRound {
 
     fn evaluate(&self, players: &PlayerStore, list: &mut [PlayerRef], sort_owner: Owner, rank_owner: Owner, policy: u32) -> Vec<u32> {
         let seed = self.sup_rand_seed;
-        crate::sort::glib_sort_by(&mut list, |a, b| compare_players(players, *a, *b, Some(sort_owner), seed, policy));
+        crate::sort::glib_sort_by(&mut *list, |a, b| compare_players(players, *a, *b, Some(sort_owner), seed, policy));
         let mut ranks = Vec::with_capacity(list.len());
         let mut previous_rank = 0;
         for i in 0..list.len() {
@@ -1257,7 +1260,7 @@ impl PoolRound {
             } else if name == "Arbitre" {
                 let r = xml::attr_u32(child, "REF", 0);
                 if players.get(r).is_some() {
-                    pool.add_referee(r);
+                    pool.append_referee(r);
                 }
             } else if name == "Match" && !matches_loaded {
                 pool.create_matches(players, affinity.as_deref());
@@ -1266,5 +1269,76 @@ impl PoolRound {
             }
         }
         self.pools.push(pool);
+    }
+}
+
+impl PoolRound {
+    /// Renumérotation des tireurs par le pointage (voir `Pool::remap_fencers`).
+    /// La composition est re-vérifiée ensuite par `recheck_distribution`.
+    pub(crate) fn remap_refs(&mut self, map: &HashMap<PlayerRef, PlayerRef>) {
+        let tr = |r: &PlayerRef| map.get(r).copied().unwrap_or(*r);
+        self.attendees = self.attendees.iter().map(tr).collect();
+        for p in &mut self.pools {
+            p.remap_fencers(map);
+        }
+        self.original_pool = std::mem::take(&mut self.original_pool).into_iter().map(|(r, v)| (tr(&r), v)).collect();
+        self.absent_revert_pool = std::mem::take(&mut self.absent_revert_pool).into_iter().map(|(r, v)| (tr(&r), v)).collect();
+        if let Some(r) = self.result.as_mut() {
+            *r = r.iter().map(tr).collect();
+        }
+        if let Some(o) = self.output.as_mut() {
+            *o = o.iter().map(tr).collect();
+        }
+        self.distribution_dirty = true;
+    }
+
+    /// Analyse de nouveau la composition si les références ont changé.
+    pub(crate) fn recheck_distribution(&mut self, players: &PlayerStore) {
+        if std::mem::take(&mut self.distribution_dirty) && !self.pools.is_empty() {
+            self.check_distribution(players);
+        }
+    }
+
+    /// `Allocator::Reset` : supprime les poules et les formules.
+    pub(crate) fn reset_allocator(&mut self) {
+        self.delete_pools();
+        self.configs.clear();
+        self.best_config = None;
+        self.selected_config = None;
+        self.original_pool.clear();
+        self.allocator_locked = false;
+    }
+
+    /// `Allocator::OnUnLocked` : les poules redeviennent modifiables.
+    pub(crate) fn unlock_allocator(&mut self) {
+        self.allocator_locked = false;
+    }
+
+    /// `Supervisor::OnLocked` : verrouille les poules.
+    pub(crate) fn lock_supervisor(&mut self, players: &mut PlayerStore) {
+        self.supervisor_locked = true;
+        for p in &mut self.pools {
+            p.lock(players);
+        }
+    }
+
+    /// `Supervisor::OnUnLocked` + `Stage::FreeResult`.
+    pub(crate) fn unlock_supervisor(&mut self) {
+        self.supervisor_locked = false;
+        for p in &mut self.pools {
+            p.unlock();
+        }
+        self.result = None;
+        self.output = None;
+        self.quota_exceedance = 0;
+    }
+
+    /// `Supervisor::OnUnPlugged` : efface les scores et les matchs de toutes les poules.
+    pub(crate) fn unplug_supervisor(&mut self, players: &mut PlayerStore) {
+        for p in &mut self.pools {
+            p.clean_scores(players);
+            p.delete_matches(players);
+        }
+        self.managed = false;
     }
 }

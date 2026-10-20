@@ -322,3 +322,35 @@ impl Dispatcher {
         table
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Chaque couple de tireurs doit se rencontrer une et une seule fois,
+    /// quelle que soit la taille de la poule.
+    #[test]
+    fn every_pair_meets_exactly_once() {
+        for n in 2..=MAX_POOL_SIZE {
+            let d = Dispatcher::new("test");
+            let _ = d;
+            let pairs: Vec<(u8, u8)> = table::fencing_pairs(n).to_vec();
+            assert_eq!(pairs.len(), n * (n - 1) / 2, "taille {n}");
+            let mut seen = std::collections::HashSet::new();
+            for (a, b) in pairs {
+                assert!(a != b && a >= 1 && b >= 1 && a as usize <= n && b as usize <= n, "taille {n}");
+                assert!(seen.insert((a.min(b), a.max(b))), "taille {n} : couple répété {a}-{b}");
+            }
+        }
+    }
+
+    /// Ordre officiel FIE pour une poule de 7 (`dispatcher/test.cpp`).
+    #[test]
+    fn fie_order_for_seven() {
+        let expected: [(u8, u8); 21] = [
+            (1, 4), (2, 5), (3, 6), (7, 1), (5, 4), (2, 3), (6, 7), (5, 1), (4, 3), (6, 2), (5, 7),
+            (3, 1), (4, 6), (7, 2), (3, 5), (1, 6), (2, 4), (7, 3), (6, 5), (1, 2), (4, 7),
+        ];
+        assert_eq!(table::fencing_pairs(7), &expected);
+    }
+}

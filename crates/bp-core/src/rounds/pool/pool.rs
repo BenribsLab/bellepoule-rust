@@ -352,13 +352,6 @@ impl Pool {
         self.rank_owner
     }
 
-    pub(crate) fn set_rank_owner(&mut self, owner: Owner) {
-        self.rank_owner = owner;
-    }
-
-    pub(crate) fn set_rand_seed(&mut self, seed: u32) {
-        self.rand_seed = seed;
-    }
 
     /// Position (à partir de 1) d'un tireur dans la poule.
     pub fn position_of(&self, player: PlayerRef) -> Option<usize> {
@@ -472,6 +465,15 @@ impl Pool {
     pub fn add_referee(&mut self, referee: PlayerRef) {
         if !self.referee_list.contains(&referee) {
             self.referee_list.insert(0, referee);
+        }
+    }
+
+    /// Ajoute un arbitre lu dans un fichier : l'ordre du fichier est conservé
+    /// (l'arbitre principal reste le premier ; `add_referee` inverserait la
+    /// liste à chaque enregistrement).
+    pub(crate) fn append_referee(&mut self, referee: PlayerRef) {
+        if !self.referee_list.contains(&referee) {
+            self.referee_list.push(referee);
         }
     }
 
@@ -845,10 +847,11 @@ impl Pool {
                     if sa.is_known() && sb.is_known() && sa.is_the_best() {
                         victories += 1;
                     }
-                    if !m.bout.is_over() {
+                    let (match_over, match_error) = (m.bout.is_over(), m.bout.has_error());
+                    if !match_over {
                         self.is_over = false;
                     }
-                    if m.bout.has_error() {
+                    if match_error {
                         self.has_error = true;
                     }
                 }
@@ -910,7 +913,7 @@ impl Pool {
 
     /// `RefreshStatus` : état affiché, selon les matchs et la connexion des
     /// arbitres.
-    pub fn status(&self, players: &PlayerStore) -> PoolStatus {
+    pub fn status(&self, referees: &PlayerStore) -> PoolStatus {
         if self.is_over {
             return PoolStatus::Over;
         }
@@ -918,7 +921,7 @@ impl Pool {
             return PoolStatus::Error;
         }
         for r in &self.referee_list {
-            match players.get(*r).and_then(|p| p.str_attr("connection")) {
+            match referees.get(*r).and_then(|p| p.str_attr("connection")) {
                 Some("Broken") => return PoolStatus::RefereeConnection("Broken"),
                 Some("Waiting") => return PoolStatus::RefereeConnection("Waiting"),
                 _ => {}
@@ -971,8 +974,7 @@ impl Pool {
         }
 
         for r in &self.referee_list {
-            let tag = players.get(*r).map(|p| p.class.xml_tag()).unwrap_or("Arbitre");
-            w.start(tag);
+            w.start(PlayerClass::Referee.xml_tag());
             w.attr_fmt("REF", *r);
             w.end();
         }
@@ -1044,8 +1046,8 @@ impl Pool {
 
     /// Feuille de poule (`Draw`). `for_referees` : feuille vierge pour les
     /// arbitres (numéros de matchs dans les cases, colonne signature).
-    pub fn sheet(&self, players: &PlayerStore, for_referees: bool) -> PoolSheet {
-        let referee = self.referee_list.first().and_then(|r| players.get(*r)).map(|p| (p.name(), p.str_attr("first_name").map(str::to_string)));
+    pub fn sheet(&self, players: &PlayerStore, referees: &PlayerStore, for_referees: bool) -> PoolSheet {
+        let referee = self.referee_list.first().and_then(|r| referees.get(*r)).map(|p| (p.name(), p.str_attr("first_name").map(str::to_string)));
         let n = self.nb_players();
         let mut rows = Vec::with_capacity(n);
         for (i, a) in self.sorted_fencer_list.iter().enumerate() {
@@ -1281,5 +1283,30 @@ pub fn xml_player_tag(team_event: bool) -> &'static str {
         PlayerClass::Team.xml_tag()
     } else {
         PlayerClass::Fencer.xml_tag()
+    }
+}
+
+impl Pool {
+    /// Renumérotation des tireurs par le pointage (les arbitres ont leur
+    /// propre numérotation et ne changent pas).
+    pub(crate) fn remap_fencers(&mut self, map: &std::collections::HashMap<PlayerRef, PlayerRef>) {
+        let tr = |r: &mut PlayerRef| {
+            if let Some(n) = map.get(r) {
+                *r = *n;
+            }
+        };
+        self.fencer_list.iter_mut().for_each(tr);
+        self.sorted_fencer_list.iter_mut().for_each(tr);
+        for m in &mut self.matches {
+            for o in &mut m.bout.opponents {
+                if let Some(f) = o.fencer.as_mut() {
+                    tr(f);
+                }
+            }
+        }
+        self.results = std::mem::take(&mut self.results)
+            .into_iter()
+            .map(|(r, v)| (map.get(&r).copied().unwrap_or(r), v))
+            .collect();
     }
 }

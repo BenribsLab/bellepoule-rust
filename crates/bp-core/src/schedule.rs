@@ -139,8 +139,10 @@ impl Schedule {
         }
         .min(self.stages.len());
 
+        let mut stage = stage;
         if let Some(provider_kind) = stage.input_provider() {
-            let provider = self.create_stage(provider_kind);
+            let mut provider = self.create_stage(provider_kind);
+            stage.attach_input_provider(provider.as_mut());
             self.stages.insert(at, provider);
             at += 1;
         }
@@ -161,6 +163,9 @@ impl Schedule {
         for (i, s) in self.stages.iter_mut().enumerate() {
             s.base_mut().id = i as u32;
         }
+        for s in self.stages.iter_mut() {
+            s.id_changed();
+        }
         self.refresh_previous();
     }
 
@@ -179,13 +184,14 @@ impl Schedule {
             return;
         }
         let round = self.stages[..=index].iter().filter(|s| s.kind() == StageKind::PoolSupervisor).count();
-        self.stages[index].base_mut().name = crate::i18n::tr("Round #%d").replace("%d", &round.to_string());
+        let name = crate::i18n::tr("Round #%d").replace("%d", &round.to_string());
+        self.stages[index].set_name(&name);
     }
 
     /// Nom complet affiché dans l'onglet (`GetFullName`).
     pub fn full_name(&self, index: usize) -> String {
         match self.stages.get(index) {
-            Some(s) => format!("{}\n{}", crate::i18n::tr(s.kind().class_name()), s.base().name),
+            Some(s) => format!("{}\n{}", crate::i18n::tr(s.kind().class_name()), s.name()),
             None => String::new(),
         }
     }
@@ -236,14 +242,49 @@ impl Schedule {
     }
 
     /// `PlugStage` : graine aléatoire de la phase, dérivée de celle de la
-    /// phase précédente. À appeler avant de la charger ou de la préparer.
-    fn plug_stage(&mut self, index: usize) {
-        if index == 0 {
+    /// phase précédente, qui attribue alors leur rang final à ses éliminés
+    /// (`Stage::SetRandSeed`). À appeler avant de charger ou de préparer la phase.
+    fn plug_stage(&mut self, ctx: &mut StageContext, index: usize) {
+        if index > 0 {
+            let previous_seed = self.stages[index - 1].base().rand_seed;
+            let id = self.stages[index].base().id;
+            self.stages[index].base_mut().rand_seed = stage_rand_seed(id, previous_seed);
+            self.give_eliminated_a_final_rank(ctx, index - 1);
+        }
+        self.stages[index].on_plugged(ctx);
+    }
+
+    /// `Stage::GiveEliminatedAFinalRank` : les éliminés d'une phase verrouillée
+    /// prennent le rang qu'ils y ont obtenu comme rang final, sauf si la phase
+    /// suivante établit son propre classement : seuls les abandons (`A`, rangés
+    /// derrière les qualifiés), éliminés (`N`) et exclus (`E`) sont alors classés.
+    pub fn give_eliminated_a_final_rank(&self, ctx: &mut StageContext, index: usize) {
+        let Some(stage) = self.stages.get(index) else { return };
+        if stage.is_input_provider() || !stage.base().locked {
             return;
         }
-        let previous_seed = self.stages[index - 1].base().rand_seed;
-        let id = self.stages[index].base().id;
-        self.stages[index].base_mut().rand_seed = stage_rand_seed(id, previous_seed);
+        let next_has_own_ranking = self.stages.get(index + 1).map(|n| n.has_its_own_ranking()).unwrap_or(false);
+        let entries = stage.classification(ctx);
+        let qualified = stage.output(ctx).len() as u32;
+        let final_rank = AttrId::global("final_rank");
+        let mut withdrawal_fix = 0;
+        for e in entries {
+            let value = if !next_has_own_ranking {
+                Some(e.rank)
+            } else {
+                match e.status {
+                    'A' if e.rank <= qualified => {
+                        withdrawal_fix += 1;
+                        Some(qualified + withdrawal_fix)
+                    }
+                    'A' | 'N' | 'E' => Some(e.rank),
+                    _ => None,
+                }
+            };
+            if let (Some(v), Some(p)) = (value, ctx.players.get_mut(e.player)) {
+                p.set_uint(&final_rank, v);
+            }
+        }
     }
 
     /// `Stage::RetrieveAttendees` : les qualifiés de la phase précédente
@@ -270,14 +311,9 @@ impl Schedule {
         }
     }
 
-    /// `GetPlayerDataOwner` : pour un fournisseur d'entrée, les données des
-    /// joueurs appartiennent à la phase suivante.
+    /// `GetPlayerDataOwner` : les attributs locaux d'une phase lui appartiennent.
     pub fn data_owner(&self, index: usize) -> Owner {
-        match self.stages.get(index) {
-            Some(s) if s.is_input_provider() => self.stages.get(index + 1).map(|n| n.base().owner()).unwrap_or(s.base().owner()),
-            Some(s) => s.base().owner(),
-            None => Owner::Global,
-        }
+        self.stages.get(index).map(|s| s.base().owner()).unwrap_or(Owner::Global)
     }
 
     /// `on_next_stage_toolbutton_clicked` (sans la boîte de dialogue du
@@ -308,7 +344,7 @@ impl Schedule {
         if next >= self.stages.len() {
             return;
         }
-        self.plug_stage(next);
+        self.plug_stage(ctx, next);
         self.retrieve_attendees(ctx, next);
         self.stages[next].garnish(ctx);
         self.set_current(next);
@@ -466,7 +502,7 @@ impl Schedule {
     ) -> Result<(), Error> {
         let shown = display_all || (nb_stage as i64 - 1) <= current_stage_index;
         if shown {
-            self.plug_stage(index);
+            self.plug_stage(ctx, index);
         }
         if let Some(node) = node {
             self.stages[index].load(ctx, node)?;
@@ -480,12 +516,12 @@ impl Schedule {
     /// `OnLoadingCompleted` : puis application de la renumérotation différée
     /// du pointage à toutes les phases.
     pub fn on_loading_completed(&mut self, ctx: &mut StageContext) {
-        for s in self.stages.iter_mut() {
-            s.on_loading_completed(ctx);
-        }
         let map = self.checkin_mut().and_then(|c| c.apply_pending_renumbering(ctx));
         if let Some(map) = map {
             self.remap_players(&map);
+        }
+        for s in self.stages.iter_mut() {
+            s.on_loading_completed(ctx);
         }
         if let Some(c) = self.checkin_mut() {
             c.set_loading(false);

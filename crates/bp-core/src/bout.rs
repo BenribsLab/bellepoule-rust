@@ -1,7 +1,7 @@
 //! Matchs et scores (port de `supervisor/match.cpp` et `supervisor/score.cpp`),
 //! partagés par les poules et les tableaux.
 
-use crate::player::{PlayerRef, PlayerStore};
+use crate::player::{PlayerClass, PlayerRef, PlayerStore};
 use crate::xml::XmlWriter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -390,12 +390,12 @@ impl Match {
         if self.duration_sec == 0 && self.duration_span > 1 {
             w.attr_fmt("Portee", self.duration_span);
         }
+        // Les arbitres ont leur propre liste de joueurs : leur référence peut
+        // coïncider avec celle d'un tireur, on n'y cherche donc rien.
         for r in &self.referees {
-            if let Some(p) = players.get(*r) {
-                w.start(p.class.xml_tag());
-                w.attr_fmt("REF", *r);
-                w.end();
-            }
+            w.start(PlayerClass::Referee.xml_tag());
+            w.attr_fmt("REF", *r);
+            w.end();
         }
         for o in &self.opponents {
             let Some(f) = o.fencer else { continue };

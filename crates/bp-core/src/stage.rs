@@ -9,7 +9,7 @@
 
 use std::any::Any;
 
-use crate::player::{Owner, PlayerRef, PlayerStore};
+use crate::player::{AttrId, Owner, PlayerRef, PlayerStore};
 use crate::xml::XmlWriter;
 
 /// Types de phases (`Stage::RegisterStageClass`).
@@ -272,6 +272,36 @@ pub trait Stage: Any + Send {
         false
     }
 
+    /// Relie cette phase à son fournisseur d'entrée juste après leur création
+    /// (`SetInputProvider`). Le fournisseur est celui de `input_provider()`.
+    fn attach_input_provider(&mut self, provider: &mut dyn Stage) {
+        let _ = provider;
+    }
+
+    /// Les identifiants des phases viennent d'être renumérotés (`SetId`).
+    fn id_changed(&mut self) {}
+
+    /// Nom de la phase (`GetName`) : un tour de poules le partage avec son allocateur.
+    fn name(&self) -> String {
+        self.base().name.clone()
+    }
+
+    fn set_name(&mut self, name: &str) {
+        self.base_mut().name = name.to_string();
+    }
+
+    /// La phase est affichée (`OnPlugged`) : ses données sont reprises de la
+    /// phase qui la précède.
+    fn on_plugged(&mut self, ctx: &mut StageContext) {
+        let _ = ctx;
+    }
+
+    /// La phase établit son propre classement (`HasItsOwnRanking`) ; faux
+    /// pour le classement général, qui reprend celui de la phase précédente.
+    fn has_its_own_ranking(&self) -> bool {
+        true
+    }
+
     /// Reçoit les participants (sortie de la phase précédente).
     fn set_attendees(&mut self, ctx: &mut StageContext, attendees: Vec<PlayerRef>) {
         let _ = ctx;
@@ -283,12 +313,11 @@ pub trait Stage: Any + Send {
         let _ = ctx;
     }
 
-    /// Annule le travail de la phase (`Reset`).
+    /// Annule le travail de la phase (`Reset`) : les participants redeviennent
+    /// qualifiés et perdent leur rang final ; les attributs locaux de la
+    /// phase sont effacés.
     fn reset(&mut self, ctx: &mut StageContext) {
-        let owner = self.base().owner();
-        for p in ctx.players.iter_mut() {
-            p.remove_owner(owner);
-        }
+        default_reset(self.base(), ctx);
     }
 
     /// Lit l'élément XML de la phase (déjà identifié par sa balise).
@@ -413,6 +442,22 @@ pub fn load_attendee(base: &StageBase, ctx: &mut StageContext, node: roxmltree::
     p.set_str(&AttrId::local("status", data_owner), status);
     p.set_str(&AttrId::global("global_status"), status);
     Some(r)
+}
+
+/// `Stage::Reset` : voir `Stage::reset`.
+pub fn default_reset(base: &StageBase, ctx: &mut StageContext) {
+    let final_rank = AttrId::global("final_rank");
+    let global_status = AttrId::global("global_status");
+    for r in &base.attendees {
+        if let Some(p) = ctx.players.get_mut(*r) {
+            p.set_str(&global_status, "Q");
+            p.remove(&final_rank);
+        }
+    }
+    let owner = base.owner();
+    for p in ctx.players.iter_mut() {
+        p.remove_owner(owner);
+    }
 }
 
 /// Phase non encore portée : conserve son élément XML tel quel pour que

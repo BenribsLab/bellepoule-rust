@@ -248,6 +248,10 @@ impl Stage for GeneralClassificationStage {
         );
     }
 
+    fn has_its_own_ranking(&self) -> bool {
+        false
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

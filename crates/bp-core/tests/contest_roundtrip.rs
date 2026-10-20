@@ -49,8 +49,12 @@ fn open_save_reopen() {
         b.load_xml_str(&xml).unwrap_or_else(|e| panic!("{} (relecture) : {e}", file.display()));
         assert_eq!(first, summary(&mut b), "{}", file.display());
 
-        // Le second enregistrement doit être identique au premier.
-        assert_eq!(xml, b.to_xml(), "{} : l'enregistrement n'est pas stable", file.display());
+        // Un ancien fichier est normalisé à la première lecture (renumérotation
+        // des tireurs) ; à partir de là l'enregistrement est stable.
+        let second = b.to_xml();
+        let mut c = Contest::new(None, false);
+        c.load_xml_str(&second).unwrap_or_else(|e| panic!("{} (2e relecture) : {e}", file.display()));
+        assert_eq!(second, c.to_xml(), "{} : l'enregistrement n'est pas stable", file.display());
     }
 }
 
@@ -72,5 +76,6 @@ fn example_has_expected_content() {
 fn new_contest_has_default_stages() {
     let c = Contest::new_with_default_stages(None);
     let kinds: Vec<&str> = c.schedule.stages().map(|s| s.kind().xml_name()).collect();
-    assert_eq!(kinds, vec!["Pointage", "TourDePoules", "PhaseDeTableaux", "ClassementGeneral"]);
+    // L'allocateur de poules n'a pas d'élément XML propre (nom vide).
+    assert_eq!(kinds, vec!["Pointage", "", "TourDePoules", "PhaseDeTableaux", "ClassementGeneral"]);
 }
