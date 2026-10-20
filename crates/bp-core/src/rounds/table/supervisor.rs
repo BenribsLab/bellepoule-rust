@@ -719,6 +719,20 @@ impl Stage for TableSupervisor {
         }
     }
 
+    fn remap_players(&mut self, map: &HashMap<PlayerRef, PlayerRef>) {
+        let tr = |r: &mut PlayerRef| {
+            if let Some(n) = map.get(r) {
+                *r = *n;
+            }
+        };
+        self.base.attendees.iter_mut().for_each(tr);
+        self.result.iter_mut().flatten().for_each(tr);
+        self.output_short_list.iter_mut().flatten().for_each(tr);
+        for set in &mut self.sets {
+            set.remap_fencers(map);
+        }
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

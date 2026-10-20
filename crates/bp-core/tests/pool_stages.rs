@@ -224,4 +224,83 @@ fn whole_competition_gives_a_final_ranking() {
     assert!(ranks.windows(2).all(|w| w[0] <= w[1]), "classement trié : {ranks:?}");
     assert!(ranks.iter().all(|r| *r >= 1 && *r <= n), "rangs hors bornes : {ranks:?}");
     assert_eq!(ranks.iter().filter(|r| **r == 1).count(), 1, "un seul vainqueur");
+
+    // Enregistrer puis rouvrir donne la même compétition, le même classement.
+    let names = |c: &mut Contest| -> Vec<(String, u32)> {
+        c.with_schedule(|s, ctx| {
+            let st = s.stage(4).unwrap();
+            st.classification(ctx)
+                .iter()
+                .map(|e| (ctx.players.get(e.player).unwrap().name(), e.rank))
+                .collect()
+        })
+    };
+    let before = names(&mut c);
+    let xml = c.to_xml();
+    let mut again = Contest::new(None, false);
+    again.load_xml_str(&xml).unwrap();
+    assert_eq!(names(&mut again), before, "le classement final change après relecture");
+    assert_eq!(xml, again.to_xml(), "relecture instable");
+    let tables = &xml[xml.find("<PhaseDeTableaux").unwrap()..];
+    assert!(tables.contains("<SuiteDeTableaux"), "les tableaux doivent être enregistrés");
+}
+
+/// Un tableau à moitié joué garde ses scores à la relecture.
+#[test]
+fn half_played_table_survives_reload() {
+    let mut c = Contest::new_with_default_stages(None);
+    for i in 0..20u32 {
+        let mut p = new_player(PlayerClass::Fencer);
+        p.set_str(&AttrId::global("name"), &format!("TIREUR{i:02}"));
+        p.set_uint(&AttrId::global("ranking"), i + 1);
+        let r = c.add_fencer(p).unwrap();
+        c.with_schedule(|s, ctx| {
+            s.checkin_mut().unwrap().set_attending(ctx, r, true);
+        });
+    }
+    for _ in 0..2 {
+        c.with_schedule(|s, ctx| {
+            s.lock_current(ctx);
+            s.enter_next(ctx);
+        });
+    }
+    c.with_schedule(|s, ctx| {
+        s.stage_mut(2).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap().stuff(ctx);
+        s.lock_current(ctx);
+        s.enter_next(ctx);
+    });
+    let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(3);
+    c.with_schedule(|s, ctx| {
+        let t = s.stage_mut(3).unwrap().as_any_mut().downcast_mut::<TableSupervisor>().unwrap();
+        let set = t.visible_table_sets()[0];
+        t.select_table_set(Some(set));
+        t.stuff(ctx, &mut rng); // un seul tour
+    });
+
+    // Résumé : pour chaque match, les deux tireurs et leurs scores.
+    let summary = |c: &Contest| -> Vec<String> {
+        let t = c.schedule.stage(3).unwrap().as_any().downcast_ref::<TableSupervisor>().unwrap();
+        let set = t.table_set(0);
+        set.nodes()
+            .iter()
+            .filter_map(|n| n.bout.as_ref())
+            .map(|b| {
+                format!(
+                    "{}:{:?}/{:?}:{}-{}",
+                    b.number,
+                    b.opponents[0].fencer,
+                    b.opponents[1].fencer,
+                    b.opponents[0].score.image(10),
+                    b.opponents[1].score.image(10)
+                )
+            })
+            .collect()
+    };
+    let before = summary(&c);
+    assert!(before.iter().any(|m| !m.ends_with(":-")), "des scores doivent être saisis");
+    let xml = c.to_xml();
+    let mut again = Contest::new(None, false);
+    again.load_xml_str(&xml).unwrap();
+    assert_eq!(summary(&again), before, "les scores du tableau changent après relecture");
+    assert_eq!(xml, again.to_xml());
 }

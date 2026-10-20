@@ -1043,6 +1043,28 @@ pub(crate) fn load_match(m: &mut Match, node: roxmltree::Node, env: &Env) {
     }
 }
 
+impl TableSet {
+    /// Renumérotation des tireurs par le pointage.
+    pub(crate) fn remap_fencers(&mut self, map: &HashMap<PlayerRef, PlayerRef>) {
+        let tr = |r: &mut PlayerRef| {
+            if let Some(n) = map.get(r) {
+                *r = *n;
+            }
+        };
+        self.attendees.iter_mut().flatten().for_each(tr);
+        self.withdrawals.iter_mut().for_each(tr);
+        for node in &mut self.nodes {
+            if let Some(b) = node.bout.as_mut() {
+                for o in &mut b.opponents {
+                    if let Some(f) = o.fencer.as_mut() {
+                        tr(f);
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// `Table::SimplifyLooserTree` : retire les branches vides en haut et en
 /// bas de la liste des battus pour obtenir un tableau compact.
 pub fn simplify_looser_tree(list: Vec<Option<PlayerRef>>) -> Vec<Option<PlayerRef>> {

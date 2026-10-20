@@ -226,6 +226,17 @@ impl Stage for Barrage {
         self.base.locked = false;
     }
 
+    fn remap_players(&mut self, map: &std::collections::HashMap<PlayerRef, PlayerRef>) {
+        let tr = |r: &mut PlayerRef| {
+            if let Some(n) = map.get(r) {
+                *r = *n;
+            }
+        };
+        self.base.attendees.iter_mut().for_each(tr);
+        self.result.iter_mut().flatten().for_each(tr);
+        self.output_short_list.iter_mut().flatten().for_each(tr);
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
