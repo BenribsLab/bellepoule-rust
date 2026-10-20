@@ -338,12 +338,13 @@ impl Match {
     /// est complète (pour passer automatiquement à la case suivante).
     pub fn set_score_str(&mut self, fencer: PlayerRef, value: &str) -> bool {
         let Some(i) = self.position_of(fencer) else { return false };
+        if !value.is_ascii() { return false; }
         let max = self.max_score;
         if value.len() == 1 && value.eq_ignore_ascii_case("v") {
             self.opponents[i].score.set(max, true, max);
             return true;
         }
-        let (digits, best) = if value.len() > 1 && value[..1].eq_ignore_ascii_case("w") {
+        let (digits, best) = if value.len() > 1 && value.as_bytes()[0].eq_ignore_ascii_case(&b'w') {
             (&value[1..], true)
         } else {
             (value, false)
@@ -500,6 +501,13 @@ mod tests {
         assert!(!m.set_score_str(1, "1"));
         assert!(m.set_score_str(1, "12"));
         assert!(m.set_score_str(1, "9"));
+    }
+
+    #[test]
+    fn unicode_score_input_does_not_panic() {
+        let mut m = Match::with_opponents(1, 2, 5);
+        assert!(!m.set_score_str(1, "é"));
+        assert!(!m.score(1).unwrap().is_known());
     }
 
     #[test]

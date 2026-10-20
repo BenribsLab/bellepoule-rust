@@ -19,9 +19,9 @@ Légende : ✅ fait · 🟡 écrit, compile, non vérifié · ❌ pas commencé
 | Tableaux, barrage, scission | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Poules | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Compétition, pointage, classement | ✅ logique terminée (hors réseau) | ~90 % |
-| Socle graphique + fenêtre principale | 🟡 fenêtre, menus, onglets et propriétés fonctionnent ; écrans des phases à faire | ~45 % |
+| Socle graphique + fenêtre principale | 🟡 fenêtre, appel et deux écrans de poules écrits ; poules à valider | ~45 % |
 | Marshaller | 🟡 | ~30 % |
-| Vague 2 (écrans des phases, impression, liaison réseau) | ❌ | 0 % |
+| Vague 2 (écrans des phases, impression, liaison réseau) | 🟡 poules et impression compilées, non vérifiées | à réévaluer |
 
 **Global : ~55 %.**
 
@@ -77,11 +77,22 @@ propriétés, calendrier, enregistrement automatique 5 s, fermeture), calendrier
 suivant, barrage, erreurs). Lancement vérifié par capture d'écran.
 Écran d'appel (liste des tireurs avec icônes et cases de présence, tri, ajout/modification par le formulaire,
 suppression, import FFF/CSV, import de classement, colonnes à afficher, présents/absents, équipes) ✅.
-**Reste** : menu des langues, écrans des autres phases (étape 6), impression.
+**Reste** : menu des langues, validation des poules, autres phases (étape 6), impression de l'appel.
 
-### Étape 6 — Écrans des phases (vague 2)
-Pointage, composition des poules, poules, tableaux, barrage, scission, classements, arbitres, planning.
-Impression et PDF des feuilles ; exports branchés sur le modèle.
+### Étape 6 — Écrans des phases (vague 2) ← EN COURS
+🟡 Composition des poules branchée : formules, séparation, déplacements, filtres, liste,
+retardataires/absents et formulaire ; impression de la composition/liste.
+🟡 Superviseur de poules : matrice et ordre des matchs, saisie des scores et avance du focus,
+statuts, résultats, classements courant/cumulé, paramètres de phase, impressions
+(arbitres/résultats/classements, une ou toutes les poules).
+Le calendrier expose l'onglet propre de l'allocateur et les paramètres des phases futures.
+Ces ajouts sont **compilés, sans validation interactive** ; la fidélité exacte du rendu GTK/cairo
+et des impressions doit encore être comparée à la référence.
+**Reste** : tableaux, barrage, scission, classement général, arbitres/planning et réseau.
+`cargo check --workspace --tests`, `cargo build --workspace` et `cargo clippy --workspace --tests`
+passent ; avertissements préexistants. Tests compilés, non exécutés. Deux régressions ajoutées
+(saisie Unicode ; plusieurs retardataires avant renumérotation).
+Détails et scénarios : `REPRISE.md`.
 
 ### Étape 7 — Marshaller
 Logique restante (`batch`, `job`, `job_board`, `timeline`, `lasso`, `clock`, `smartphones`…), interface
@@ -123,4 +134,12 @@ joueurs et équipes, export HTML, phase de pointage, classement général.
 ## Tests demandés à l'utilisateur
 *(à remplir au fil de l'eau : quoi lancer, résultat attendu, retour)*
 
-Aucun pour l'instant.
+À vérifier avec `lancer.bat` (détails dans `REPRISE.md`) :
+1. Appel → composition : poules remplies, formules/séparation, déplacements.
+2. Retardataires/absents : OK/Annuler, formule impossible, plusieurs nouveaux tireurs,
+   sauvegarde/réouverture sans mélange d'identités.
+3. Composition → poules : scores V/3 et W3/2, erreurs V/V, effacement, statuts,
+   classements, retour précédent et relecture des scores.
+4. Paramètres via « Poules » dans la formule ; impressions et PDF des compositions,
+   listes, feuilles arbitres/résultats et classements.
+Aucun test interactif lancé par l'agent.

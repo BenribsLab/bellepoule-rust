@@ -9,8 +9,8 @@ use bp_core::i18n::tr;
 use bp_core::stage::StageKind;
 use bp_gtk::dialogs;
 use bp_gtk::glade::Glade;
-use gtk4 as gtk;
 use gtk::prelude::*;
+use gtk4 as gtk;
 
 use crate::contest_page::ContestPage;
 use crate::stages::{self, StageScreen};
@@ -20,13 +20,15 @@ const COL_NAME: u32 = 0;
 const COL_LOCK: u32 = 1;
 const COL_VISIBLE: u32 = 3;
 
+type ScreenSlot = Option<(StageKind, Rc<dyn StageScreen>)>;
+
 pub struct ScheduleView {
     page: Weak<ContestPage>,
     glade: Glade,
     store: gtk::ListStore,
     filter: gtk::TreeModelFilter,
     notebook: gtk::Notebook,
-    screens: RefCell<Vec<Option<Rc<dyn StageScreen>>>>,
+    screens: RefCell<Vec<ScreenSlot>>,
     /// Les modifications de la sélection venant du code ne déclenchent rien.
     updating: std::cell::Cell<bool>,
 }
@@ -51,7 +53,11 @@ impl ScheduleView {
 
         // Les boutons de navigation rejoignent la barre d'outils de la compétition.
         if let Some(toolbar) = page.glade.widget("contest_toolbar") {
-            for id in ["previous_stage_toolbutton", "next_stage_toolbutton", "error_toolbutton"] {
+            for id in [
+                "previous_stage_toolbutton",
+                "next_stage_toolbutton",
+                "error_toolbutton",
+            ] {
                 if let Some(w) = view.glade.widget(id) {
                     Glade::detach_from_parent(&w);
                     bp_gtk::glade::container_add(&toolbar, &w);
@@ -133,7 +139,11 @@ impl ScheduleView {
         let (model, iter) = tree.selection().selected()?;
         let _ = model;
         let child = self.filter.convert_iter_to_child_iter(&iter);
-        self.store.path(&child).indices().first().map(|i| *i as usize)
+        self.store
+            .path(&child)
+            .indices()
+            .first()
+            .map(|i| *i as usize)
     }
 
     fn select_index(&self, index: usize) {
@@ -154,7 +164,14 @@ impl ScheduleView {
             let stages: Vec<(StageKind, String, String, bool)> = c
                 .schedule
                 .stages()
-                .map(|s| (s.kind(), tr(s.kind().class_name()), s.name(), s.base().locked))
+                .map(|s| {
+                    (
+                        s.kind(),
+                        tr(s.kind().class_name()),
+                        s.name(),
+                        s.base().locked,
+                    )
+                })
                 .collect();
             (current, stages)
         }) else {
@@ -169,7 +186,14 @@ impl ScheduleView {
         for (kind, purpose, _, locked) in &stages {
             let iter = self.store.append();
             let lock = if *locked { "dialog-password" } else { "" };
-            self.store.set(&iter, &[(COL_NAME, purpose), (COL_LOCK, &lock), (COL_VISIBLE, &kind.rights().editable)]);
+            self.store.set(
+                &iter,
+                &[
+                    (COL_NAME, purpose),
+                    (COL_LOCK, &lock),
+                    (COL_VISIBLE, &kind.rights().editable),
+                ],
+            );
         }
         self.updating.set(false);
         self.select_index(selected.filter(|i| *i < stages.len()).unwrap_or(current));
@@ -177,10 +201,24 @@ impl ScheduleView {
         // Onglets : les phases jusqu'à la phase courante
         {
             let mut screens = self.screens.borrow_mut();
+            for (_, screen) in screens.iter().skip(stages.len()).flatten() {
+                if let Some(n) = self.notebook.page_num(&screen.widget()) {
+                    self.notebook.remove_page(Some(n));
+                }
+            }
             screens.resize_with(stages.len(), || None);
             for (i, (kind, purpose, name, _)) in stages.iter().enumerate() {
-                if kind.xml_name().is_empty() {
-                    continue; // l'allocateur de poules partage l'onglet du tour de poules
+                // L'absence de balise XML n'enlève pas l'écran : l'allocateur
+                // et le superviseur ont deux onglets, comme Schedule::PlugStage.
+                if screens[i]
+                    .as_ref()
+                    .is_some_and(|(old_kind, _)| old_kind != kind)
+                {
+                    if let Some((_, screen)) = screens[i].take() {
+                        if let Some(n) = self.notebook.page_num(&screen.widget()) {
+                            self.notebook.remove_page(Some(n));
+                        }
+                    }
                 }
                 let shown = i <= current;
                 match (shown, screens[i].clone()) {
@@ -189,30 +227,45 @@ impl ScheduleView {
                         let label = gtk::Label::new(Some(&format!("{purpose}\n{name}")));
                         label.set_justify(gtk::Justification::Center);
                         self.notebook.append_page(&screen.widget(), Some(&label));
-                        screens[i] = Some(screen);
+                        screens[i] = Some((*kind, screen));
                     }
-                    (true, Some(screen)) => {
-                        if let Some(l) = self.notebook.tab_label(&screen.widget()).and_then(|l| l.downcast::<gtk::Label>().ok()) {
+                    (true, Some((_, screen))) => {
+                        if self.notebook.page_num(&screen.widget()).is_none() {
+                            let label = gtk::Label::new(Some(&format!("{purpose}\n{name}")));
+                            self.notebook.append_page(&screen.widget(), Some(&label));
+                        }
+                        if let Some(l) = self
+                            .notebook
+                            .tab_label(&screen.widget())
+                            .and_then(|l| l.downcast::<gtk::Label>().ok())
+                        {
                             l.set_text(&format!("{purpose}\n{name}"));
                         }
                         screen.refresh();
                     }
-                    (false, Some(screen)) => {
+                    (false, Some((_, screen))) => {
                         if let Some(n) = self.notebook.page_num(&screen.widget()) {
                             self.notebook.remove_page(Some(n));
                         }
-                        screens[i] = None;
+                        // Garder les paramètres d'une phase future disponibles.
                     }
                     (false, None) => {}
                 }
             }
-            if let Some(Some(screen)) = screens.get(current).or(screens.get(current.saturating_sub(1))) {
+            for (i, (_, screen)) in screens.iter().flatten().enumerate() {
+                if self.notebook.page_num(&screen.widget()).is_some() {
+                    self.notebook
+                        .reorder_child(&screen.widget(), Some(i as u32));
+                }
+            }
+            if let Some(Some((_, screen))) = screens.get(current) {
                 if let Some(n) = self.notebook.page_num(&screen.widget()) {
                     self.notebook.set_current_page(Some(n));
                 }
             }
         }
         self.refresh_sensitivity();
+        self.show_configuration();
     }
 
     /// `Schedule::RefreshSensitivity` et état des boutons d'édition.
@@ -224,19 +277,31 @@ impl ScheduleView {
             let current = c.schedule.current_index();
             (sensitivity, error, current, c.schedule.len())
         });
-        let Some((sensitivity, error, current, count)) = state else { return };
-        self.glade.get::<gtk::Widget>("previous_stage_toolbutton").set_sensitive(sensitivity.previous);
-        self.glade.get::<gtk::Widget>("next_stage_toolbutton").set_sensitive(sensitivity.next && current + 1 < count);
+        let Some((sensitivity, error, current, count)) = state else {
+            return;
+        };
+        self.glade
+            .get::<gtk::Widget>("previous_stage_toolbutton")
+            .set_sensitive(sensitivity.previous);
+        self.glade
+            .get::<gtk::Widget>("next_stage_toolbutton")
+            .set_sensitive(sensitivity.next && current + 1 < count);
 
         let error_button: gtk::Widget = self.glade.get("error_toolbutton");
         match error {
             Some(e) => {
                 error_button.set_visible(true);
                 let text = match &e.guilty {
-                    Some(g) => format!("<b>{}</b>\n{}", gtk::glib::markup_escape_text(g), gtk::glib::markup_escape_text(&e.message)),
+                    Some(g) => format!(
+                        "<b>{}</b>\n{}",
+                        gtk::glib::markup_escape_text(g),
+                        gtk::glib::markup_escape_text(&e.message)
+                    ),
                     None => gtk::glib::markup_escape_text(&e.message).to_string(),
                 };
-                self.glade.get::<gtk::Label>("error_label").set_markup(&text);
+                self.glade
+                    .get::<gtk::Label>("error_label")
+                    .set_markup(&text);
             }
             None => error_button.set_visible(false),
         }
@@ -249,8 +314,12 @@ impl ScheduleView {
                 None => (true, false),
             })
             .unwrap_or((false, false));
-        self.glade.get::<gtk::Widget>("add_stage_toolbutton").set_sensitive(can_add);
-        self.glade.get::<gtk::Widget>("remove_stage_toolbutton").set_sensitive(can_remove);
+        self.glade
+            .get::<gtk::Widget>("add_stage_toolbutton")
+            .set_sensitive(can_add);
+        self.glade
+            .get::<gtk::Widget>("remove_stage_toolbutton")
+            .set_sensitive(can_remove);
     }
 
     // ----------------------------------------------------------------------
@@ -261,6 +330,38 @@ impl ScheduleView {
             return;
         }
         self.refresh_sensitivity();
+        self.show_configuration();
+    }
+
+    fn show_configuration(&self) {
+        let hook: gtk::Frame = self.glade.get("module_config_hook");
+        hook.set_child(gtk::Widget::NONE);
+        let Some(page) = self.page() else { return };
+        let Some(index) = self.selected_index() else {
+            return;
+        };
+        let kind = page
+            .with_contest(|c| c.schedule.stage(index).map(|s| s.kind()))
+            .flatten();
+        let Some(kind) = kind else { return };
+        let screen = {
+            let mut screens = self.screens.borrow_mut();
+            if index >= screens.len() {
+                return;
+            }
+            let slot = &mut screens[index];
+            if slot.is_none() {
+                *slot = Some((kind, stages::build(&page, index)));
+            }
+            slot.as_ref().map(|(_, screen)| screen.clone())
+        };
+        if let Some(screen) = screen {
+            screen.refresh();
+            if let Some(configuration) = screen.configuration() {
+                Glade::detach_from_parent(&configuration);
+                hook.set_child(Some(&configuration));
+            }
+        }
     }
 
     /// `on_new_stage_selected` : ajoute une phase après la phase sélectionnée.
@@ -279,7 +380,9 @@ impl ScheduleView {
     /// `on_stage_removed`.
     fn on_remove(self: &Rc<Self>) {
         let Some(page) = self.page() else { return };
-        let Some(index) = self.selected_index() else { return };
+        let Some(index) = self.selected_index() else {
+            return;
+        };
         page.with_contest(|c| c.with_schedule(|s, ctx| s.remove_user_stage(ctx, index)));
         page.mark_dirty();
         self.refresh();
@@ -305,14 +408,19 @@ impl ScheduleView {
     /// `on_next_stage_toolbutton_clicked`.
     fn on_next(self: &Rc<Self>) {
         let Some(page) = self.page() else { return };
-        let title = page.with_contest(|c| c.schedule.current().map(|s| s.name())).flatten().unwrap_or_default();
+        let title = page
+            .with_contest(|c| c.schedule.current().map(|s| s.name()))
+            .flatten()
+            .unwrap_or_default();
         // Archive de la compétition avant de verrouiller la phase
         if let Some(app) = page.app.upgrade() {
             if let Err(e) = app.tournament.borrow_mut().archive_contest(page.id, &title) {
                 log::warn!("archive : {e}");
             }
         }
-        let exceedance = page.with_contest(|c| c.with_schedule(|s, ctx| s.lock_current(ctx))).unwrap_or(0);
+        let exceedance = page
+            .with_contest(|c| c.with_schedule(|s, ctx| s.lock_current(ctx)))
+            .unwrap_or(0);
         if exceedance > 0 {
             let add = dialogs::run_message(
                 page.window().as_ref(),

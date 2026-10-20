@@ -9,21 +9,25 @@ use bp_core::attribute;
 use bp_core::filter::Filter;
 use bp_core::i18n::tr;
 use bp_core::player::PlayerRef;
-use bp_core::rounds::pool::round::{extra_swapping_criteria, regular_swapping_criteria, FilterKind};
+use bp_core::rounds::pool::round::{
+    extra_swapping_criteria, regular_swapping_criteria, FilterKind, PillowKind,
+};
 use bp_core::rounds::pool::PoolAllocatorStage;
 use bp_core::stage::Stage;
 use bp_gtk::dialogs;
 use bp_gtk::glade::Glade;
-use gtk4 as gtk;
 use gtk::gdk;
 use gtk::glib;
 use gtk::prelude::*;
+use gtk4 as gtk;
 
 use super::StageScreen;
 use crate::contest_page::ContestPage;
 use crate::widgets::filter_dialog;
 use crate::widgets::players_list::{Cell as ListCell, PlayersListView, RowData};
 use crate::widgets::render;
+
+mod print;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mark {
@@ -34,7 +38,7 @@ enum Mark {
 
 struct FencerLine {
     player: PlayerRef,
-    cells: Vec<String>,
+    cells: Vec<ListCell>,
     mark: Mark,
     absent: bool,
 }
@@ -44,7 +48,7 @@ struct PoolView {
     balanced: bool,
     piste: Option<String>,
     time: Option<String>,
-    referees: Vec<Vec<String>>,
+    referees: Vec<Vec<ListCell>>,
     fencers: Vec<FencerLine>,
 }
 
@@ -63,6 +67,7 @@ struct Snapshot {
 }
 
 pub struct AllocatorScreen {
+    weak_self: Weak<Self>,
     page: Weak<ContestPage>,
     index: usize,
     glade: Glade,
@@ -126,7 +131,8 @@ impl AllocatorScreen {
         let extra_combo: gtk::ComboBox = glade.get("extra_combobox");
         extra_combo.set_active(Some(0));
 
-        let screen = Rc::new(AllocatorScreen {
+        let screen = Rc::new_cyclic(|weak_self| AllocatorScreen {
+            weak_self: weak_self.clone(),
             page: Rc::downgrade(page),
             index,
             glade,
@@ -162,8 +168,8 @@ impl AllocatorScreen {
         on!("on_filter_button_clicked", on_filter);
         on!("on_print_toolbutton_clicked", on_print);
         on!("on_fencer_list_toggled", on_fencer_list_toggled);
-        on!("on_latecomer_toolbutton_clicked", on_not_available);
-        on!("on_absent_toolbutton_clicked", on_not_available);
+        on!("on_latecomer_toolbutton_clicked", on_latecomer);
+        on!("on_absent_toolbutton_clicked", on_absent);
 
         for (_, check) in self.regular.borrow().iter() {
             let w = Rc::downgrade(self);
@@ -196,7 +202,11 @@ impl AllocatorScreen {
     // ----------------------------------------------------------------------
     // Contenu
 
-    fn stage<R>(c: &mut bp_core::contest::Contest, index: usize, f: impl FnOnce(&PoolAllocatorStage, &bp_core::contest::Contest) -> R) -> Option<R> {
+    fn stage<R>(
+        c: &mut bp_core::contest::Contest,
+        index: usize,
+        f: impl FnOnce(&PoolAllocatorStage, &bp_core::contest::Contest) -> R,
+    ) -> Option<R> {
         let c: &bp_core::contest::Contest = c;
         let stage = c.schedule.stage(index)?;
         let allocator = stage.as_any().downcast_ref::<PoolAllocatorStage>()?;
@@ -211,22 +221,24 @@ impl AllocatorScreen {
             let owner = round.allocator_owner();
             let locked = allocator.base().locked;
 
-            let layout: Vec<_> = round
-                .allocator_filter
-                .iter()
-                .filter_map(|code| attribute::registry().by_code(code).map(|d| (d.code_name, d)))
-                .collect();
-            let image = |r: PlayerRef| -> Vec<String> {
-                let Some(p) = store.get(r) else { return Vec::new() };
-                layout
-                    .iter()
-                    .map(|(code, desc)| {
-                        render::value_of(p, code, owner).map(|v| render::user_image(desc, v, desc.favorite_look)).unwrap_or_default()
-                    })
-                    .collect()
+            let mut filter = Filter::including("allocator", &FilterKind::Allocator.available());
+            filter.apply_list(&round.allocator_filter);
+            let specs = render::column_specs(filter.layout(), false);
+            let image = |p: Option<&bp_core::player::Player>| -> Vec<ListCell> {
+                p.map(|p| {
+                    specs
+                        .iter()
+                        .map(|spec| render::cell_for(p, spec, owner))
+                        .collect()
+                })
+                .unwrap_or_default()
             };
 
-            let configs = round.configs().iter().map(|c| (c.size_label(), c.nb_pool.to_string())).collect();
+            let configs = round
+                .configs()
+                .iter()
+                .map(|c| (c.size_label(), c.nb_pool.to_string()))
+                .collect();
             let pools = round
                 .pools()
                 .iter()
@@ -236,12 +248,20 @@ impl AllocatorScreen {
                     balanced: round.pool_is_balanced(i),
                     piste: pool.piste_label(),
                     time: pool.start_time_image(),
-                    referees: pool.referees().iter().map(|r| image(*r)).collect(),
+                    referees: pool
+                        .referees()
+                        .iter()
+                        .map(|r| image(c.referee(*r)))
+                        .collect(),
                     fencers: pool
                         .fencers()
                         .iter()
                         .map(|f| {
-                            let absent = store.get(*f).and_then(|p| p.str_attr("incident")).map(|s| s.starts_with('A')).unwrap_or(false);
+                            let absent = store
+                                .get(*f)
+                                .and_then(|p| p.str_attr("incident"))
+                                .map(|s| s.starts_with('A'))
+                                .unwrap_or(false);
                             let mark = if round.swapper().is_an_error(*f) {
                                 Mark::Error
                             } else if round.is_moved(store, *f) {
@@ -249,14 +269,20 @@ impl AllocatorScreen {
                             } else {
                                 Mark::None
                             };
-                            FencerLine { player: *f, cells: image(*f), mark, absent }
+                            FencerLine {
+                                player: *f,
+                                cells: image(store.get(*f)),
+                                mark,
+                                absent,
+                            }
                         })
                         .collect(),
                 })
                 .collect();
 
             // Liste des tireurs
-            let mut list_filter = Filter::including("allocator_list", &FilterKind::List.available());
+            let mut list_filter =
+                Filter::including("allocator_list", &FilterKind::List.available());
             list_filter.apply_list(&round.list_filter);
             let list_specs = render::column_specs(list_filter.layout(), false);
             let list_rows = round
@@ -266,7 +292,10 @@ impl AllocatorScreen {
                     let p = store.get(*r)?;
                     Some(RowData {
                         player: *r,
-                        cells: list_specs.iter().map(|s| render::cell_for(p, s, owner)).collect(),
+                        cells: list_specs
+                            .iter()
+                            .map(|s| render::cell_for(p, s, owner))
+                            .collect(),
                         sort: render::sort_values(p, &list_specs, owner),
                         children: Vec::new(),
                         dimmed: false,
@@ -289,7 +318,7 @@ impl AllocatorScreen {
         })
     }
 
-    fn apply(self: &Rc<Self>, s: Snapshot) {
+    fn apply(&self, s: Snapshot) {
         self.updating.set(true);
 
         // Formules
@@ -311,6 +340,7 @@ impl AllocatorScreen {
         }
         for id in ["latecomer_toolbutton", "absent_toolbutton"] {
             self.glade.get::<gtk::Widget>(id).set_visible(s.adjustable);
+            self.glade.get::<gtk::Widget>(id).set_sensitive(!s.locked);
         }
 
         // Critères de séparation
@@ -352,19 +382,32 @@ impl AllocatorScreen {
         self.updating.set(false);
     }
 
-    fn pool_widget(self: &Rc<Self>, pool: &PoolView, locked: bool) -> gtk::Widget {
+    fn pool_widget(&self, pool: &PoolView, locked: bool) -> gtk::Widget {
         let frame = gtk::Box::new(gtk::Orientation::Vertical, 4);
         frame.add_css_class("bp-pool");
 
         let header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-        let icon = gtk::Image::from_icon_name(if pool.balanced { "object-select-symbolic" } else { "dialog-error-symbolic" });
+        let icon = gtk::Image::from_icon_name(if pool.balanced {
+            "object-select-symbolic"
+        } else {
+            "dialog-error-symbolic"
+        });
         header.append(&icon);
         let name = gtk::Label::new(None);
-        name.set_markup(&format!("<span size='large' weight='bold'>{}</span>", glib::markup_escape_text(&pool.name)));
+        name.set_markup(&format!(
+            "<span size='large' weight='bold'>{}</span>",
+            glib::markup_escape_text(&pool.name)
+        ));
         header.append(&name);
-        for text in [pool.piste.as_ref(), pool.time.as_ref()].into_iter().flatten() {
+        for text in [pool.piste.as_ref(), pool.time.as_ref()]
+            .into_iter()
+            .flatten()
+        {
             let l = gtk::Label::new(None);
-            l.set_markup(&format!("<span foreground='darkgreen' style='italic' weight='bold'>{}</span>", glib::markup_escape_text(text)));
+            l.set_markup(&format!(
+                "<span foreground='darkgreen' style='italic' weight='bold'>{}</span>",
+                glib::markup_escape_text(text)
+            ));
             header.append(&l);
         }
         frame.append(&header);
@@ -377,11 +420,14 @@ impl AllocatorScreen {
             let icon = gtk::Image::from_file(bp_gtk::resources::image_path("referee.png"));
             icon.set_pixel_size(16);
             grid.attach(&icon, 0, row, 1, 1);
-            for (c, text) in referee.iter().enumerate() {
-                let l = gtk::Label::new(None);
-                l.set_markup(&format!("<i><b>{}</b></i>", glib::markup_escape_text(text)));
-                l.set_xalign(0.0);
-                grid.attach(&l, c as i32 + 1, row, 1, 1);
+            for (c, cell) in referee.iter().enumerate() {
+                grid.attach(
+                    &Self::cell_widget(cell, false, true),
+                    c as i32 + 1,
+                    row,
+                    1,
+                    1,
+                );
             }
             row += 1;
         }
@@ -398,15 +444,8 @@ impl AllocatorScreen {
             status.set_pixel_size(16);
             grid.attach(&status, 0, row, 1, 1);
             let mut labels = Vec::new();
-            for (c, text) in fencer.cells.iter().enumerate() {
-                let l = gtk::Label::new(None);
-                let esc = glib::markup_escape_text(text);
-                if fencer.absent {
-                    l.set_markup(&format!("<s>{esc}</s>"));
-                } else {
-                    l.set_text(text);
-                }
-                l.set_xalign(0.0);
+            for (c, cell) in fencer.cells.iter().enumerate() {
+                let l = Self::cell_widget(cell, fencer.absent, false);
                 grid.attach(&l, c as i32 + 1, row, 1, 1);
                 labels.push(l);
             }
@@ -414,7 +453,9 @@ impl AllocatorScreen {
                 for l in &labels {
                     let source = gtk::DragSource::new();
                     source.set_actions(gdk::DragAction::MOVE);
-                    source.set_content(Some(&gdk::ContentProvider::for_value(&fencer.player.to_value())));
+                    source.set_content(Some(&gdk::ContentProvider::for_value(
+                        &fencer.player.to_value(),
+                    )));
                     l.add_controller(source);
                 }
             }
@@ -424,10 +465,12 @@ impl AllocatorScreen {
 
         if !locked {
             let target = gtk::DropTarget::new(PlayerRef::static_type(), gdk::DragAction::MOVE);
-            let w = Rc::downgrade(self);
+            let w = self.weak_self.clone();
             let name = pool.name.clone();
             target.connect_drop(move |_, value, _, _| {
-                let Ok(player) = value.get::<PlayerRef>() else { return false };
+                let Ok(player) = value.get::<PlayerRef>() else {
+                    return false;
+                };
                 let Some(s) = w.upgrade() else { return false };
                 let name = name.clone();
                 // le widget source est détruit par le rafraîchissement : on diffère
@@ -437,6 +480,37 @@ impl AllocatorScreen {
             frame.add_controller(target);
         }
         frame.upcast()
+    }
+
+    fn cell_widget(cell: &ListCell, absent: bool, referee: bool) -> gtk::Widget {
+        match cell {
+            ListCell::Icon(pixbuf) => gtk::Image::from_pixbuf(pixbuf.as_ref()).upcast(),
+            _ => {
+                let text = match cell {
+                    ListCell::Text(s) => s.clone(),
+                    ListCell::Toggle(b) => {
+                        if *b {
+                            "✓".into()
+                        } else {
+                            String::new()
+                        }
+                    }
+                    ListCell::Progress(n) => n.to_string(),
+                    _ => unreachable!(),
+                };
+                let label = gtk::Label::new(None);
+                let escaped = glib::markup_escape_text(&text);
+                label.set_markup(&if absent {
+                    format!("<s>{escaped}</s>")
+                } else if referee {
+                    format!("<b><i>{escaped}</i></b>")
+                } else {
+                    escaped.to_string()
+                });
+                label.set_xalign(0.0);
+                label.upcast()
+            }
+        }
     }
 
     pub fn refresh_now(self: &Rc<Self>) {
@@ -452,7 +526,10 @@ impl AllocatorScreen {
 
     fn edit<R>(
         &self,
-        f: impl FnOnce(&mut bp_core::rounds::pool::round::PoolRound, &mut bp_core::player::PlayerStore) -> R,
+        f: impl FnOnce(
+            &mut bp_core::rounds::pool::round::PoolRound,
+            &mut bp_core::player::PlayerStore,
+        ) -> R,
     ) -> Option<R> {
         let page = self.page()?;
         let index = self.index;
@@ -461,12 +538,17 @@ impl AllocatorScreen {
                 c.with_schedule(|s, ctx| {
                     let stage = s.stage_mut(index)?;
                     let allocator = stage.as_any_mut().downcast_mut::<PoolAllocatorStage>()?;
+                    if allocator.base().locked {
+                        return None;
+                    }
                     let mut round = allocator.round();
                     Some(f(&mut round, ctx.players))
                 })
             })
             .flatten();
-        page.mark_dirty();
+        if result.is_some() {
+            page.mark_dirty();
+        }
         result
     }
 
@@ -505,12 +587,19 @@ impl AllocatorScreen {
         if self.updating.get() {
             return;
         }
-        let regular: Vec<String> =
-            self.regular.borrow().iter().filter(|(_, check)| check.is_active()).map(|(code, _)| code.clone()).collect();
+        let regular: Vec<String> = self
+            .regular
+            .borrow()
+            .iter()
+            .filter(|(_, check)| check.is_active())
+            .map(|(code, _)| code.clone())
+            .collect();
         let extra_toggle: gtk::CheckButton = self.glade.get("extra_toggle");
         let extra_combo: gtk::ComboBox = self.glade.get("extra_combobox");
         let extra: Option<String> = if extra_toggle.is_active() {
-            extra_combo.active().and_then(|i| self.extra_codes.get(i as usize).cloned())
+            extra_combo
+                .active()
+                .and_then(|i| self.extra_codes.get(i as usize).cloned())
         } else {
             None
         };
@@ -526,7 +615,14 @@ impl AllocatorScreen {
             .page()
             .and_then(|p| {
                 let index = self.index;
-                p.with_contest(|c| Self::stage(c, index, |a, _| a.round().pools().iter().position(|pool| pool.name() == pool_name)))
+                p.with_contest(|c| {
+                    Self::stage(c, index, |a, _| {
+                        a.round()
+                            .pools()
+                            .iter()
+                            .position(|pool| pool.name() == pool_name)
+                    })
+                })
             })
             .flatten()
             .flatten();
@@ -541,40 +637,171 @@ impl AllocatorScreen {
 
     fn on_filter(self: &Rc<Self>) {
         let Some(page) = self.page() else { return };
-        let Some(app) = page.app.upgrade() else { return };
+        let Some(app) = page.app.upgrade() else {
+            return;
+        };
         let window = page.window();
-        let current = page.with_contest(|c| Self::stage(c, self.index, |a, _| a.round().allocator_filter.clone())).flatten().flatten();
+        let list_visible = self
+            .glade
+            .get::<gtk::ToggleButton>("fencer_list")
+            .is_active();
+        let kind = if list_visible {
+            FilterKind::List
+        } else {
+            FilterKind::Allocator
+        };
+        let current = page
+            .with_contest(|c| {
+                Self::stage(c, self.index, |a, _| {
+                    if list_visible {
+                        a.round().list_filter.clone()
+                    } else {
+                        a.round().allocator_filter.clone()
+                    }
+                })
+            })
+            .flatten();
         let Some(current) = current else { return };
-        let mut filter = Filter::including("allocator", &FilterKind::Allocator.available());
+        let mut filter = Filter::including(
+            if list_visible {
+                "allocator_list"
+            } else {
+                "allocator"
+            },
+            &kind.available(),
+        );
         filter.apply_list(&current);
         let changed = {
             let mut t = app.tournament.borrow_mut();
             let mut config = std::mem::take(&mut t.config);
-            let changed = filter_dialog::select_attributes(window.as_ref(), &mut filter, Some(&mut config));
+            let changed =
+                filter_dialog::select_attributes(window.as_ref(), &mut filter, Some(&mut config));
             t.config = config;
             changed
         };
         if changed {
             let codes = filter.selected_codes();
-            self.edit(|round, _| round.allocator_filter = codes);
+            page.with_contest(|c| {
+                Self::stage(c, self.index, |a, _| {
+                    let mut round = a.round();
+                    if list_visible {
+                        round.list_filter = codes;
+                    } else {
+                        round.allocator_filter = codes;
+                    }
+                })
+            });
+            page.mark_dirty();
         }
         self.after_edit();
     }
 
     fn on_print(self: &Rc<Self>) {
-        dialogs::info(
-            self.page().and_then(|p| p.window()).as_ref(),
-            &tr("Print"),
-            Some(&tr("Printing is not available yet in this version.")),
-        );
+        let Some(page) = self.page() else { return };
+        let data = page
+            .with_contest(|c| {
+                let title = format!("{} — {}", c.name, tr("Allocation"));
+                Self::snapshot(c, self.index).map(|snapshot| (title, snapshot))
+            })
+            .flatten();
+        let Some((title, snapshot)) = data else {
+            return;
+        };
+        let list_visible = self
+            .glade
+            .get::<gtk::ToggleButton>("fencer_list")
+            .is_active();
+        if let Err(error) = print::run(page.window().as_ref(), &title, snapshot, list_visible) {
+            dialogs::error(page.window().as_ref(), &error.to_string());
+        }
     }
 
-    fn on_not_available(self: &Rc<Self>) {
-        dialogs::info(
-            self.page().and_then(|p| p.window()).as_ref(),
-            &tr("Not available yet in this version."),
-            None,
-        );
+    fn on_latecomer(self: &Rc<Self>) {
+        self.on_presence(PillowKind::Latecomer);
+    }
+
+    fn on_absent(self: &Rc<Self>) {
+        self.on_presence(PillowKind::Absent);
+    }
+
+    fn on_presence(self: &Rc<Self>, kind: PillowKind) {
+        let Some(page) = self.page() else { return };
+        let data = page
+            .with_contest(|c| {
+                Self::stage(c, self.index, |a, c| {
+                    let round = a.round();
+                    if a.base().locked || !round.pillows_allowed() {
+                        return None;
+                    }
+                    let checkin = c.schedule.checkin()?;
+                    let candidates = checkin
+                        .players()
+                        .iter()
+                        .copied()
+                        .filter(|r| {
+                            c.players
+                                .get(*r)
+                                .map(|p| {
+                                    p.class == bp_core::player::PlayerClass::Fencer
+                                        && p.attending() == (kind == PillowKind::Absent)
+                                })
+                                .unwrap_or(false)
+                        })
+                        .collect();
+                    Some((
+                        round.clone(),
+                        c.players.clone(),
+                        candidates,
+                        checkin.filter.attr_list().to_vec(),
+                    ))
+                })
+            })
+            .flatten()
+            .flatten();
+        let Some((round, players, candidates, attrs)) = data else {
+            return;
+        };
+        let Some(changes) = super::pillow::run(
+            &self.glade,
+            page.window().as_ref(),
+            round,
+            players,
+            candidates,
+            attrs,
+            kind,
+        ) else {
+            return;
+        };
+        if changes.touched.is_empty() {
+            return;
+        }
+        page.with_contest(|c| {
+            c.with_schedule(|schedule, ctx| {
+                let Some(allocator) = schedule
+                    .stage(self.index)
+                    .and_then(|s| s.as_any().downcast_ref::<PoolAllocatorStage>())
+                else {
+                    return;
+                };
+                *allocator.round() = changes.round;
+                *ctx.players = changes.players;
+                // Inscrire tous les nouveaux joueurs avant le reverrouillage : celui-ci
+                // renumérote les références, ensuite propagées aux autres phases.
+                if let Some(checkin) = schedule.checkin_mut() {
+                    checkin.on_attendees_toggled(ctx, &changes.touched);
+                }
+                schedule.apply_renumbering(ctx);
+                if let Some(allocator) = schedule
+                    .stage(self.index)
+                    .and_then(|s| s.as_any().downcast_ref::<PoolAllocatorStage>())
+                {
+                    allocator.round().check_distribution(ctx.players);
+                }
+                schedule.refresh_general_classification(ctx);
+            })
+        });
+        page.mark_dirty();
+        self.after_edit();
     }
 
     fn on_fencer_list_toggled(self: &Rc<Self>) {
@@ -590,12 +817,10 @@ impl StageScreen for AllocatorScreen {
     }
 
     fn refresh(&self) {
-        // `refresh` n'a pas accès à `Rc<Self>` : on reconstruit un Rc faible.
-        // Le rafraîchissement réel passe par `refresh_now`, appelé ci-dessous.
         if let Some(page) = self.page() {
             let index = self.index;
             if let Some(Some(snapshot)) = page.with_contest(|c| Self::snapshot(c, index)) {
-                self.apply_ref(snapshot);
+                self.apply(snapshot);
             }
         }
     }

@@ -806,8 +806,16 @@ impl CheckinStage {
     /// Un tireur absent est déclaré présent (ou inversement) depuis une
     /// phase ultérieure (`OnAttendeeToggled`) : le pointage est reverrouillé.
     pub fn on_attendee_toggled(&mut self, ctx: &mut StageContext, attendee: PlayerRef) {
-        if !self.list.contains(&attendee) && ctx.players.get(attendee).is_some() {
-            self.list.push(attendee);
+        self.on_attendees_toggled(ctx, &[attendee]);
+    }
+
+    /// Valide ensemble les modifications d'un dialogue. Le verrouillage
+    /// renumérote les joueurs : il doit suivre l'inscription de tous les ajouts.
+    pub fn on_attendees_toggled(&mut self, ctx: &mut StageContext, attendees: &[PlayerRef]) {
+        for attendee in attendees {
+            if !self.list.contains(attendee) && ctx.players.get(*attendee).is_some() {
+                self.list.push(*attendee);
+            }
         }
         self.lock(ctx);
     }

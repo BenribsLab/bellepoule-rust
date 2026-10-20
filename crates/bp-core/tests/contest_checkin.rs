@@ -13,6 +13,39 @@ fn fencer(name: &str, ranking: u32) -> bp_core::player::Player {
 }
 
 #[test]
+fn several_latecomers_are_registered_before_renumbering() {
+    use bp_core::attribute::Value;
+    let mut c = Contest::new_with_default_stages(None);
+    c.with_schedule(|s, ctx| {
+        let checkin = s.checkin_mut().unwrap();
+        let r = checkin.form_new_player(ctx, fencer("MARTIN", 1)).unwrap();
+        checkin.set_attending(ctx, r, true);
+    });
+    c.with_schedule(|s, ctx| s.lock_current(ctx));
+    // Le dialogue travaille dans le magasin, avant de transmettre ses ajouts
+    // au pointage. Les retardataires sont renumérotés à partir de 10000.
+    let mut additions = Vec::new();
+    for name in ["ALBERT", "ZOE"] {
+        let mut player = fencer(name, 2);
+        player.set(&AttrId::global("attending"), Value::Bool(true));
+        player.set_str(&AttrId::global("incident"), "R");
+        additions.push(c.players.add(player));
+    }
+    c.with_schedule(|s, ctx| {
+        s.checkin_mut().unwrap().on_attendees_toggled(ctx, &additions);
+        s.apply_renumbering(ctx);
+    });
+    let checkin = c.schedule.checkin().unwrap();
+    assert_eq!(checkin.players().len(), 3);
+    let mut names: Vec<_> = checkin.players().iter().map(|r| c.players.get(*r).unwrap().name()).collect();
+    names.sort();
+    assert_eq!(names, ["ALBERT", "MARTIN", "ZOE"]);
+    assert_eq!(checkin.presents().len(), 3);
+    assert_eq!(c.players.get(10000).unwrap().name(), "ALBERT");
+    assert_eq!(c.players.get(10001).unwrap().name(), "ZOE");
+}
+
+#[test]
 fn add_toggle_remove_individuals() {
     let mut c = Contest::new_with_default_stages(None);
     let mut refs = Vec::new();

@@ -6,10 +6,13 @@
 use std::rc::Rc;
 
 use bp_core::stage::StageKind;
-use gtk4 as gtk;
 use gtk::prelude::*;
+use gtk4 as gtk;
 
+pub mod allocator;
 pub mod checkin;
+mod pillow;
+pub mod pool_supervisor;
 
 use crate::contest_page::ContestPage;
 
@@ -18,13 +21,20 @@ pub trait StageScreen {
     fn widget(&self) -> gtk::Widget;
     /// Relit le modèle et met l'affichage à jour.
     fn refresh(&self);
+    fn configuration(&self) -> Option<gtk::Widget> {
+        None
+    }
 }
 
 /// Écran d'une phase (`index` : position dans la suite des phases).
 pub fn build(page: &Rc<ContestPage>, index: usize) -> Rc<dyn StageScreen> {
-    let kind = page.with_contest(|c| c.schedule.stage(index).map(|s| s.kind())).flatten();
+    let kind = page
+        .with_contest(|c| c.schedule.stage(index).map(|s| s.kind()))
+        .flatten();
     match kind {
         Some(StageKind::Checkin) => checkin::CheckinScreen::new(page),
+        Some(StageKind::PoolAllocator) => allocator::AllocatorScreen::new(page, index),
+        Some(StageKind::PoolSupervisor) => pool_supervisor::SupervisorScreen::new(page, index),
         _ => Rc::new(Pending::new(page, index)),
     }
 }
@@ -37,7 +47,11 @@ struct Pending {
 impl Pending {
     fn new(page: &Rc<ContestPage>, index: usize) -> Pending {
         let name = page
-            .with_contest(|c| c.schedule.stage(index).map(|s| bp_core::i18n::tr(s.kind().class_name())))
+            .with_contest(|c| {
+                c.schedule
+                    .stage(index)
+                    .map(|s| bp_core::i18n::tr(s.kind().class_name()))
+            })
             .flatten()
             .unwrap_or_default();
         let label = gtk::Label::new(Some(&name));
