@@ -699,6 +699,82 @@ impl Contest {
     }
 }
 
+impl Contest {
+    /// En-tête de la compétition pour les imports et exports (`formats`).
+    pub fn header(&self) -> crate::formats::header::ContestHeader {
+        crate::formats::header::ContestHeader {
+            team_event: self.settings.team_event,
+            color: Some(self.color.clone()),
+            authority: self.authority.clone(),
+            fie_id: self.fie_id.clone(),
+            net_id: Some(self.net_id as u64),
+            name: self.name.clone(),
+            day: self.day,
+            month: self.month,
+            year: self.year,
+            checkin_time: Some(self.checkin_time.xml_image()),
+            scratch_time: Some(self.scratch_time.xml_image()),
+            start_time: Some(self.start_time.xml_image()),
+            weapon: self.weapon.xml_image.to_string(),
+            gender: self.gender_code().to_string(),
+            category: self.category.xml_image(),
+            category_display: Some(self.category.display_image()),
+            level: Some(LEVEL_XML_IMAGES[self.level.min(6)].to_string()),
+            organizer: self.organizer.clone(),
+            source: self.source.clone(),
+            web_site: self.web_site.clone(),
+            location: self.location.clone(),
+            label: self.label.clone(),
+            score_stuffing: self.settings.score_stuffing_allowed,
+            minimum_team_size: Some(self.settings.minimum_team_size),
+            default_classification: Some(self.settings.default_classification),
+            manual_classification: Some(self.settings.manual_classification as u32),
+            raw_attributes: Vec::new(),
+        }
+    }
+
+    /// `DumpToHTML` : page web de la compétition (un onglet par phase).
+    pub fn dump_to_html(&mut self) -> String {
+        let header = self.header();
+        let current = self.schedule.current_index();
+        let ctx = StageContext { players: &mut self.players, settings: &self.settings };
+        let mut rounds = Vec::new();
+        for (index, stage) in self.schedule.stages().enumerate() {
+            if stage.is_input_provider() {
+                continue;
+            }
+            let mut html = String::new();
+            if index <= current {
+                stage.dump_to_html(&ctx, &mut html);
+            }
+            rounds.push(crate::formats::html::HtmlRound {
+                id: stage.base().id,
+                index,
+                class_name: crate::i18n::tr(stage.kind().class_name()),
+                name: stage.name(),
+                html,
+            });
+        }
+        crate::formats::html::dump_contest(&header, &rounds, current)
+    }
+
+    /// Classement final au format FFF (`GeneralClassification` → `DumpToFFF`).
+    /// `place_shifting` : décalage des places (place de départ − 1).
+    pub fn export_final_classification_fff(&self, place_shifting: u32) -> Option<Vec<u8>> {
+        let gc = self
+            .schedule
+            .stages()
+            .find_map(|s| s.as_any().downcast_ref::<crate::rounds::classification::GeneralClassificationStage>())?;
+        Some(crate::formats::fff::export(&self.header(), &self.players, gc.result(), place_shifting))
+    }
+
+    /// Liste des tireurs au format CSV (modèle d'import).
+    pub fn export_fencers_csv(&self, delimiter: char) -> String {
+        let refs: Vec<PlayerRef> = self.schedule.checkin().map(|c| c.fencers(&self.players)).unwrap_or_default();
+        crate::formats::csv::export(&self.players, &refs, delimiter)
+    }
+}
+
 /// `GetUnknownAttributes` : attributs du premier `<Tireur>` que le registre
 /// ne connaît pas ; ils sont conservés tels quels (texte).
 fn unknown_attributes(root: roxmltree::Node) -> Vec<String> {
