@@ -1,7 +1,13 @@
 [package]
 name = "bp-usb-backend"
+description = "Détecteur de clés USB de BellePoule (événements JSON sur stderr)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
+# libusb, compilée depuis ses sources par libusb1-sys (fonctionne aussi sous MSVC).
+rusb = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true }
