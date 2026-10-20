@@ -17,3 +17,5 @@ thiserror = { workspace = true }
 log = { workspace = true }
 zip = { workspace = true }
 csv = { workspace = true }
+md-5 = { workspace = true }
+sha1 = { workspace = true }

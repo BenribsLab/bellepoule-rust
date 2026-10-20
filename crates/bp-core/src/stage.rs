@@ -323,6 +323,28 @@ pub trait Stage: Any + Send {
         self.base_mut().locked = false;
     }
 
+    /// Renumérotation des joueurs (le pointage réattribue les références
+    /// lors de son verrouillage). Par défaut, seuls les participants sont
+    /// mis à jour ; une phase qui mémorise d'autres références doit la
+    /// surcharger.
+    fn remap_players(&mut self, map: &std::collections::HashMap<PlayerRef, PlayerRef>) {
+        for r in self.base_mut().attendees.iter_mut() {
+            if let Some(n) = map.get(r) {
+                *r = *n;
+            }
+        }
+    }
+
+    /// Export HTML de la phase (`Module::DumpToHTML`). Vide par défaut.
+    fn dump_to_html(&self, ctx: &StageContext, html: &mut String) {
+        let _ = (ctx, html);
+    }
+
+    /// Fin du chargement du fichier (`OnLoadingCompleted`).
+    fn on_loading_completed(&mut self, ctx: &mut StageContext) {
+        let _ = ctx;
+    }
+
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }

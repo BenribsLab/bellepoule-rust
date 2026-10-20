@@ -207,6 +207,24 @@ impl Player {
         }
     }
 
+    /// Change le propriétaire des attributs locaux selon une table
+    /// (renumérotation des phases). Ajout de `contest`/`schedule`.
+    pub fn remap_owners(&mut self, map: &HashMap<Owner, Owner>) {
+        if map.is_empty() {
+            return;
+        }
+        let attrs = std::mem::take(&mut self.attrs);
+        self.attrs = attrs
+            .into_iter()
+            .map(|((o, n), v)| ((map.get(&o).copied().unwrap_or(o), n), v))
+            .collect();
+    }
+
+    /// Attributs locaux d'un propriétaire donné.
+    pub fn local_attrs(&self, owner: Owner) -> impl Iterator<Item = (&str, &Value)> {
+        self.attrs.iter().filter(move |((o, _), _)| *o == owner).map(|((_, n), v)| (n.as_str(), v))
+    }
+
     pub fn global_attrs(&self) -> impl Iterator<Item = (&str, &Value)> {
         self.attrs.iter().filter(|((o, _), _)| *o == Owner::Global).map(|((_, n), v)| (n.as_str(), v))
     }
@@ -411,6 +429,46 @@ impl PlayerStore {
         if let Some(f) = self.players.get_mut(&fencer) {
             f.team = team;
         }
+    }
+
+    /// Change le propriétaire des attributs locaux de tous les joueurs.
+    pub fn remap_owners(&mut self, map: &HashMap<Owner, Owner>) {
+        for p in self.players.values_mut() {
+            p.remap_owners(map);
+        }
+    }
+
+    /// Renumérote les joueurs (`SetRef`) : les clés, les références, les
+    /// liens équipe/membres sont mis à jour. Les références absentes de la
+    /// table sont conservées. La table doit produire des références uniques.
+    pub fn renumber(&mut self, map: &HashMap<PlayerRef, PlayerRef>) {
+        if map.iter().all(|(a, b)| a == b) {
+            return;
+        }
+        let tr = |r: PlayerRef| map.get(&r).copied().unwrap_or(r);
+        let old = std::mem::take(&mut self.players);
+        for (r, mut p) in old {
+            let new_ref = tr(r);
+            if new_ref != r {
+                p.set_ref(new_ref);
+            }
+            p.team = p.team.map(tr);
+            for m in p.members.iter_mut() {
+                *m = tr(*m);
+            }
+            self.players.insert(new_ref, p);
+        }
+        self.next_ref = self.players.keys().next_back().map(|r| r + 1).unwrap_or(1).max(1);
+    }
+
+    /// Vrai si la référence est utilisée.
+    pub fn contains(&self, r: PlayerRef) -> bool {
+        self.players.contains_key(&r)
+    }
+
+    /// Références de tous les joueurs (ordre croissant).
+    pub fn refs(&self) -> Vec<PlayerRef> {
+        self.players.keys().copied().collect()
     }
 
     /// Trie des références selon une liste de critères.
