@@ -9,6 +9,8 @@ use bp_core::stage::StageKind;
 use gtk4 as gtk;
 use gtk::prelude::*;
 
+pub mod checkin;
+
 use crate::contest_page::ContestPage;
 
 pub trait StageScreen {
@@ -22,6 +24,7 @@ pub trait StageScreen {
 pub fn build(page: &Rc<ContestPage>, index: usize) -> Rc<dyn StageScreen> {
     let kind = page.with_contest(|c| c.schedule.stage(index).map(|s| s.kind())).flatten();
     match kind {
+        Some(StageKind::Checkin) => checkin::CheckinScreen::new(page),
         _ => Rc::new(Pending::new(page, index)),
     }
 }

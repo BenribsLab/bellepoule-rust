@@ -11,6 +11,7 @@ mod contest_page;
 mod language;
 mod schedule_view;
 mod stages;
+mod widgets;
 
 use std::path::PathBuf;
 

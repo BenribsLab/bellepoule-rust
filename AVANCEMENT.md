@@ -73,7 +73,9 @@ Fait : canevas cairo complété (couleurs, vue défilante/zoomable, icônes, con
 fichiers récents, exemples, modèle CSV, sauvegarde, À propos, quitter), onglet de compétition (couleur,
 propriétés, calendrier, enregistrement automatique 5 s, fermeture), calendrier des phases (formule, précédent /
 suivant, barrage, erreurs). Lancement vérifié par capture d'écran.
-**Reste** : menu des langues, écrans de chaque phase (étape 6), impression, liste de joueurs réutilisable.
+Écran d'appel (liste des tireurs avec icônes et cases de présence, tri, ajout/modification par le formulaire,
+suppression, import FFF/CSV, import de classement, colonnes à afficher, présents/absents, équipes) ✅.
+**Reste** : menu des langues, écrans des autres phases (étape 6), impression.
 
 ### Étape 6 — Écrans des phases (vague 2)
 Pointage, composition des poules, poules, tableaux, barrage, scission, classements, arbitres, planning.
