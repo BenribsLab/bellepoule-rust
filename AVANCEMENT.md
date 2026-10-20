@@ -14,14 +14,14 @@ Légende : ✅ fait · 🟡 écrit, compile, non vérifié · ❌ pas commencé
 | LivePoule + détecteur USB | ✅ | ~95 % |
 | Réseau (`bp-net`) | 🟡 | ~85 % |
 | Imports / exports (`formats`) | 🟡 | ~75 % |
-| Tableaux, barrage, scission | 🟡 fonctionne de bout en bout, relecture détaillée à faire | ~75 % |
+| Tableaux, barrage, scission | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Poules | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Compétition, pointage, classement | ✅ logique terminée (hors réseau) | ~90 % |
-| Socle graphique + écrans `.ui` | 🟡 | ~35 % |
+| Socle graphique + fenêtre principale | 🟡 fenêtre, menus, onglets et propriétés fonctionnent ; écrans des phases à faire | ~45 % |
 | Marshaller | 🟡 | ~30 % |
 | Vague 2 (écrans des phases, impression, liaison réseau) | ❌ | 0 % |
 
-**Global : ~45 %.**
+**Global : ~55 %.**
 
 ---
 
@@ -56,19 +56,24 @@ relecture, tri aléatoire qui faisait planter Rust (`sort.rs`).
 **Reste (reporté)** : dialogues « retardataires/absents » (la logique est dans `PoolRound`, l'écran est à faire),
 impression de l'allocateur, aiguillage des messages réseau (`SmartPoule::Score`…) → étapes 5, 6 et 8.
 
-### Étape 3 — Tableaux : relecture de complétude ← PROCHAINE
-Les tableaux se chargent (127 matchs de `melun.cotcot` conservés), se jouent et se classent de bout en bout.
-Reste à comparer avec `table_set.cpp` (~4000 lignes C++) fonction par fonction : places tirées, tableaux de
-classement, exempts, barrage, scission, export HTML, feuilles de match.
+### Étape 3 — Tableaux ✅ TERMINÉE
+Se jouent de bout en bout avec toutes les options (aucune / 3e place / toutes les places) pour 8, 13, 20 et
+33 tireurs ; barrage (ex æquo à la limite du quota) et point de scission testés ; enregistrement et relecture
+d'un tableau à moitié joué sans perdre un score ; renumérotation des tireurs au chargement. Le C++ ne sait
+pas non plus relire les tableaux des fichiers 3.x (identifiant de suite par chemin d'arborescence).
+Exports branchés sur la compétition : HTML, FFF du classement final, CSV, archive ZIP des étapes.
 
 ### Étape 4 — Réseau et formats : nettoyage
 - réseau : pages PHP du site web non portées ; FTPS absent ;
 - formats : intégration avec la compétition ; aucun test écrit sur `tests-data/`.
 
-### Étape 5 — Socle graphique et application `bellepoule`
-- vérifier que chaque `.ui` se charge (`gtk4-builder-tool validate`) ;
-- `Module`, liste de joueurs générique, impression (livres, chapitres, sections), export PDF/SVG/PNG ;
-- fenêtre principale du tournoi, menus, langues, À propos, dialogue de compétition, vue des phases, `--smoke-test`.
+### Étape 5 — Socle graphique et application `bellepoule` ← EN COURS
+Fait : canevas cairo complété (couleurs, vue défilante/zoomable, icônes, contexte d'impression), les 17 écrans
+`.ui` valident avec `gtk4-builder-tool`, fenêtre principale (menus, ouverture de tous les types de fichiers,
+fichiers récents, exemples, modèle CSV, sauvegarde, À propos, quitter), onglet de compétition (couleur,
+propriétés, calendrier, enregistrement automatique 5 s, fermeture), calendrier des phases (formule, précédent /
+suivant, barrage, erreurs). Lancement vérifié par capture d'écran.
+**Reste** : menu des langues, écrans de chaque phase (étape 6), impression, liste de joueurs réutilisable.
 
 ### Étape 6 — Écrans des phases (vague 2)
 Pointage, composition des poules, poules, tableaux, barrage, scission, classements, arbitres, planning.
