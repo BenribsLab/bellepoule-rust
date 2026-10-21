@@ -709,8 +709,8 @@ impl Contest {
             .stage(index)
             .and_then(|s| s.as_any().downcast_ref::<YouthTraining>())
             .ok_or_else(|| Error::Format("la phase choisie n'est pas un entraînement des jeunes".into()))?;
-        let settings = youth.settings;
-        let groups = youth.groups();
+        let settings = youth.settings.clone();
+        let groups = youth.groups(&self.players);
         if groups.is_empty() {
             return Err(Error::Format("aucun tireur à répartir".into()));
         }
@@ -734,11 +734,15 @@ impl Contest {
                     let Some(stage) = schedule.stage_mut(i) else { continue };
                     if let Some(pools) = stage.as_any().downcast_ref::<crate::rounds::pool::PoolSupervisorStage>() {
                         let mut round = pools.round();
-                        round.forced_nb_pools = Some(group.pool_sizes.len() as u32);
+                        round.forced_nb_pools = Some(group.layout.nb_pools);
                         round.cross_output = true;
                         round.set_seeding_balanced(ctx.players, settings.pool_mode == PoolMode::Snake);
+                        if settings.pool_mode == PoolMode::Snake {
+                            let regular: Vec<&str> = settings.swapping.iter().map(String::as_str).collect();
+                            round.set_swapping_criteria(ctx.players, &regular, None);
+                        }
                     } else if let Some(table) = stage.as_any_mut().downcast_mut::<crate::rounds::table::supervisor::TableSupervisor>() {
-                        table.fenced_places = crate::rounds::table::supervisor::FencedPlaces::AllPlaces.value();
+                        table.fenced_places = settings.fenced_places.value();
                     }
                 }
             });

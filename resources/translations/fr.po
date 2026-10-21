@@ -1471,3 +1471,48 @@ msgstr "Certaines poules ont moins de 3 ou plus de 6 tireurs : choisissez une au
 
 msgid "Each group becomes its own competition: pools, then a table where every place is fenced (one winner per group). Click \"Next round\" to create the groups."
 msgstr "Chaque groupe devient une compétition à part : des poules, puis un tableau où toutes les places sont tirées (un vainqueur par groupe). Cliquez sur « Tour suivant » pour créer les groupes."
+
+msgid "Preferences: the number of fencers per group is adjusted to the number of entries."
+msgstr "Préférences : le nombre de tireurs par groupe est ajusté au nombre d'inscrits."
+
+msgid "By division (level groups: the best fencers in group 1)"
+msgstr "Par division (groupes de niveau : les meilleurs dans le groupe 1)"
+
+msgid "By ranking (serpentine, groups of equal level)"
+msgstr "Au classement (serpentin, groupes de même niveau)"
+
+msgid "At random"
+msgstr "Au hasard"
+
+msgid "Pools of a group"
+msgstr "Poules d'un groupe"
+
+msgid "1st of pool 1 against last of pool 2, 2nd against second to last…"
+msgstr "Le 1er de la poule 1 rencontre le dernier de la poule 2, le 2e l'avant-dernier…"
+
+msgid "Groups creation. Each group becomes its own competition (pools, then table). Settings are in the preferences of this round. Click \"Next round\" to create the groups."
+msgstr "Création des groupes. Chaque groupe devient une compétition à part (poules, puis tableau). Les réglages sont dans les préférences de cette phase. Cliquez sur « Tour suivant » pour créer les groupes."
+
+msgid "Number of groups"
+msgstr "Nombre de groupes"
+
+msgid "Default arrangement"
+msgstr "Répartition par défaut"
+
+msgid "Fencers"
+msgstr "Tireurs"
+
+msgid "and"
+msgstr "et"
+
+msgid "bouts minimum per fencer"
+msgstr "matchs minimum par tireur"
+
+msgid "modified"
+msgstr "modifiée"
+
+msgid "<b><big>Remove the pools and tables rounds that follow?</big></b>"
+msgstr "<b><big>Retirer les tours de poules et de tableaux qui suivent ?</big></b>"
+
+msgid "With a youth training, pools and tables are fenced inside each group."
+msgstr "Avec un entraînement des jeunes, les poules et les tableaux se tirent dans chaque groupe."

@@ -158,11 +158,17 @@ stabilité du classement après recalcul avec export d'un éliminé). Compilés,
   avec cases de touches, résultats en en-têtes inclinés). Rendu contrôlé par le test
   `render_pool_sheet_png` (variable `BP_SHEET_PNG` = dossier de sortie).
 - Extension « Entraînement des jeunes » (absente du C++) : `StageKind::YouthTraining`
-  (`rounds/youth.rs`, XML `EntrainementJeunes`), menu Fichier › Nouvel entraînement des jeunes,
-  écran `stages/youth.rs` (réglages, propositions triées, aperçu des groupes). « Tour suivant » crée
-  une compétition par groupe (`Contest::duplicate_youth_groups`) : poules au nombre imposé
-  (`PoolRound::forced_nb_pools`), sortie croisée (`PoolRound::cross_output`, 1er P1 / 4e P2…) et
-  tableau toutes places tirées. Tests : `tests/youth_training.rs`, `rounds::youth::tests`.
+  (`rounds/youth.rs`, XML `EntrainementJeunes`). Réglages par défaut dans les préférences de la phase
+  (`StageScreen::configuration`) : tireurs/poules par groupe, groupes par division, au classement
+  (serpentin) ou au hasard avec décalage (`NeoSwapper`, critères club…), poules en serpentin ou par
+  niveau, places tirées (toutes / 3e / aucune). Écran central = création des groupes : nombre de
+  groupes, taille de chaque groupe (le surplus va aux derniers : 17 → 8 + 9), formule de poules par
+  groupe avec la meilleure marquée ★ ; composition mémorisée (`Composition="8x2,9x2"`).
+  Ajouter la phase dans la formule propose de retirer les poules/tableaux qui suivent ; menu Fichier ›
+  Nouvel entraînement des jeunes. « Tour suivant » crée une compétition par groupe
+  (`Contest::duplicate_youth_groups`) : poules imposées (`PoolRound::forced_nb_pools`), décalage,
+  sortie croisée (`PoolRound::cross_output`, 1er P1 / 4e P2…), places tirées choisies.
+  Tests : `tests/youth_training.rs`, `rounds::youth::tests`.
 
 ## Suite (dans l'ordre)
 1. Vérifier les écrans de poules selon les scénarios ci-dessous. Comparer au C++ le rendu/zoom,

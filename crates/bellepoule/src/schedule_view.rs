@@ -373,9 +373,35 @@ impl ScheduleView {
     fn add_stage(self: &Rc<Self>, kind: StageKind) {
         let Some(page) = self.page() else { return };
         let after = self.selected_index();
+        // Entraînement des jeunes : les poules et tableaux se font dans les
+        // groupes ; on propose de retirer ceux de la formule qui le suivent.
+        let remove_rounds = kind == StageKind::YouthTraining
+            && page
+                .with_contest(|c| {
+                    let from = after.map(|a| a + 1).unwrap_or(c.schedule.len());
+                    (from..c.schedule.len()).any(|i| {
+                        matches!(c.schedule.stage(i).map(|s| s.kind()), Some(StageKind::PoolSupervisor | StageKind::TableSupervisor))
+                    })
+                })
+                .unwrap_or(false)
+            && dialogs::ask_yes_no(
+                page.window().as_ref(),
+                &tr("<b><big>Remove the pools and tables rounds that follow?</big></b>"),
+                Some(&tr("With a youth training, pools and tables are fenced inside each group.")),
+                None,
+            );
         page.with_contest(|c| {
             c.with_schedule(|s, ctx| {
-                s.add_kind(ctx, kind, after);
+                let at = s.add_kind(ctx, kind, after);
+                if remove_rounds {
+                    let mut i = s.len();
+                    while i > at + 1 {
+                        i -= 1;
+                        if matches!(s.stage(i).map(|st| st.kind()), Some(StageKind::PoolSupervisor | StageKind::TableSupervisor)) {
+                            s.remove_user_stage(ctx, i);
+                        }
+                    }
+                }
             })
         });
         page.mark_dirty();
