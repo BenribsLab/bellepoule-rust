@@ -149,6 +149,21 @@ stabilité du classement après recalcul avec export d'un éliminé). Compilés,
 - Feuille de poule à l'écran : cases contournées, cases de la diagonale grisées (CSS `bp-cell`).
 - Chaînes françaises ajoutées en fin de `resources/translations/fr.po` pour ces nouveaux libellés.
 
+### Impression fidèle et entraînement des jeunes (21/10/2026)
+- Bandeau et pied de page de toutes les impressions comme `Contest::DrawPage` (couleur, nom, arme -
+  sexe - catégorie, nom de page, organisateur, date). Mise en page réglable depuis l'aperçu
+  (« Mise en page… ») et mémorisée dans les préférences (`[PrintLayout]`) : titre, couleurs,
+  tailles de police, cases grisées, noms, pied de page, numéros de page.
+- Feuilles de poule imprimées comme `Pool::Draw` (arbitre, piste, grille, signatures, liste des matchs
+  avec cases de touches, résultats en en-têtes inclinés). Rendu contrôlé par le test
+  `render_pool_sheet_png` (variable `BP_SHEET_PNG` = dossier de sortie).
+- Extension « Entraînement des jeunes » (absente du C++) : `StageKind::YouthTraining`
+  (`rounds/youth.rs`, XML `EntrainementJeunes`), menu Fichier › Nouvel entraînement des jeunes,
+  écran `stages/youth.rs` (réglages, propositions triées, aperçu des groupes). « Tour suivant » crée
+  une compétition par groupe (`Contest::duplicate_youth_groups`) : poules au nombre imposé
+  (`PoolRound::forced_nb_pools`), sortie croisée (`PoolRound::cross_output`, 1er P1 / 4e P2…) et
+  tableau toutes places tirées. Tests : `tests/youth_training.rs`, `rounds::youth::tests`.
+
 ## Suite (dans l'ordre)
 1. Vérifier les écrans de poules selon les scénarios ci-dessous. Comparer au C++ le rendu/zoom,
    les colonnes graphiques et dispositions de filtres à l'écran et sur papier, la navigation au

@@ -434,6 +434,16 @@ impl ScheduleView {
                 Err(e) => { dialogs::error(page.window().as_ref(), &e.to_string()); return; }
             }
         } else { None };
+        // Entraînement des jeunes : une compétition par groupe.
+        let youth = page.with_contest(|c| c.schedule.current().map(|s| s.kind() == StageKind::YouthTraining)).flatten().unwrap_or(false);
+        let youth_contests = if youth {
+            let Some(app) = page.app.upgrade() else { return };
+            let result = app.tournament.borrow_mut().create_youth_groups(page.id);
+            match result {
+                Ok(ids) => ids,
+                Err(e) => { dialogs::error(page.window().as_ref(), &e.to_string()); return; }
+            }
+        } else { Vec::new() };
         let exceedance = page
             .with_contest(|c| c.with_schedule(|s, ctx| s.lock_current(ctx)))
             .unwrap_or(0);
@@ -455,6 +465,11 @@ impl ScheduleView {
         self.refresh();
         if let (Some(id), Some(app)) = (split_contest, page.app.upgrade()) {
             if let Some(derived) = app.show_managed_contest(id) { derived.mark_dirty(); }
+        }
+        if let Some(app) = page.app.upgrade() {
+            for id in youth_contests {
+                if let Some(derived) = app.show_managed_contest(id) { derived.mark_dirty(); }
+            }
         }
     }
 

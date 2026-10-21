@@ -94,6 +94,24 @@ impl Tournament {
         self.manage(contest)
     }
 
+    /// Nouvel entraînement des jeunes : formule appel → entraînement des
+    /// jeunes → classement général.
+    pub fn new_youth_training(&mut self) -> ContestId {
+        let mut contest = Contest::new_with_default_stages(Some(&mut self.config));
+        contest.with_schedule(|schedule, ctx| {
+            let mut i = schedule.len();
+            while i > 1 {
+                i -= 1;
+                let kind = schedule.stage(i).map(|s| s.kind());
+                if matches!(kind, Some(crate::stage::StageKind::PoolSupervisor | crate::stage::StageKind::TableSupervisor)) {
+                    schedule.remove_user_stage(ctx, i);
+                }
+            }
+            schedule.add_kind(ctx, crate::stage::StageKind::YouthTraining, Some(0));
+        });
+        self.manage(contest)
+    }
+
     /// Prépare la compétition créée au franchissement d'un point de scission.
     /// Cette méthode n'avance pas la source : l'interface verrouille ensuite
     /// la phase et affiche l'onglet de la nouvelle compétition.

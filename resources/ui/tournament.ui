@@ -18,6 +18,13 @@
             <attribute name="bp-icon">document-new</attribute>
           </item>
           <item>
+            <attribute name="label" translatable="yes">New youth training</attribute>
+            <attribute name="bp-id">youth_menuitem</attribute>
+            <attribute name="action">tournament.youth-menuitem</attribute>
+            <attribute name="bp-handler">on_youth_menuitem_activate</attribute>
+            <attribute name="bp-icon">document-new</attribute>
+          </item>
+          <item>
             <attribute name="label" translatable="yes">_Open</attribute>
             <attribute name="bp-id">open_menuitem</attribute>
             <attribute name="action">tournament.open-menuitem</attribute>

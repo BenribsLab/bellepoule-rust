@@ -138,6 +138,7 @@ impl App {
             }};
         }
         on!("on_new_menuitem_activate", on_new);
+        on!("on_youth_menuitem_activate", on_new_youth);
         on!("on_open_menuitem_activate", on_open);
         on!("on_recent_menuitem_activate", on_recent);
         on!("on_reload_menuitem_activate", on_reload);
@@ -317,6 +318,15 @@ impl App {
             gtk::ResponseType::Other(NEW_ZIP) => self.choose_and_open(Some("*.zip")),
             gtk::ResponseType::Other(NEW_ASKFRED) => self.choose_and_open(Some("*.frd")),
             _ => {}
+        }
+    }
+
+    /// Entraînement des jeunes (extension) : nouvelle compétition dont la
+    /// formule répartit les tireurs en groupes.
+    fn on_new_youth(self: &Rc<Self>) {
+        let id = self.tournament.borrow_mut().new_youth_training();
+        if let Some(page) = self.add_page(id) {
+            page.ask_for_settings();
         }
     }
 

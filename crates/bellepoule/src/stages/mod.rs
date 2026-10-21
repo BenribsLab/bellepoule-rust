@@ -17,6 +17,7 @@ mod pillow;
 pub mod pool_supervisor;
 pub mod table_supervisor;
 pub mod splitting;
+pub mod youth;
 
 use crate::contest_page::ContestPage;
 
@@ -43,6 +44,7 @@ pub fn build(page: &Rc<ContestPage>, index: usize) -> Rc<dyn StageScreen> {
         Some(StageKind::Barrage) => barrage::BarrageScreen::new(page, index),
         Some(StageKind::Splitting) => splitting::SplittingScreen::new(page, index),
         Some(StageKind::GeneralClassification) => general_classification::ClassificationScreen::new(page, index),
+        Some(StageKind::YouthTraining) => youth::YouthScreen::new(page, index),
         _ => Rc::new(Pending::new(page, index)),
     }
 }

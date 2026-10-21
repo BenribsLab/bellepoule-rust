@@ -1402,3 +1402,72 @@ msgstr "Numéros de page"
 
 msgid "Default"
 msgstr "Par défaut"
+
+msgid "Youth training"
+msgstr "Entraînement des jeunes"
+
+msgid "New youth training"
+msgstr "Nouvel entraînement des jeunes"
+
+msgid "Group"
+msgstr "Groupe"
+
+msgid "Groups"
+msgstr "Groupes"
+
+msgid "groups"
+msgstr "groupes"
+
+msgid "groups of"
+msgstr "groupes de"
+
+msgid "to"
+msgstr "à"
+
+msgid "pools of"
+msgstr "poules de"
+
+msgid "pool of"
+msgstr "poule de"
+
+msgid "bouts per fencer"
+msgstr "matchs par tireur"
+
+msgid "fencers"
+msgstr "tireurs"
+
+msgid "Fencers per group"
+msgstr "Tireurs par groupe"
+
+msgid "Pools per group"
+msgstr "Poules par groupe"
+
+msgid "By division (the best fencers in group 1)"
+msgstr "Par division (les meilleurs dans le groupe 1)"
+
+msgid "By ranking (groups of equal level, serpentine)"
+msgstr "Au classement (groupes de même niveau, serpentin)"
+
+msgid "Serpentine (1-4-5-8 / 2-3-6-7)"
+msgstr "Serpentin (1-4-5-8 / 2-3-6-7)"
+
+msgid "By level (the best fencers of the group in pool 1)"
+msgstr "Par niveau (les meilleurs du groupe dans la poule 1)"
+
+msgid "Table: 1st of pool 1 against last of pool 2, 2nd against second to last… All places are fenced."
+msgstr "Tableau : le 1er de la poule 1 rencontre le dernier de la poule 2, le 2e l'avant-dernier… Toutes les places sont tirées."
+
+msgid "Settings"
+msgstr "Réglages"
+
+msgid "Suggested arrangements"
+msgstr "Répartitions proposées"
+
+msgid "recommended"
+msgstr "recommandé"
+
+msgid "Some pools have fewer than 3 or more than 6 fencers: choose another arrangement."
+msgstr "Certaines poules ont moins de 3 ou plus de 6 tireurs : choisissez une autre répartition."
+
+msgid "Each group becomes its own competition: pools, then a table where every place is fenced (one winner per group). Click \"Next round\" to create the groups."
+msgstr "Chaque groupe devient une compétition à part : des poules, puis un tableau où toutes les places sont tirées (un vainqueur par groupe). Cliquez sur « Tour suivant » pour créer les groupes."
