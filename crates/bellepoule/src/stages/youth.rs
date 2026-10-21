@@ -30,8 +30,8 @@ struct Snapshot {
     locked: bool,
     customized: bool,
     count: usize,
-    /// Composition, et pour chaque groupe « rang. NOM Prénom ».
-    groups: Vec<(GroupLayout, Vec<String>)>,
+    /// Composition, et pour chaque groupe ses tireurs (« rang. NOM Prénom »).
+    groups: Vec<(GroupLayout, Vec<(PlayerRef, String)>)>,
 }
 
 /// Réglages (préférences de la phase).
@@ -220,7 +220,7 @@ impl YouthScreen {
         root.set_margin_end(12);
 
         let intro = left(&tr(
-            "Groups creation. Each group becomes its own competition (pools, then table). Settings are in the preferences of this round. Click \"Next round\" to create the groups.",
+            "Groups creation. Drag a fencer onto another group to move him. Each group becomes its own competition: its pools (fencers can be moved from one pool to another in its \"Pools arrangement\") then its table. Settings are in the preferences of this round. Click \"Next round\" to create the groups.",
         ));
         intro.set_wrap(true);
         root.append(&intro);
@@ -311,11 +311,18 @@ impl YouthScreen {
         let page = self.page.upgrade()?;
         page.with_contest(|c| {
             let stage = c.schedule.stage(self.index)?.as_any().downcast_ref::<YouthTraining>()?;
+            let attendees = stage.base().attendees.clone();
             let label = |r: PlayerRef| {
                 c.players
                     .get(r)
                     .map(|p| {
-                        let rank = p.attr("ranking").map(|v| v.as_uint().to_string()).unwrap_or_default();
+                        // Classement s'il est connu, sinon place d'entrée.
+                        let rank = p
+                            .attr("ranking")
+                            .map(|v| v.as_uint())
+                            .filter(|v| *v > 0)
+                            .or_else(|| attendees.iter().position(|x| *x == r).map(|i| i as u32 + 1))
+                            .unwrap_or(0);
                         let first = p.str_attr("first_name").unwrap_or_default();
                         let club = p.str_attr("club").unwrap_or_default();
                         format!("{rank}. {} {first}   {club}", p.name())
@@ -327,7 +334,7 @@ impl YouthScreen {
                 locked: stage.base().locked,
                 customized: stage.is_customized(),
                 count: stage.base().attendees.len(),
-                groups: stage.groups(&c.players).into_iter().map(|g| (g.layout, g.players.iter().map(|r| label(*r)).collect())).collect(),
+                groups: stage.groups(&c.players).into_iter().map(|g| (g.layout, g.players.iter().map(|r| (*r, label(*r))).collect())).collect(),
             })
         })
         .flatten()
@@ -373,7 +380,7 @@ impl YouthScreen {
         });
     }
 
-    fn group_widget(&self, g: usize, layout: GroupLayout, players: &[String], locked: bool, single: bool, settings: &YouthSettings) -> gtk::Widget {
+    fn group_widget(&self, g: usize, layout: GroupLayout, players: &[(PlayerRef, String)], locked: bool, single: bool, settings: &YouthSettings) -> gtk::Widget {
         let fenced = settings.fenced_places;
         let frame = gtk::Frame::new(None);
         let content = gtk::Box::new(gtk::Orientation::Vertical, 4);
@@ -438,12 +445,48 @@ impl YouthScreen {
         names.set_selection_mode(gtk::SelectionMode::None);
         names.set_max_children_per_line(4);
         names.set_min_children_per_line(2);
-        for n in players {
-            names.insert(&left(n), -1);
+        for (r, n) in players {
+            let label = left(n);
+            if !locked {
+                // Glisser un tireur vers un autre groupe.
+                let source = gtk::DragSource::new();
+                source.set_actions(gtk::gdk::DragAction::MOVE);
+                source.set_content(Some(&gtk::gdk::ContentProvider::for_value(&r.to_value())));
+                label.add_controller(source);
+                label.set_cursor_from_name(Some("grab"));
+            }
+            names.insert(&label, -1);
         }
         content.append(&names);
         frame.set_child(Some(&content));
+        if !locked {
+            let target = gtk::DropTarget::new(PlayerRef::static_type(), gtk::gdk::DragAction::MOVE);
+            let w = self.weak_self.clone();
+            target.connect_drop(move |_, value, _, _| {
+                let Ok(player) = value.get::<PlayerRef>() else { return false };
+                let Some(s) = w.upgrade() else { return false };
+                // Le rafraîchissement détruit la source du glisser : il est différé.
+                glib::idle_add_local_once(move || s.on_drop(player, g));
+                true
+            });
+            frame.add_controller(target);
+        }
         frame.upcast()
+    }
+
+    fn on_drop(&self, player: PlayerRef, to: usize) {
+        let Some(page) = self.page.upgrade() else { return };
+        let index = self.index;
+        page.with_contest(|c| {
+            let players = c.players.clone();
+            if let Some(stage) = c.schedule.stage_mut(index).and_then(|s| s.as_any_mut().downcast_mut::<YouthTraining>()) {
+                if !stage.base().locked {
+                    stage.move_player(&players, player, to);
+                }
+            }
+        });
+        page.mark_dirty();
+        self.queue_refresh();
     }
 
     fn apply(&self, s: Snapshot) {

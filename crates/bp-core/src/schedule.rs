@@ -138,6 +138,16 @@ impl Schedule {
             None => self.stages.len(),
         }
         .min(self.stages.len());
+        // Le classement général reste la dernière phase : une phase ajoutée
+        // derrière lui est placée juste avant (sinon « Tour suivant » ne mène
+        // nulle part).
+        if !self.loading && stage.kind() != StageKind::GeneralClassification {
+            if let Some(last) = self.stages.len().checked_sub(1) {
+                if self.stages[last].kind() == StageKind::GeneralClassification && at > last {
+                    at = last;
+                }
+            }
+        }
 
         let mut stage = stage;
         if let Some(provider_kind) = stage.input_provider() {

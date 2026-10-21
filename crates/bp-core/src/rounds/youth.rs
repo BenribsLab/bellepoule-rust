@@ -274,13 +274,16 @@ pub struct YouthTraining {
     pub settings: YouthSettings,
     /// Composition modifiée sur l'écran de la phase (sinon : par défaut).
     layout: Option<Vec<GroupLayout>>,
+    /// Tireurs déplacés à la main d'un groupe à l'autre (glisser-déposer) :
+    /// affectation complète, groupe par groupe.
+    assignment: Option<Vec<Vec<PlayerRef>>>,
 }
 
 impl YouthTraining {
     pub fn new(id: u32) -> Self {
         let mut base = StageBase::new(StageKind::YouthTraining, id);
         base.filter = codes(&["stage_start_rank", "name", "first_name", "club", "ranking"]);
-        YouthTraining { base, settings: YouthSettings::default(), layout: None }
+        YouthTraining { base, settings: YouthSettings::default(), layout: None, assignment: None }
     }
 
     /// Composition courante (modifiée ou par défaut).
@@ -293,12 +296,47 @@ impl YouthTraining {
     }
 
     pub fn is_customized(&self) -> bool {
-        self.layout.is_some()
+        self.layout.is_some() || self.assignment.is_some()
     }
 
     /// Revient à la composition par défaut.
     pub fn reset_layout(&mut self) {
         self.layout = None;
+        self.assignment = None;
+    }
+
+    /// Affectation manuelle encore valable (mêmes tireurs).
+    fn valid_assignment(&self) -> Option<&Vec<Vec<PlayerRef>>> {
+        let a = self.assignment.as_ref()?;
+        let mut all: Vec<PlayerRef> = a.iter().flatten().copied().collect();
+        let mut attendees = self.base.attendees.clone();
+        all.sort();
+        attendees.sort();
+        (all == attendees && a.iter().all(|g| !g.is_empty())).then_some(a)
+    }
+
+    /// Glisser-déposer : déplace un tireur dans le groupe `to`.
+    pub fn move_player(&mut self, players: &PlayerStore, player: PlayerRef, to: usize) {
+        let groups = self.groups(players);
+        if to >= groups.len() {
+            return;
+        }
+        let mut assignment: Vec<Vec<PlayerRef>> = groups.iter().map(|g| g.players.clone()).collect();
+        let Some(from) = assignment.iter().position(|g| g.contains(&player)) else { return };
+        if from == to || assignment[from].len() <= 1 {
+            return;
+        }
+        assignment[from].retain(|p| *p != player);
+        assignment[to].push(player);
+        let mut layout: Vec<GroupLayout> = groups.iter().map(|g| g.layout).collect();
+        for i in [from, to] {
+            layout[i].size = assignment[i].len() as u32;
+            if !pool_choices(layout[i].size).iter().any(|c| c.nb_pools == layout[i].nb_pools) {
+                layout[i].nb_pools = best_pools(layout[i].size, &self.settings);
+            }
+        }
+        self.layout = Some(layout);
+        self.assignment = Some(assignment);
     }
 
     /// Change la taille du groupe `g` ; la différence est reportée sur le
@@ -319,6 +357,7 @@ impl YouthTraining {
             }
         }
         self.layout = Some(l);
+        self.assignment = None;
     }
 
     /// Nombre de poules du groupe `g`.
@@ -343,10 +382,29 @@ impl YouthTraining {
             })
             .collect();
         self.layout = Some(l);
+        self.assignment = None;
     }
 
     /// Groupes avec la composition courante.
     pub fn groups(&self, players: &PlayerStore) -> Vec<Group> {
+        if let Some(a) = self.valid_assignment() {
+            let layout = self.layout();
+            return a
+                .iter()
+                .enumerate()
+                .map(|(i, g)| {
+                    let mut list = g.clone();
+                    list.sort_by_key(|p| self.base.attendees.iter().position(|x| x == p).unwrap_or(usize::MAX));
+                    let size = list.len() as u32;
+                    let nb_pools = layout
+                        .get(i)
+                        .filter(|l| l.size == size)
+                        .map(|l| l.nb_pools)
+                        .unwrap_or_else(|| best_pools(size, &self.settings));
+                    Group { players: list, layout: GroupLayout { size, nb_pools } }
+                })
+                .collect();
+        }
         make_groups(players, &self.base.attendees, &self.layout(), &self.settings, self.base.owner(), self.base.rand_seed)
     }
 }
@@ -376,6 +434,7 @@ impl Stage for YouthTraining {
     fn set_attendees(&mut self, ctx: &mut StageContext, attendees: Vec<PlayerRef>) {
         if attendees.len() != self.base.attendees.len() {
             self.layout = None;
+            self.assignment = None;
         }
         common::retrieve_attendees(&mut self.base, ctx, attendees);
     }
@@ -403,6 +462,9 @@ impl Stage for YouthTraining {
                 .unwrap_or(d.fenced_places),
         };
         self.layout = node.attribute("Composition").and_then(parse_layout);
+        self.assignment = node.attribute("Affectation").map(|v| {
+            v.split(';').map(|g| g.split(',').filter_map(|p| p.trim().parse::<PlayerRef>().ok()).collect()).collect()
+        });
         let attendees = self.base.attendees.clone();
         common::retrieve_attendees(&mut self.base, ctx, attendees);
         Ok(())
@@ -432,6 +494,10 @@ impl Stage for YouthTraining {
         if let Some(l) = &self.layout {
             w.attr("Composition", &layout_image(l));
         }
+        if let Some(a) = &self.assignment {
+            let image = a.iter().map(|g| g.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(",")).collect::<Vec<_>>().join(";");
+            w.attr("Affectation", &image);
+        }
     }
 
     fn is_over(&self, _ctx: &StageContext) -> bool {
@@ -449,11 +515,13 @@ impl Stage for YouthTraining {
     }
 
     fn remap_players(&mut self, map: &std::collections::HashMap<PlayerRef, PlayerRef>) {
-        for r in self.base.attendees.iter_mut() {
+        let tr = |r: &mut PlayerRef| {
             if let Some(n) = map.get(r) {
                 *r = *n;
             }
-        }
+        };
+        self.base.attendees.iter_mut().for_each(tr);
+        self.assignment.iter_mut().flatten().flatten().for_each(tr);
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -504,6 +572,20 @@ mod tests {
         let g = make_groups(&PlayerStore::default(), &players, &default_layout(16, &s), &s, Owner::Stage(1), 0);
         assert_eq!(g[0].players, vec![1, 4, 5, 8, 9, 12, 13, 16]);
         assert_eq!(g[1].players, vec![2, 3, 6, 7, 10, 11, 14, 15]);
+    }
+
+    #[test]
+    fn a_fencer_can_be_dragged_to_another_group() {
+        let mut y = YouthTraining::new(1);
+        y.base.attendees = (1..=16).collect();
+        let store = PlayerStore::default();
+        y.move_player(&store, 3, 1);
+        let g = y.groups(&store);
+        assert_eq!(g[0].players, vec![1, 2, 4, 5, 6, 7, 8]);
+        assert_eq!(g[1].players, vec![3, 9, 10, 11, 12, 13, 14, 15, 16]);
+        assert_eq!((g[0].layout.size, g[1].layout.size), (7, 9));
+        y.reset_layout();
+        assert_eq!(y.groups(&store)[0].players.len(), 8);
     }
 
     #[test]
