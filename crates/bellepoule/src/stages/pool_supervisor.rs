@@ -687,15 +687,15 @@ impl SupervisorScreen {
         let selected = self.selected.get();
         let data = page
             .with_contest(|c| {
-                let (title, sheets, density) = sheets_data(c, self.index, |i| all || i == selected, referees)?;
-                let density = if referees || !all { (1, 1) } else { density };
-                Some((title, sheets, density))
+                let mut data = sheets_data(c, self.index, |i| all || i == selected, referees)?;
+                if referees || !all {
+                    data.density = (1, 1);
+                }
+                Some(data)
             })
             .flatten();
-        if let Some((title, sheets, density)) = data {
-            if let Err(e) =
-                print::sheets(page.window().as_ref(), &title, sheets, density, watermark)
-            {
+        if let Some(data) = data {
+            if let Err(e) = print::sheets(page.window().as_ref(), data, watermark) {
                 dialogs::error(page.window().as_ref(), &e.to_string());
             }
         }
@@ -936,34 +936,92 @@ fn classification_data(c: &Contest, index: usize, single: bool) -> Option<(Strin
     Some((format!("{} — {}", c.name, round.name), headers, rows))
 }
 
-/// Feuilles des poules retenues par `keep` (indice de la poule).
-fn sheets_data(
-    c: &Contest,
-    index: usize,
-    keep: impl Fn(usize) -> bool,
-    for_referees: bool,
-) -> Option<(String, Vec<bp_core::rounds::pool::pool::PoolSheet>, (u32, u32))> {
+/// Feuilles des poules retenues par `keep` (indice de la poule), avec
+/// l'identité des tireurs selon les colonnes choisies pour la feuille.
+fn sheets_data(c: &Contest, index: usize, keep: impl Fn(usize) -> bool, for_referees: bool) -> Option<print::SheetsData> {
     let stage = c.schedule.stage(index)?.as_any().downcast_ref::<PoolSupervisorStage>()?;
     let round = stage.round();
-    let sheets = round
+    let sheets: Vec<_> = round
         .pools()
         .iter()
         .enumerate()
         .filter(|(i, _)| keep(*i))
         .map(|(_, p)| p.sheet(&c.players, c.referees.store(), for_referees))
         .collect();
-    Some((format!("{} — {}", c.name, round.name), sheets, round.print_density()))
+    let owner = round.supervisor_owner();
+    let mut identities = std::collections::HashMap::new();
+    for sheet in &sheets {
+        for row in &sheet.rows {
+            let Some(p) = c.players.get(row.player) else { continue };
+            let mut identity = print::Identity::default();
+            for code in &round.supervisor_filter {
+                let Some(desc) = bp_core::attribute::registry().by_code(code) else { continue };
+                let Some(value) = render::value_of(p, code, owner) else { continue };
+                if desc.favorite_look == bp_core::attribute::Look::Graphical && desc.has_discrete_value() {
+                    if let Some(icon) = render::discrete_icon(desc, value) {
+                        identity.icons.push(icon);
+                        continue;
+                    }
+                }
+                identity.texts.push((code.clone(), render::user_image(desc, value, bp_core::attribute::Look::LongText)));
+            }
+            identities.insert(row.player, identity);
+        }
+    }
+    Some(print::SheetsData {
+        page_name: format!("{} - {}", tr(stage.kind().class_name()), round.name),
+        sheets,
+        density: round.print_density(),
+        identities,
+    })
 }
 
 /// Résultats complets d'un tour de poules : feuilles de toutes les poules puis
 /// classement cumulé (impression de l'événement).
 pub fn results_sources(c: &Contest, index: usize) -> Vec<Box<dyn bp_gtk::print::PageSource>> {
     let mut parts: Vec<Box<dyn bp_gtk::print::PageSource>> = Vec::new();
-    if let Some((title, sheets, density)) = sheets_data(c, index, |_| true, false) {
-        parts.push(print::sheets_source(&title, &sheets, density, false));
+    if let Some(data) = sheets_data(c, index, |_| true, false) {
+        parts.push(print::sheets_source(&data, false));
     }
     if let Some((title, headers, rows)) = classification_data(c, index, false) {
         parts.push(print::classification_source(&format!("{title} — {}", tr("Ranking")), &headers, &rows));
     }
     parts
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bp_core::stage::StageKind;
+
+    /// Rend la première feuille de poule de `melun.cotcot` dans un PNG
+    /// (`BP_SHEET_PNG`), pour contrôle visuel de la mise en page.
+    #[test]
+    fn render_pool_sheet_png() {
+        let Some(out) = std::env::var_os("BP_SHEET_PNG") else { return };
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        bp_core::contest::players::set_resources_dir(root.join("resources"));
+        let _ = bp_core::i18n::set_language(&root.join("resources/translations"), "fr");
+        bp_core::formats::discrete::init(&root.join("resources"), "fr");
+        let mut contest = bp_core::contest::Contest::new(None, false);
+        contest.load_file(&root.join("tests-data/melun.cotcot")).expect("melun");
+        let c = &mut contest;
+        let index = (0..c.schedule.len())
+            .find(|i| c.schedule.stage(*i).map(|s| s.kind() == StageKind::PoolSupervisor).unwrap_or(false))
+            .expect("poules");
+        for referees in [false, true] {
+            let mut data = sheets_data(c, index, |i| i == 0, referees).expect("feuilles");
+            data.density = (1, 1);
+            let header = bp_gtk::print::PageHeader {
+                name: c.name.clone(),
+                subtitle: format!("{} - {} - {}", c.weapon.label(), c.gender_label(), c.category.display_image()),
+                organizer: c.organizer.clone(),
+                date: c.date_image(),
+                color: c.color.clone(),
+            };
+            let mut source = print::sheets_source(&data, false);
+            let path = std::path::PathBuf::from(&out).join(if referees { "sheet_referees.png" } else { "sheet_results.png" });
+            bp_gtk::print::export_png(source.as_mut(), Some(&header), 0, &path).expect("png");
+        }
+    }
 }

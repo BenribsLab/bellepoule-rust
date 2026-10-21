@@ -475,6 +475,22 @@ impl ContestPage {
     }
 
     /// Retire la page du carnet de l'application.
+    /// Vrai si cet onglet est celui affiché.
+    pub fn is_current(&self, notebook: &gtk::Notebook) -> bool {
+        notebook.page_num(&self.root).is_some() && notebook.page_num(&self.root) == notebook.current_page()
+    }
+
+    /// En-tête des impressions (`Contest::DrawPage`).
+    pub fn print_header(&self) -> Option<bp_gtk::print::PageHeader> {
+        self.with_contest(|c| bp_gtk::print::PageHeader {
+            name: c.name.clone(),
+            subtitle: format!("{} - {} - {}", c.weapon.label(), c.gender_label(), c.category.display_image()),
+            organizer: c.organizer.clone(),
+            date: c.date_image(),
+            color: c.color.clone(),
+        })
+    }
+
     pub fn detach_from(&self, notebook: &gtk::Notebook) {
         if let Some(n) = notebook.page_num(&self.root) {
             notebook.remove_page(Some(n));

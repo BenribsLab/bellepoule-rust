@@ -30,7 +30,7 @@ fn prepare(snapshot: &Snapshot, rows: u32, width: f64, height: f64) -> Option<Pa
         Some(&set),
         None,
     );
-    if set.prepare_print(&mut session, rows, &METRICS, width, height, 60.0) == 0 {
+    if set.prepare_print(&mut session, rows, &METRICS, width, height, 0.0) == 0 {
         return None;
     }
     let canvas = Canvas::new();
@@ -38,44 +38,14 @@ fn prepare(snapshot: &Snapshot, rows: u32, width: f64, height: f64) -> Option<Pa
     Some(Pages { canvas, session })
 }
 
-fn heading(cr: &cairo::Context, title: &str, page: usize, total: usize, width: f64, height: f64) {
-    let canvas = Canvas::new();
-    let item = canvas.text(canvas.root(), title, 0.0, 0.0, width, Anchor::NW);
-    canvas.set(
-        item,
-        [
-            Prop::Font("Sans Bold 16px".into()),
-            Prop::Ellipsize(gtk::pango::EllipsizeMode::End),
-        ],
-    );
-    let footer = canvas.text(
-        canvas.root(),
-        &format!("Page {}/{}", page + 1, total),
-        0.0,
-        height - 15.0,
-        -1.0,
-        Anchor::NW,
-    );
-    canvas.set(footer, [Prop::Font("Sans 10px".into())]);
-    canvas.render(cr, None, 1.0);
-}
-
 fn draw_page(
     pages: &Pages,
-    snapshot: &Snapshot,
+    _snapshot: &Snapshot,
     cr: &cairo::Context,
     page: usize,
     width: f64,
-    height: f64,
+    _height: f64,
 ) {
-    heading(
-        cr,
-        &format!("{} — {}", snapshot.title, snapshot.base.name),
-        page,
-        pages.session.nb_pages(),
-        width,
-        height,
-    );
     let Some(bounds) = pages.session.page_bounds(page) else {
         return;
     };
@@ -84,7 +54,6 @@ fn draw_page(
         return;
     }
     let _ = cr.save();
-    cr.translate(0.0, 40.0);
     cr.scale(factor, factor);
     // Répéter les noms des tableaux sur chaque page.
     let _ = cr.save();
@@ -123,6 +92,10 @@ impl TablesDoc {
 }
 
 impl bp_gtk::print::PageSource for TablesDoc {
+    fn page_name(&self, _page: usize) -> String {
+        self.snapshot.base.name.clone()
+    }
+
     fn begin(&mut self, width: f64, height: f64) -> usize {
         self.pages = prepare(&self.snapshot, self.rows, width, height);
         self.pages.as_ref().map(|p| p.session.nb_pages()).unwrap_or(1).max(1)
@@ -269,6 +242,10 @@ impl ScoreSheetsDoc {
 }
 
 impl bp_gtk::print::PageSource for ScoreSheetsDoc {
+    fn page_name(&self, _page: usize) -> String {
+        format!("{} - {}", self.snapshot.base.name, tr("Score sheets"))
+    }
+
     fn begin(&mut self, width: f64, height: f64) -> usize {
         self.pages.clear();
         let Some(set) = self.snapshot.set.as_ref() else { return 1 };
@@ -289,15 +266,14 @@ impl bp_gtk::print::PageSource for ScoreSheetsDoc {
 
     fn draw(&mut self, page: usize, cr: &cairo::Context, width: f64, height: f64) {
         let Some(nodes) = self.pages.get(page) else { return };
-        heading(cr, &self.snapshot.title, page, self.pages.len(), width, height);
         let count = if width > height { 2 } else { 4 };
-        let sheet_height = (height - 55.0) / count as f64;
+        let sheet_height = height / count as f64;
         for (i, node) in nodes.iter().enumerate() {
             let Some(canvas) = score_sheet(&self.snapshot, *node) else { continue };
             let bounds = canvas.scene_bounds();
             let factor = (width / bounds.width().max(1.0)).min((sheet_height - 10.0) / bounds.height().max(1.0));
             let _ = cr.save();
-            cr.translate(0.0, 35.0 + i as f64 * sheet_height);
+            cr.translate(0.0, i as f64 * sheet_height);
             cr.scale(factor, factor);
             canvas.render(cr, None, 1.0);
             let _ = cr.restore();
@@ -305,8 +281,8 @@ impl bp_gtk::print::PageSource for ScoreSheetsDoc {
                 cr.set_source_rgb(0.5, 0.5, 0.5);
                 cr.set_line_width(0.5);
                 cr.set_dash(&[3.0, 3.0], 0.0);
-                cr.move_to(0.0, 35.0 + (i + 1) as f64 * sheet_height - 5.0);
-                cr.line_to(width, 35.0 + (i + 1) as f64 * sheet_height - 5.0);
+                cr.move_to(0.0, (i + 1) as f64 * sheet_height - 5.0);
+                cr.line_to(width, (i + 1) as f64 * sheet_height - 5.0);
                 let _ = cr.stroke();
                 cr.set_dash(&[], 0.0);
             }

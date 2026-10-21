@@ -78,6 +78,7 @@ impl App {
         });
         app.connect_handlers();
         app.prepare_dialogs();
+        app.setup_printing();
         app.update_visibility();
 
         window.set_default_size(1000, 700);
@@ -96,6 +97,28 @@ impl App {
         }
         // L'objet vit aussi longtemps que la fenêtre.
         unsafe { window.set_data("bellepoule-app", app) };
+    }
+
+    /// Mise en page des impressions (préférences) et en-tête de la
+    /// compétition affichée.
+    fn setup_printing(self: &Rc<Self>) {
+        let layout = bp_gtk::print::PrintLayout::load(&self.tournament.borrow().config);
+        let w = self.weak();
+        bp_gtk::print::init_layout(layout, move |l| {
+            if let Some(a) = w.upgrade() {
+                let mut t = a.tournament.borrow_mut();
+                l.save(&mut t.config);
+                let _ = t.save_config();
+            }
+        });
+        let w = self.weak();
+        bp_gtk::print::set_header_provider(move || {
+            let a = w.upgrade()?;
+            let pages = a.pages.borrow();
+            let page = pages.iter().find(|p| p.is_current(&a.notebook))?.clone();
+            drop(pages);
+            page.print_header()
+        });
     }
 
     fn weak(self: &Rc<Self>) -> Weak<App> {

@@ -1354,3 +1354,51 @@ msgstr "L'impression n'est pas encore disponible dans cette version."
 
 msgid "error(s)"
 msgstr "erreur(s)"
+
+msgid "Page layout"
+msgstr "Mise en page"
+
+msgid "Page layout…"
+msgstr "Mise en page…"
+
+msgid "Header"
+msgstr "En-tête"
+
+msgid "Name of the competition"
+msgstr "Nom de la compétition"
+
+msgid "Color of the competition"
+msgstr "Couleur de la compétition"
+
+msgid "Header color"
+msgstr "Couleur du bandeau"
+
+msgid "Header text color"
+msgstr "Couleur du texte du bandeau"
+
+msgid "Weapon / category color"
+msgstr "Couleur arme / catégorie"
+
+msgid "Header font size (%)"
+msgstr "Taille du texte du bandeau (%)"
+
+msgid "Sheet font size (%)"
+msgstr "Taille du texte des feuilles (%)"
+
+msgid "Fencer names color"
+msgstr "Couleur des noms des tireurs"
+
+msgid "Greyed cells color"
+msgstr "Couleur des cases grisées"
+
+msgid "Footer"
+msgstr "Pied de page"
+
+msgid "Footer text"
+msgstr "Texte du pied de page"
+
+msgid "Page numbers"
+msgstr "Numéros de page"
+
+msgid "Default"
+msgstr "Par défaut"
