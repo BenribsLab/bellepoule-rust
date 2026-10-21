@@ -108,12 +108,17 @@ impl PlayerForm {
             }
             Some(true.to_value())
         });
-        // Entrée = Ajouter
+        // Entrée = Ajouter (ou Appliquer en modification). En phase de capture :
+        // sinon le champ de saisie consomme la touche avant la fenêtre.
         let keys = gtk::EventControllerKey::new();
+        keys.set_propagation_phase(gtk::PropagationPhase::Capture);
         let w = Rc::downgrade(self);
         keys.connect_key_pressed(move |_, key, _, _| {
             if key == gtk::gdk::Key::Return || key == gtk::gdk::Key::KP_Enter {
                 if let Some(f) = w.upgrade() {
+                    if f.locked.get() {
+                        return gtk::glib::Propagation::Proceed;
+                    }
                     f.on_add();
                     return gtk::glib::Propagation::Stop;
                 }
