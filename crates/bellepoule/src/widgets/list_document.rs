@@ -142,6 +142,12 @@ impl ListDocument {
         bp_gtk::print::run_tiled(parent, &self.title, &self.subtitle, canvas, groups, 1, 1)
     }
 
+    /// Pages de la liste, pour l'assembler avec d'autres documents.
+    pub fn source(&self) -> Box<dyn bp_gtk::print::PageSource> {
+        let (canvas, groups) = self.scene();
+        Box::new(bp_gtk::print::Tiled::new(&self.title, &self.subtitle, canvas, groups, 1, 1))
+    }
+
     pub fn export_pdf(&self, path: &Path) -> Result<(), String> {
         let surface = cairo::PdfSurface::new(595.0, 842.0, path).map_err(|e| e.to_string())?;
         let cr = cairo::Context::new(&surface).map_err(|e| e.to_string())?;

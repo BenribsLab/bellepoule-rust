@@ -655,53 +655,7 @@ impl SupervisorScreen {
                 .get::<gtk::Notebook>("classification_hook")
                 .current_page()
                 == Some(1);
-            let data = page
-                .with_contest(|c| {
-                    let stage = c
-                        .schedule
-                        .stage(self.index)?
-                        .as_any()
-                        .downcast_ref::<PoolSupervisorStage>()?;
-                    let round = stage.round();
-                    let (current, combined) = round.compute_classification(&c.players);
-                    let refs: Vec<_> = if single { current } else { combined }
-                        .into_iter()
-                        .map(|(p, _)| p)
-                        .collect();
-                    let owner = if single {
-                        round.current_round_owner()
-                    } else {
-                        round.supervisor_owner()
-                    };
-                    let columns: Vec<_> = round
-                        .classification_filter
-                        .iter()
-                        .filter_map(|code| bp_core::attribute::registry().by_code(code))
-                        .collect();
-                    let headers = columns.iter().map(|d| tr(d.user_name)).collect();
-                    let rows = refs
-                        .iter()
-                        .filter_map(|r| c.players.get(*r))
-                        .map(|p| {
-                            columns
-                                .iter()
-                                .map(|d| {
-                                    render::value_of(p, d.code_name, owner)
-                                        .map(|v| {
-                                            render::user_image(
-                                                d,
-                                                v,
-                                                bp_core::attribute::Look::LongText,
-                                            )
-                                        })
-                                        .unwrap_or_default()
-                                })
-                                .collect()
-                        })
-                        .collect();
-                    Some((format!("{} — {}", c.name, round.name), headers, rows))
-                })
-                .flatten();
+            let data = page.with_contest(|c| classification_data(c, self.index, single)).flatten();
             if let Some((title, headers, rows)) = data {
                 if let Err(e) = print::classification(page.window().as_ref(), &title, headers, rows)
                 {
@@ -730,27 +684,12 @@ impl SupervisorScreen {
             .glade
             .get::<gtk::CheckButton>("watermark_checkbutton")
             .is_active();
+        let selected = self.selected.get();
         let data = page
             .with_contest(|c| {
-                let stage = c
-                    .schedule
-                    .stage(self.index)?
-                    .as_any()
-                    .downcast_ref::<PoolSupervisorStage>()?;
-                let round = stage.round();
-                let sheets = round
-                    .pools()
-                    .iter()
-                    .enumerate()
-                    .filter(|(i, _)| all || *i == self.selected.get())
-                    .map(|(_, p)| p.sheet(&c.players, c.referees.store(), referees))
-                    .collect();
-                let density = if referees || !all {
-                    (1, 1)
-                } else {
-                    round.print_density()
-                };
-                Some((format!("{} — {}", c.name, round.name), sheets, density))
+                let (title, sheets, density) = sheets_data(c, self.index, |i| all || i == selected, referees)?;
+                let density = if referees || !all { (1, 1) } else { density };
+                Some((title, sheets, density))
             })
             .flatten();
         if let Some((title, sheets, density)) = data {
@@ -968,4 +907,63 @@ impl StageScreen for SupervisorScreen {
         self.toggle_classification();
         self.updating.set(false);
     }
+}
+
+/// Classement du tour de poules (`single` : tour courant seul, sinon cumulé).
+fn classification_data(c: &Contest, index: usize, single: bool) -> Option<(String, Vec<String>, Vec<Vec<String>>)> {
+    let stage = c.schedule.stage(index)?.as_any().downcast_ref::<PoolSupervisorStage>()?;
+    let round = stage.round();
+    let (current, combined) = round.compute_classification(&c.players);
+    let refs: Vec<_> = if single { current } else { combined }.into_iter().map(|(p, _)| p).collect();
+    let owner = if single { round.current_round_owner() } else { round.supervisor_owner() };
+    let columns: Vec<_> =
+        round.classification_filter.iter().filter_map(|code| bp_core::attribute::registry().by_code(code)).collect();
+    let headers = columns.iter().map(|d| tr(d.user_name)).collect();
+    let rows = refs
+        .iter()
+        .filter_map(|r| c.players.get(*r))
+        .map(|p| {
+            columns
+                .iter()
+                .map(|d| {
+                    render::value_of(p, d.code_name, owner)
+                        .map(|v| render::user_image(d, v, bp_core::attribute::Look::LongText))
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .collect();
+    Some((format!("{} — {}", c.name, round.name), headers, rows))
+}
+
+/// Feuilles des poules retenues par `keep` (indice de la poule).
+fn sheets_data(
+    c: &Contest,
+    index: usize,
+    keep: impl Fn(usize) -> bool,
+    for_referees: bool,
+) -> Option<(String, Vec<bp_core::rounds::pool::pool::PoolSheet>, (u32, u32))> {
+    let stage = c.schedule.stage(index)?.as_any().downcast_ref::<PoolSupervisorStage>()?;
+    let round = stage.round();
+    let sheets = round
+        .pools()
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| keep(*i))
+        .map(|(_, p)| p.sheet(&c.players, c.referees.store(), for_referees))
+        .collect();
+    Some((format!("{} — {}", c.name, round.name), sheets, round.print_density()))
+}
+
+/// Résultats complets d'un tour de poules : feuilles de toutes les poules puis
+/// classement cumulé (impression de l'événement).
+pub fn results_sources(c: &Contest, index: usize) -> Vec<Box<dyn bp_gtk::print::PageSource>> {
+    let mut parts: Vec<Box<dyn bp_gtk::print::PageSource>> = Vec::new();
+    if let Some((title, sheets, density)) = sheets_data(c, index, |_| true, false) {
+        parts.push(print::sheets_source(&title, &sheets, density, false));
+    }
+    if let Some((title, headers, rows)) = classification_data(c, index, false) {
+        parts.push(print::classification_source(&format!("{title} — {}", tr("Ranking")), &headers, &rows));
+    }
+    parts
 }

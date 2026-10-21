@@ -318,6 +318,14 @@ pub(super) fn classification(
     parent: Option<&gtk::Window>,
     snapshot: &Snapshot,
 ) -> Result<(), glib::Error> {
+    let job = snapshot.title.clone();
+    let snapshot = snapshot.clone();
+    bp_gtk::print::run_document(parent, &job, move || classification_source(&snapshot))?;
+    Ok(())
+}
+
+/// Classement des tableaux, paginé par 25 lignes.
+pub(super) fn classification_source(snapshot: &Snapshot) -> Box<dyn bp_gtk::print::PageSource> {
     let canvas = Canvas::new();
     let mut groups = Vec::new();
     for rows in snapshot.rows.chunks(25) {
@@ -350,15 +358,7 @@ pub(super) fn classification(
         }
         groups.push(table);
     }
-    bp_gtk::print::run_tiled(
-        parent,
-        &snapshot.title,
-        &snapshot.base.name,
-        canvas,
-        groups,
-        1,
-        1,
-    )
+    Box::new(bp_gtk::print::Tiled::new(&snapshot.title, &snapshot.base.name, canvas, groups, 1, 1))
 }
 
 /// Bouton « Imprimer » : au choix le tableau, les feuilles de match, ou les

@@ -6,7 +6,7 @@ use std::rc::{Rc, Weak};
 use bp_core::{
     i18n::tr,
     rounds::classification::{ExportType, GeneralClassificationStage},
-    stage::Stage,
+    stage::{Stage, StageKind},
 };
 use bp_gtk::{dialogs, glade::Glade};
 use gtk::prelude::*;
@@ -144,12 +144,70 @@ impl ClassificationScreen {
         }
     }
 
+    /// Impression : le classement final seul, ou les résultats complets de
+    /// l'événement (poules, tableaux, puis classement final).
     fn on_print(&self) {
-        let Some(document) = self.document() else {
+        let Some(page) = self.page.upgrade() else {
             return;
         };
-        let parent = self.page.upgrade().and_then(|p| p.window());
-        if let Err(e) = document.print(parent.as_ref()) {
+        let parent = page.window();
+        let dialog = gtk::Dialog::new();
+        dialog.set_title(Some(&tr("Print")));
+        dialog.set_transient_for(parent.as_ref());
+        dialog.set_resizable(false);
+        let content = dialog.content_area();
+        content.set_spacing(6);
+        content.set_margin_top(12);
+        content.set_margin_bottom(12);
+        content.set_margin_start(12);
+        content.set_margin_end(12);
+        let final_radio = gtk::CheckButton::with_label(&tr("Final classification"));
+        let complete_radio = gtk::CheckButton::with_label(&tr("Complete results"));
+        complete_radio.set_group(Some(&final_radio));
+        final_radio.set_active(true);
+        content.append(&final_radio);
+        content.append(&complete_radio);
+        dialog.add_button(&tr("_Cancel"), gtk::ResponseType::Cancel);
+        dialog.add_button(&tr("_OK"), gtk::ResponseType::Ok).add_css_class("suggested-action");
+        let accepted = dialogs::run_dialog(&dialog) == gtk::ResponseType::Ok;
+        let complete = complete_radio.is_active();
+        dialog.destroy();
+        if !accepted {
+            return;
+        }
+        if !complete {
+            let Some(document) = self.document() else {
+                return;
+            };
+            if let Err(e) = document.print(parent.as_ref()) {
+                dialogs::error(parent.as_ref(), &e.to_string());
+            }
+            return;
+        }
+        let weak = self.page.clone();
+        let index = self.index;
+        let final_document = self.document();
+        let job = page.with_contest(|c| c.name.clone()).unwrap_or_default();
+        let result = bp_gtk::print::run_document(parent.as_ref(), &job, move || {
+            let mut parts: Vec<Box<dyn bp_gtk::print::PageSource>> = Vec::new();
+            if let Some(page) = weak.upgrade() {
+                page.with_contest(|c| {
+                    for i in 0..index {
+                        let kind = c.schedule.stage(i).map(|s| s.kind());
+                        match kind {
+                            Some(StageKind::PoolSupervisor) => parts.extend(super::pool_supervisor::results_sources(c, i)),
+                            Some(StageKind::TableSupervisor) => parts.extend(super::table_supervisor::results_sources(c, i)),
+                            _ => {}
+                        }
+                    }
+                });
+            }
+            if let Some(document) = final_document.as_ref() {
+                parts.push(document.source());
+            }
+            Box::new(bp_gtk::print::Concat::new(parts))
+        });
+        if let Err(e) = result {
             dialogs::error(parent.as_ref(), &e.to_string());
         }
     }

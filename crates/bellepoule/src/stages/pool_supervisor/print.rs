@@ -25,9 +25,22 @@ pub fn sheets(
     density: (u32, u32),
     watermark: bool,
 ) -> Result<(), gtk::glib::Error> {
+    let job = title.to_string();
+    let title = title.to_string();
+    bp_gtk::print::run_document(parent, &job, move || sheets_source(&title, &sheets, density, watermark))?;
+    Ok(())
+}
+
+/// Feuilles de poule paginées (aperçu, impression, impression complète).
+pub fn sheets_source(
+    title: &str,
+    sheets: &[PoolSheet],
+    density: (u32, u32),
+    watermark: bool,
+) -> Box<dyn bp_gtk::print::PageSource> {
     let canvas = Canvas::new();
     let mut groups = Vec::new();
-    for sheet in sheets {
+    for sheet in sheets.iter() {
         let group = canvas.group(canvas.root());
         let details = format!(
             "{}   {}   {}",
@@ -131,15 +144,7 @@ pub fn sheets(
         }
         groups.push(group);
     }
-    bp_gtk::print::run_tiled(
-        parent,
-        title,
-        "",
-        canvas,
-        groups,
-        density.0 as usize,
-        density.1 as usize,
-    )
+    Box::new(bp_gtk::print::Tiled::new(title, "", canvas, groups, density.0 as usize, density.1 as usize))
 }
 
 pub fn classification(
@@ -148,6 +153,14 @@ pub fn classification(
     headers: Vec<String>,
     rows: Vec<Vec<String>>,
 ) -> Result<(), gtk::glib::Error> {
+    let job = title.to_string();
+    let title = title.to_string();
+    bp_gtk::print::run_document(parent, &job, move || classification_source(&title, &headers, &rows))?;
+    Ok(())
+}
+
+/// Classement paginé.
+pub fn classification_source(title: &str, headers: &[String], rows: &[Vec<String>]) -> Box<dyn bp_gtk::print::PageSource> {
     let canvas = Canvas::new();
     let mut groups = Vec::new();
     for chunk in rows.chunks(25) {
@@ -163,5 +176,5 @@ pub fn classification(
         }
         groups.push(grid);
     }
-    bp_gtk::print::run_tiled(parent, title, "", canvas, groups, 1, 1)
+    Box::new(bp_gtk::print::Tiled::new(title, "", canvas, groups, 1, 1))
 }

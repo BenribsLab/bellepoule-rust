@@ -258,72 +258,65 @@ impl TableScreen {
     }
 
     fn snapshot(&self) -> Option<Snapshot> {
-        self.page
-            .upgrade()?
-            .with_contest(|c| {
-                let title = c.name.clone();
-                let referees = c.referees.store().clone();
-                let contest_net_id = c.net_id;
-                c.with_schedule(|schedule, ctx| {
-                    let stage = schedule
-                        .stage_mut(self.index)?
-                        .as_any_mut()
-                        .downcast_mut::<TableSupervisor>()?;
-                    if !stage.base().locked {
-                        stage.update_classification(ctx);
-                    }
-                    let base = stage.base().clone();
-                    let mut filter = Self::filter(true);
-                    filter.apply_list(&base.classification_filter);
-                    let specs = render::column_specs(filter.layout(), false);
-                    let rows = stage
-                        .classification(ctx)
-                        .iter()
-                        .filter_map(|entry| {
-                            let p = ctx.players.get(entry.player)?;
-                            Some(RowData {
-                                player: entry.player,
-                                cells: specs
-                                    .iter()
-                                    .map(|s| render::cell_for(p, s, base.owner()))
-                                    .collect(),
-                                sort: render::sort_values(p, &specs, base.owner()),
-                                children: Vec::new(),
-                                dimmed: entry.status != 'Q',
-                            })
-                        })
-                        .collect();
-                    let displayed = stage.displayed_table_set();
-                    let set = displayed.and_then(|i| stage.table_sets().get(i)).cloned();
-                    let sets = stage
-                        .table_sets()
-                        .iter()
-                        .enumerate()
-                        .map(|(i, s)| SetRow {
-                            index: i,
-                            parent: s.parent(),
-                            name: s.name(),
-                            visible: s.is_visible(),
-                            status: stage.table_set_status(i),
-                        })
-                        .collect();
-                    Some(Snapshot {
-                        base,
-                        mode: stage.fenced_places_mode(),
-                        displayed,
-                        set,
-                        sets,
-                        players: ctx.players.clone(),
-                        referees,
-                        specs,
-                        rows,
-                        stuffing: ctx.settings.score_stuffing_allowed,
-                        title,
-                        contest_net_id,
+        self.page.upgrade()?.with_contest(|c| Self::build_snapshot(c, self.index)).flatten()
+    }
+
+    fn build_snapshot(c: &mut bp_core::contest::Contest, index: usize) -> Option<Snapshot> {
+        let title = c.name.clone();
+        let referees = c.referees.store().clone();
+        let contest_net_id = c.net_id;
+        c.with_schedule(|schedule, ctx| {
+            let stage = schedule.stage_mut(index)?.as_any_mut().downcast_mut::<TableSupervisor>()?;
+            if !stage.base().locked {
+                stage.update_classification(ctx);
+            }
+            let base = stage.base().clone();
+            let mut filter = Self::filter(true);
+            filter.apply_list(&base.classification_filter);
+            let specs = render::column_specs(filter.layout(), false);
+            let rows = stage
+                .classification(ctx)
+                .iter()
+                .filter_map(|entry| {
+                    let p = ctx.players.get(entry.player)?;
+                    Some(RowData {
+                        player: entry.player,
+                        cells: specs.iter().map(|s| render::cell_for(p, s, base.owner())).collect(),
+                        sort: render::sort_values(p, &specs, base.owner()),
+                        children: Vec::new(),
+                        dimmed: entry.status != 'Q',
                     })
                 })
+                .collect();
+            let displayed = stage.displayed_table_set();
+            let set = displayed.and_then(|i| stage.table_sets().get(i)).cloned();
+            let sets = stage
+                .table_sets()
+                .iter()
+                .enumerate()
+                .map(|(i, s)| SetRow {
+                    index: i,
+                    parent: s.parent(),
+                    name: s.name(),
+                    visible: s.is_visible(),
+                    status: stage.table_set_status(i),
+                })
+                .collect();
+            Some(Snapshot {
+                base,
+                mode: stage.fenced_places_mode(),
+                displayed,
+                set,
+                sets,
+                players: ctx.players.clone(),
+                referees,
+                specs,
+                rows,
+                stuffing: ctx.settings.score_stuffing_allowed,
+                title,
+                contest_net_id,
             })
-            .flatten()
+        })
     }
 
     fn filter(classification: bool) -> Filter {
@@ -1160,4 +1153,19 @@ impl StageScreen for TableScreen {
         self.toggle_views();
         self.updating.set(false);
     }
+}
+
+/// Résultats complets des tableaux : le tableau principal puis le classement
+/// (impression de l'événement).
+pub fn results_sources(c: &mut bp_core::contest::Contest, index: usize) -> Vec<Box<dyn bp_gtk::print::PageSource>> {
+    let mut parts: Vec<Box<dyn bp_gtk::print::PageSource>> = Vec::new();
+    let Some(mut snapshot) = TableScreen::build_snapshot(c, index) else { return parts };
+    let root = c.schedule.stage(index).and_then(|s| s.as_any().downcast_ref::<TableSupervisor>()).and_then(|t| t.table_sets().first().cloned());
+    if let Some(root) = root {
+        snapshot.set = Some(root);
+        snapshot.displayed = Some(0);
+        parts.push(Box::new(print::TablesDoc::new(snapshot.clone(), 32)));
+    }
+    parts.push(print::classification_source(&snapshot));
+    parts
 }

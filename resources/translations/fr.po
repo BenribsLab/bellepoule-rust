@@ -1314,3 +1314,43 @@ msgstr "Permet de renseigner les caractéristiques de la compétition."
 
 #~ msgid "ref"
 #~ msgstr "réf"
+
+# Chaînes propres au portage Rust
+msgid "Complete results"
+msgstr "Résultats complets"
+
+msgid "Final classification"
+msgstr "Classement final"
+
+msgid "The table"
+msgstr "Le tableau"
+
+msgid "The score sheets"
+msgstr "Les feuilles de match"
+
+msgid "Matches per page"
+msgstr "Matchs par page"
+
+msgid "Ranking"
+msgstr "Classement"
+
+msgid "_Print"
+msgstr "_Imprimer"
+
+msgid "_Close"
+msgstr "_Fermer"
+
+msgid "_OK"
+msgstr "_OK"
+
+msgid "_Cancel"
+msgstr "_Annuler"
+
+msgid "Not available yet in this version."
+msgstr "Pas encore disponible dans cette version."
+
+msgid "Printing is not available yet in this version."
+msgstr "L'impression n'est pas encore disponible dans cette version."
+
+msgid "error(s)"
+msgstr "erreur(s)"

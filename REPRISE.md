@@ -135,6 +135,20 @@ Ajouts de cette reprise : `tests/contest_splitting.rs` (individuels/équipes, po
 relecture) et `tests/contest_exports.rs` (collision arbitre/tireur AskFred, décalage FFF sans mutation,
 stabilité du classement après recalcul avec export d'un éliminé). Compilés, non exécutés.
 
+### Retours utilisateur traités (21/10/2026)
+- Saisie des scores : passage automatique à la case suivante. Cause : `GtkEntry::has_focus()` est
+  toujours faux en GTK4 (le focus est sur le `GtkText` interne), l'écran perdait donc le focus à chaque
+  frappe (ce qui empêchait aussi « W3 »). Corrigé par `widgets::entry_has_focus` et
+  `widgets::focus_entry_when_ready` (poules, tableaux, appel).
+- Aperçu avant impression partout : `bp_gtk::print::run_document` (trait `PageSource`, `Tiled`,
+  `Concat`) affiche un aperçu paginé puis lance l'impression native.
+- Tableaux : le bouton Imprimer propose le tableau et/ou les feuilles de match (toutes / en attente).
+- Classement général : impression du classement final seul ou des résultats complets (feuilles et
+  classements de chaque tour de poules, tableau principal et classement de chaque phase de tableaux,
+  puis classement final).
+- Feuille de poule à l'écran : cases contournées, cases de la diagonale grisées (CSS `bp-cell`).
+- Chaînes françaises ajoutées en fin de `resources/translations/fr.po` pour ces nouveaux libellés.
+
 ## Suite (dans l'ordre)
 1. Vérifier les écrans de poules selon les scénarios ci-dessous. Comparer au C++ le rendu/zoom,
    les colonnes graphiques et dispositions de filtres à l'écran et sur papier, la navigation au
