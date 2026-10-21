@@ -6,7 +6,10 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 use bp_core::i18n::tr;
-use bp_core::stage::StageKind;
+use bp_core::rounds::checkin::CheckinStage;
+use bp_core::rounds::pool::PoolAllocatorStage;
+use bp_core::rounds::table::supervisor::{FencedPlaces, TableSupervisor};
+use bp_core::stage::{Stage, StageKind};
 use bp_gtk::dialogs;
 use bp_gtk::glade::Glade;
 use gtk::prelude::*;
@@ -14,6 +17,8 @@ use gtk4 as gtk;
 
 use crate::contest_page::ContestPage;
 use crate::stages::{self, StageScreen};
+use crate::widgets::list_document::ListDocument;
+use crate::widgets::players_list::{Cell as ListCell, CellKind, ColumnSpec, RowData};
 
 /// Colonnes de `stage_liststore`.
 const COL_NAME: u32 = 0;
@@ -453,11 +458,74 @@ impl ScheduleView {
         }
     }
 
+    /// `Schedule::OnPrint` : la formule, phase par phase, avec ses réglages.
     fn on_print(self: &Rc<Self>) {
-        dialogs::info(
-            self.page().and_then(|p| p.window()).as_ref(),
-            &tr("Print"),
-            Some(&tr("Printing is not available yet in this version.")),
-        );
+        let Some(page) = self.page() else { return };
+        let document = page.with_contest(|c| {
+            let team_event = c.settings.team_event;
+            let minimum_team_size = c.settings.minimum_team_size;
+            let mut lines: Vec<(String, bool)> = Vec::new();
+            let count = c.schedule.len();
+            for i in 0..count.saturating_sub(1) {
+                let Some(stage) = c.schedule.stage(i) else { continue };
+                if stage.input_provider().is_some() {
+                    continue;
+                }
+                let shown = if stage.is_input_provider() { c.schedule.stage(i + 1) } else { Some(stage) };
+                let Some(shown) = shown else { continue };
+                lines.push((format!("{} {}", tr(shown.kind().class_name()), shown.name()), true));
+
+                let qualified = |n: Option<u32>| match n {
+                    Some(n) => format!("{} : {}", tr("Qualified"), n),
+                    None => format!("{} : 100%", tr("Qualified")),
+                };
+                if let Some(checkin) = stage.as_any().downcast_ref::<CheckinStage>() {
+                    let tally = checkin.tally(&c.players, team_event);
+                    lines.push((format!("{} : {}", tr("Expected fencers"), tally.total_fencers), false));
+                    if team_event {
+                        lines.push((format!("{} : {}", tr("Expected teams"), tally.total_teams), false));
+                        lines.push((format!("{} : {}", tr("Team size"), minimum_team_size), false));
+                    }
+                } else if let Some(allocator) = stage.as_any().downcast_ref::<PoolAllocatorStage>() {
+                    let round = allocator.round();
+                    let seeding = if round.seeding_is_balanced() { tr("Balanced") } else { tr("Grouped by strength") };
+                    lines.push((format!("{} : {}", tr("Seeding"), seeding), false));
+                    lines.push((format!("{} : {}", tr("Max score"), round.max_score), false));
+                    lines.push((qualified(round.nb_qualified()), false));
+                } else if let Some(table) = stage.as_any().downcast_ref::<TableSupervisor>() {
+                    let places = match table.fenced_places_mode() {
+                        FencedPlaces::AllPlaces => tr("All places fenced"),
+                        FencedPlaces::ThirdPlaces => tr("Fence off for third place"),
+                        _ => tr("No fence off for third place"),
+                    };
+                    lines.push((places, false));
+                    lines.push((format!("{} : {}", tr("Max score"), table.max_score()), false));
+                    lines.push((qualified(table.base().nb_qualified), false));
+                }
+            }
+            let specs = vec![ColumnSpec {
+                code: "name".into(),
+                title: String::new(),
+                look: bp_core::attribute::Look::LongText,
+                kind: CellKind::Text,
+                editable: false,
+            }];
+            let rows = lines
+                .into_iter()
+                .map(|(text, heading)| RowData {
+                    player: 0,
+                    cells: vec![ListCell::Text(if heading { text } else { format!("    {text}") })],
+                    sort: vec![None],
+                    children: Vec::new(),
+                    dimmed: false,
+                })
+                .collect();
+            ListDocument { title: c.name.clone(), subtitle: tr("Formula"), specs, rows, classification_borders: false }
+        });
+        let Some(document) = document else { return };
+        let window = page.window();
+        if let Err(e) = document.print(window.as_ref()) {
+            dialogs::error(window.as_ref(), &e.to_string());
+        }
     }
 }
