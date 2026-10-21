@@ -227,6 +227,14 @@ impl Stage for PoolSupervisorStage {
         lock(&self.round).sup_id = Some(self.base.id);
     }
 
+    fn bout_max_score(&self) -> Option<u32> {
+        Some(lock(&self.round).max_score)
+    }
+
+    fn qualified_quota(&self) -> Option<u32> {
+        lock(&self.round).nb_qualified()
+    }
+
     fn name(&self) -> String {
         lock(&self.round).name.clone()
     }

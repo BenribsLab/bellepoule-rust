@@ -2,7 +2,7 @@
 //! `actors/checkin.cpp`, parties interface) : liste des tireurs (ou des
 //! équipes), présence, ajout, suppression, import, classement.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 
@@ -48,6 +48,9 @@ pub struct CheckinScreen {
     form: Rc<PlayerForm>,
     /// Les changements venant du code ne sont pas des actions de l'utilisateur.
     updating: Cell<bool>,
+    search: RefCell<String>,
+    attending_filter: Cell<Option<bool>>,
+    footer: gtk::Label,
 }
 
 impl CheckinScreen {
@@ -57,6 +60,10 @@ impl CheckinScreen {
         Glade::detach_from_parent(&root);
         let list = PlayersListView::in_scrolled(glade.get("scrolledwindow3"));
         let form = PlayerForm::new().expect("form.ui");
+        let footer = gtk::Label::new(None);
+        footer.set_xalign(0.0);
+        footer.add_css_class("bp-table-footer");
+        if let Some(container) = root.downcast_ref::<gtk::Box>() { container.append(&footer); }
 
         // Pages du formulaire : tireur, et équipe pour les épreuves par équipes.
         let attrs = page
@@ -76,14 +83,67 @@ impl CheckinScreen {
             list,
             form,
             updating: Cell::new(false),
+            search: RefCell::new(String::new()),
+            attending_filter: Cell::new(None),
+            footer,
         });
         screen.connect();
+        screen.add_search_controls();
         screen.refresh();
         screen
     }
 
     fn page(&self) -> Option<Rc<ContestPage>> {
         self.page.upgrade()
+    }
+
+    fn add_search_controls(self: &Rc<Self>) {
+        let header: gtk::Box = self.glade.get("hbox1");
+        let Some(stats) = header.first_child().and_downcast::<gtk::FlowBox>() else { return };
+        let filters = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+        filters.set_valign(gtk::Align::Center);
+        filters.add_css_class("bp-segmented");
+        let all = gtk::ToggleButton::with_label(&tr("All"));
+        all.set_active(true);
+        let present = gtk::ToggleButton::with_label(&tr("Presents"));
+        let absent = gtk::ToggleButton::with_label(&tr("Absents"));
+        present.set_group(Some(&all));
+        absent.set_group(Some(&all));
+        for (button, status) in [(all, None), (present, Some(true)), (absent, Some(false))] {
+            let weak = Rc::downgrade(self);
+            button.connect_toggled(move |button| {
+                if button.is_active() {
+                    if let Some(screen) = weak.upgrade() {
+                        screen.attending_filter.set(status);
+                        screen.apply_search();
+                    }
+                }
+            });
+            filters.append(&button);
+        }
+        stats.insert(&filters, -1);
+        let search = gtk::SearchEntry::new();
+        search.set_placeholder_text(Some(&tr("Search a participant…")));
+        search.set_width_request(190);
+        search.set_valign(gtk::Align::Center);
+        let weak = Rc::downgrade(self);
+        search.connect_search_changed(move |entry| {
+            if let Some(screen) = weak.upgrade() {
+                *screen.search.borrow_mut() = entry.text().to_string();
+                screen.apply_search();
+            }
+        });
+        stats.insert(&search, -1);
+    }
+
+    fn apply_search(&self) {
+        self.list.set_filter(&self.search.borrow(), self.attending_filter.get());
+        self.update_footer();
+    }
+
+    fn update_footer(&self) {
+        let (visible, total) = self.list.row_counts();
+        self.footer.set_text(&format!("{visible} / {total} {}", tr("rows displayed")));
     }
 
     fn connect(self: &Rc<Self>) {
@@ -211,6 +271,7 @@ impl CheckinScreen {
         self.list.set_locked(s.locked);
         self.list.set_columns(s.specs);
         self.list.set_rows(s.rows);
+        self.update_footer();
         self.glade.get::<gtk::Label>("attending_label").set_text(&s.presents.to_string());
         self.glade.get::<gtk::Label>("absent_label").set_text(&s.absents.to_string());
 

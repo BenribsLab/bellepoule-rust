@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/batch.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : batch -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkListStore" id="liststore">
+    <columns>
+      <column type="gchararray" />
+      <column type="gpointer" />
+      <column type="gchararray" />
+      <column type="gchararray" />
+      <column type="gchararray" />
+      <column type="guint" />
+    </columns>
+  </object>
+  <object class="GtkTreeModelSort" id="treemodelsort">
+    <property name="model">liststore</property>
+  </object>
+  <object class="GtkWindow" id="window1">
+    <child>
+      <object class="GtkBox" id="root">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkViewport" id="extension_viewport">
+            <child>
+              <object class="GtkBox" id="vbox1">
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkLabel" id="label1">
+                    <property name="label" translatable="yes">Extension</property>
+                    <property name="vexpand">True</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkFrame" id="aspectframe2">
+                    <property name="label-xalign">0</property>
+                    <child>
+                      <object class="GtkBox" id="hbox1">
+                        <property name="orientation">horizontal</property>
+                        <child>
+                          <object class="GtkCheckButton" id="radiobutton1">
+                            <property name="receives-default">False</property>
+                            <signal name="toggled" handler="on_extension_toggled" swapped="no" />
+                            <property name="label" translatable="yes">No</property>
+                            <property name="active">True</property>
+                            <property name="hexpand">True</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="extension1">
+                            <property name="receives-default">False</property>
+                            <signal name="toggled" handler="on_extension_toggled" swapped="no" />
+                            <property name="label">T32</property>
+                            <property name="group">radiobutton1</property>
+                            <property name="hexpand">True</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="extension2">
+                            <property name="receives-default">False</property>
+                            <signal name="toggled" handler="on_extension_toggled" swapped="no" />
+                            <property name="label">T16</property>
+                            <property name="group">radiobutton1</property>
+                            <property name="hexpand">True</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <property name="vexpand">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="toolbar1">
+            <property name="orientation">horizontal</property>
+            <style>
+              <class name="toolbar" />
+            </style>
+            <child>
+              <object class="GtkButton" id="assign_toolbutton">
+                <property name="tooltip-text" translatable="yes">Assign</property>
+                <signal name="clicked" handler="on_assign_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <child>
+                  <object class="GtkImage" id="image1">
+                    <property name="file">../glade/images/calendar.png</property>
+                    <property name="pixel-size">-1</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="cancel_toolbutton">
+                <property name="tooltip-text" translatable="yes">Cancel</property>
+                <signal name="clicked" handler="on_cancel_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <child>
+                  <object class="GtkImage" id="image2">
+                    <property name="file">../glade/images/draft.png</property>
+                    <property name="pixel-size">-1</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkScrolledWindow" id="scrolledwindow">
+            <property name="hscrollbar-policy">automatic</property>
+            <property name="vscrollbar-policy">automatic</property>
+            <child>
+              <object class="GtkTreeView" id="competition_treeview">
+                <property name="model">treemodelsort</property>
+                <property name="headers-visible">False</property>
+                <property name="search-column">0</property>
+                <signal name="row-activated" handler="on_competition_treeview_row_activated" swapped="no" />
+                <property name="headers-clickable">False</property>
+                <child>
+                  <object class="GtkTreeViewColumn" id="treeviewcolumn1">
+                    <property name="title" translatable="yes">Match</property>
+                    <child>
+                      <object class="GtkCellRendererPixbuf" id="job_status" />
+                      <attributes>
+                        <attribute name="icon-name">3</attribute>
+                      </attributes>
+                    </child>
+                    <child>
+                      <object class="GtkCellRendererText" id="job_name" />
+                      <attributes>
+                        <attribute name="background">4</attribute>
+                        <attribute name="foreground">2</attribute>
+                        <attribute name="text">0</attribute>
+                      </attributes>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

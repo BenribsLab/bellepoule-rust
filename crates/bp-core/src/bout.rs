@@ -1,7 +1,25 @@
 //! Matchs et scores (port de `supervisor/match.cpp` et `supervisor/score.cpp`),
 //! partagés par les poules et les tableaux.
 
+use std::sync::atomic::{AtomicI64, Ordering as AtomicOrdering};
+
 use crate::player::{PlayerClass, PlayerRef, PlayerStore};
+
+/// Décalage de l'horloge du Marshaller en secondes (`Match::_clock_offset`,
+/// message `BellePoule2D::ClockOffset`).
+static CLOCK_OFFSET: AtomicI64 = AtomicI64::new(0);
+
+/// `Match::OnClockOffset`.
+pub fn set_clock_offset(seconds: i64) {
+    CLOCK_OFFSET.store(seconds, AtomicOrdering::Relaxed);
+}
+
+/// Heure locale décalée, secondes à zéro (`Match::GetDuration`).
+pub fn now_rounded() -> chrono::NaiveDateTime {
+    use chrono::Timelike;
+    let now = chrono::Local::now().naive_local() + chrono::Duration::seconds(CLOCK_OFFSET.load(AtomicOrdering::Relaxed));
+    now.with_second(0).unwrap_or(now).with_nanosecond(0).unwrap_or(now)
+}
 use crate::xml::XmlWriter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

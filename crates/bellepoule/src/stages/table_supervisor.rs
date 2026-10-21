@@ -740,9 +740,11 @@ impl TableScreen {
             .collect();
         slots.sort_by_key(|slot| {
             let node = set.node(slot.bout_node);
+            // Colonne par colonne, de haut en bas : le match suivant est
+            // celui du dessous, et dans un match on passe au second tireur.
             (
                 std::cmp::Reverse(node.table),
-                node.bout.as_ref().map(|m| m.number).unwrap_or(0),
+                (slot.bounds.y1 * 10.0) as i64,
                 node.bout
                     .as_ref()
                     .and_then(|m| m.position_of(slot.fencer.unwrap()))
@@ -1159,12 +1161,19 @@ impl StageScreen for TableScreen {
 /// (impression de l'événement).
 pub fn results_sources(c: &mut bp_core::contest::Contest, index: usize) -> Vec<Box<dyn bp_gtk::print::PageSource>> {
     let mut parts: Vec<Box<dyn bp_gtk::print::PageSource>> = Vec::new();
-    let Some(mut snapshot) = TableScreen::build_snapshot(c, index) else { return parts };
-    let root = c.schedule.stage(index).and_then(|s| s.as_any().downcast_ref::<TableSupervisor>()).and_then(|t| t.table_sets().first().cloned());
-    if let Some(root) = root {
-        snapshot.set = Some(root);
-        snapshot.displayed = Some(0);
-        parts.push(Box::new(print::TablesDoc::new(snapshot.clone(), 32)));
+    let Some(snapshot) = TableScreen::build_snapshot(c, index) else { return parts };
+    // Suite principale de la phase, ou de chaque groupe (entraînement des jeunes).
+    let roots: Vec<(usize, bp_core::rounds::table::TableSet)> = c
+        .schedule
+        .stage(index)
+        .and_then(|s| s.as_any().downcast_ref::<TableSupervisor>())
+        .map(|t| t.table_sets().iter().enumerate().filter(|(_, s)| s.parent().is_none()).map(|(i, s)| (i, s.clone())).collect())
+        .unwrap_or_default();
+    for (i, root) in roots {
+        let mut doc = snapshot.clone();
+        doc.set = Some(root);
+        doc.displayed = Some(i);
+        parts.push(Box::new(print::TablesDoc::new(doc, 32)));
     }
     parts.push(print::classification_source(&snapshot));
     parts

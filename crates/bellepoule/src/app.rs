@@ -33,12 +33,20 @@ pub struct App {
     pub notebook: gtk::Notebook,
     pub tournament: RefCell<Tournament>,
     pub pages: RefCell<Vec<Rc<ContestPage>>>,
+    /// Liaison avec le Marshaller.
+    pub network: RefCell<Option<Rc<crate::network::Network>>>,
+    /// Liaison SmartPoule (serveur BellePoule Web).
+    pub smartpoule: RefCell<Option<Rc<crate::smartpoule::SmartPoule>>>,
+    pub management: RefCell<Option<Rc<crate::management::Management>>>,
+    management_return: RefCell<Option<gtk::Widget>>,
+    pub shell: RefCell<Option<Rc<crate::shell::Shell>>>,
     /// Les messages de confirmation de sortie sont déjà passés.
     quitting: std::cell::Cell<bool>,
 }
 
 impl App {
     pub fn start(gtk_app: &gtk::Application, file: Option<PathBuf>, smoke_test: bool) {
+        bp_gtk::appearance::install();
         // Ressources et valeurs discrètes (pays, clubs, ligues…)
         let resources_dir = resources::resources_dir().to_path_buf();
         bp_core::contest::players::set_resources_dir(resources_dir.clone());
@@ -62,6 +70,7 @@ impl App {
         let notebook: gtk::Notebook = glade.get("notebook");
         window.set_application(Some(gtk_app));
         dialogs::set_main_window(&window);
+        dialogs::keep_focus_in_app();
         glade.attach_actions(&window);
         for (action, accel) in glade.accels() {
             gtk_app.set_accels_for_action(&action, &[accel.as_str()]);
@@ -74,14 +83,28 @@ impl App {
             notebook,
             tournament: RefCell::new(tournament),
             pages: RefCell::new(Vec::new()),
+            network: RefCell::new(None),
+            smartpoule: RefCell::new(None),
+            management: RefCell::new(None),
+            management_return: RefCell::new(None),
+            shell: RefCell::new(None),
             quitting: std::cell::Cell::new(false),
         });
         app.connect_handlers();
         app.prepare_dialogs();
         app.setup_printing();
         app.update_visibility();
+        if !smoke_test {
+            *app.network.borrow_mut() = Some(crate::network::Network::start(&app));
+            *app.smartpoule.borrow_mut() = Some(crate::smartpoule::SmartPoule::start(&app));
+        }
+        let management = crate::management::Management::new(&app);
+        *app.management.borrow_mut() = Some(management);
+        let shell = crate::shell::Shell::new(&app);
+        *app.shell.borrow_mut() = Some(shell);
+        app.update_visibility();
 
-        window.set_default_size(1000, 700);
+        window.set_default_size(1200, 800);
         window.present();
 
         if let Some(f) = file {
@@ -137,6 +160,9 @@ impl App {
                 });
             }};
         }
+        on!("on_ftp_menuitem_activate", on_publication);
+        on!("on_access_code_activate", on_access_code);
+        on!("on_smartpoule_menuitem_activate", on_smartpoule);
         on!("on_new_menuitem_activate", on_new);
         on!("on_youth_menuitem_activate", on_new_youth);
         on!("on_open_menuitem_activate", on_open);
@@ -207,12 +233,47 @@ impl App {
                 dialog.response(gtk::ResponseType::Other(code));
             });
         }
-        // Fonctions réseau : disponibles avec la liaison réseau.
-        for item in ["ftp_menuitem", "access_code_menuitem", "ring_menuitem", "video_menuitem"] {
+        crate::publication::setup(&self.glade);
+        // Diffusion vidéo : non disponible.
+        for item in ["video_menuitem"] {
             if self.glade.find_menu_item(item).is_some() {
                 self.glade.set_menu_item_sensitive(item, false);
             }
         }
+    }
+
+    /// `on_ftp_menuitem_activate` : dialogue « Publication ».
+    fn on_publication(self: &Rc<Self>) {
+        let dialog: gtk::Dialog = self.glade.get("publication_dialog");
+        dialog.set_transient_for(Some(&self.window));
+        dialogs::run_dialog(&dialog);
+        dialog.set_visible(false);
+    }
+
+    /// BellePoule2D > SmartPoule… : téléphones des arbitres.
+    fn on_smartpoule(self: &Rc<Self>) {
+        crate::smartpoule::show_dialog(self);
+    }
+
+    /// `Tournament::OnShowAccessCode` : QR code d'appairage (BellePoule2D).
+    fn on_access_code(self: &Rc<Self>) {
+        use bp_net::flash_code::FlashCode;
+        self.glade.get::<gtk::Widget>("step1").set_visible(false);
+        if let Some(w) = self.glade.widget("step2") {
+            w.set_visible(false);
+        }
+        if let Some(ring) = bp_net::ring::Ring::broker() {
+            let text = ring.flash_code().text();
+            if let Some(png) = bp_net::flash_code::QrMatrix::encode(&text).map(|m| m.to_image(4).to_png()) {
+                if let Ok(texture) = gtk::gdk::Texture::from_bytes(&glib::Bytes::from_owned(png)) {
+                    self.glade.get::<gtk::Image>("qrcode_image").set_paintable(Some(&texture));
+                }
+            }
+        }
+        let dialog: gtk::Dialog = self.glade.get("pin_code_dialog");
+        dialog.set_transient_for(Some(&self.window));
+        dialogs::run_dialog(&dialog);
+        dialog.set_visible(false);
     }
 
     /// Texte du dialogue « À propos » et menu des langues.
@@ -228,10 +289,70 @@ impl App {
 
     /// Logo seul tant qu'aucune compétition n'est ouverte.
     fn update_visibility(&self) {
-        let empty = self.pages.borrow().is_empty();
+        let empty = self.notebook.n_pages() == 0;
         self.notebook.set_visible(!empty);
         if let Some(logo) = self.glade.widget("logo") {
             logo.set_visible(empty);
+        }
+        if let Some(shell) = self.shell.borrow().clone() { shell.refresh(); }
+    }
+
+    pub fn open_management(&self) {
+        let Some(manager) = self.management.borrow().clone() else { return };
+        let current = self.notebook.current_page()
+            .and_then(|index| self.notebook.nth_page(Some(index)));
+        if current.as_ref().is_some_and(|page| page != manager.widget().upcast_ref::<gtk::Widget>()) {
+            *self.management_return.borrow_mut() = current;
+        }
+        if self.notebook.page_num(manager.widget()).is_none() {
+            self.notebook.append_page(manager.widget(), Some(&gtk::Label::new(Some(&tr("Organisation")))));
+        }
+        self.notebook.set_current_page(self.notebook.page_num(manager.widget()));
+        self.update_visibility();
+    }
+
+    pub fn close_management(&self) {
+        let Some(manager) = self.management.borrow().clone() else { return };
+        manager.flush();
+        if let Some(index) = self.notebook.page_num(manager.widget()) {
+            self.notebook.remove_page(Some(index));
+        }
+        let previous = self.management_return.borrow_mut().take();
+        if let Some(index) = previous.as_ref().and_then(|page| self.notebook.page_num(page)) {
+            self.notebook.set_current_page(Some(index));
+        }
+        self.update_visibility();
+    }
+
+    pub fn active_contest(&self) -> Option<Rc<ContestPage>> {
+        let pages = self.pages.borrow().clone();
+        pages.iter().find(|page| page.is_current(&self.notebook)).cloned()
+            .or_else(|| {
+                let previous = self.management_return.borrow();
+                pages.iter().find(|page| previous.as_ref() == Some(&page.widget())).cloned()
+            })
+            .or_else(|| pages.last().cloned())
+    }
+
+    pub fn navigate_to(&self, kinds: &[bp_core::stage::StageKind]) {
+        let Some(page) = self.active_contest() else { return };
+        let schedule = page.schedule.borrow().clone();
+        if let Some(schedule) = schedule {
+            if schedule.show_stage(kinds) {
+                self.notebook.set_current_page(self.notebook.page_num(&page.widget()));
+                self.update_visibility();
+            }
+        }
+    }
+
+    pub fn open_contest_preferences(&self) {
+        if let Some(page) = self.active_contest() { page.show_properties(); }
+    }
+
+    pub fn resume_contest(&self) {
+        if let Some(page) = self.active_contest() {
+            self.notebook.set_current_page(self.notebook.page_num(&page.widget()));
+            self.update_visibility();
         }
     }
 
@@ -246,6 +367,20 @@ impl App {
     }
 
     /// `Tournament::OpenUriContest`.
+    /// Vignette de l'accueil : revient sur la compétition si elle est déjà
+    /// ouverte, sinon l'ouvre.
+    pub fn open_recent(self: &Rc<Self>, path: &Path) {
+        let pages = self.pages.borrow().clone();
+        let open = pages.into_iter().find(|p| p.with_contest(|c| c.filename.as_deref() == Some(path)).unwrap_or(false));
+        match open {
+            Some(page) => {
+                self.notebook.set_current_page(self.notebook.page_num(&page.widget()));
+                self.update_visibility();
+            }
+            None => self.open_path(path),
+        }
+    }
+
     pub fn open_path(self: &Rc<Self>, path: &Path) {
         let result = self.tournament.borrow_mut().open(path);
         match result {
@@ -291,8 +426,14 @@ impl App {
 
     /// Retire l'onglet d'une compétition fermée.
     pub fn close_page(&self, id: ContestId) {
-        if let Some(i) = self.pages.borrow().iter().position(|p| p.id == id) {
-            let page = self.pages.borrow_mut().remove(i);
+        let page = {
+            let mut pages = self.pages.borrow_mut();
+            let index = pages.iter().position(|p| p.id == id);
+            index.map(|i| pages.remove(i))
+        };
+        // Ne conserver aucun emprunt pendant le retrait GTK : les signaux
+        // de changement d'onglet peuvent consulter à nouveau les pages.
+        if let Some(page) = page {
             page.detach_from(&self.notebook);
         }
         self.tournament.borrow_mut().close(id);
@@ -303,7 +444,7 @@ impl App {
     // Menus
 
     /// `Tournament::OnNew`.
-    fn on_new(self: &Rc<Self>) {
+    pub fn on_new(self: &Rc<Self>) {
         let dialog: gtk::Dialog = self.glade.get("new_messagedialog");
         let response = dialogs::run_dialog(&dialog);
         dialog.set_visible(false);
@@ -330,7 +471,7 @@ impl App {
         }
     }
 
-    fn on_open(self: &Rc<Self>) {
+    pub fn on_open(self: &Rc<Self>) {
         self.choose_and_open(None);
     }
 
@@ -457,7 +598,7 @@ impl App {
     }
 
     /// `Application::OnOpenUserManual`.
-    fn on_user_manual(self: &Rc<Self>) {
+    pub fn on_user_manual(self: &Rc<Self>) {
         let code = language::current(&self.tournament.borrow().config);
         let pdf = resources::translations_dir().join(&code).join("user_manual.pdf");
         if pdf.is_file() {
@@ -476,15 +617,25 @@ impl App {
         if self.quitting.get() {
             return;
         }
-        let ok = dialogs::confirm(
-            Some(&self.window),
-            &tr("<b><big>Do you really want to quit BellePoule</big></b>"),
-            Some(&tr("All the unsaved competions will be lost.")),
-            Some(&tr("Quit BellePoule?")),
-        );
+        let management = self.management.borrow().clone();
+        if let Some(management) = management { management.flush(); }
+        // Les compétitions qui ont un fichier sont enregistrées ; on ne
+        // demande confirmation que s'il en reste de non enregistrées.
+        let pages: Vec<Rc<ContestPage>> = self.pages.borrow().clone();
+        let unsaved: Vec<String> = pages.iter().filter(|p| p.save_before_quit()).map(|p| p.display_name()).collect();
+        let ok = unsaved.is_empty()
+            || dialogs::confirm(
+                Some(&self.window),
+                &tr("<b><big>Do you really want to quit BellePoule</big></b>"),
+                Some(&format!("{}\n{}", tr("These competitions are not saved:"), unsaved.join("\n"))),
+                Some(&tr("Quit BellePoule?")),
+            );
         if ok {
             self.quitting.set(true);
             let _ = self.tournament.borrow().save_config();
+            if let Some(n) = self.network.borrow().as_ref() {
+                n.leave();
+            }
             self.window.destroy();
             self.gtk_app.quit();
         }

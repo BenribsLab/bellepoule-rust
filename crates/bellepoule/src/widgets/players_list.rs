@@ -58,6 +58,28 @@ pub struct RowData {
     pub dimmed: bool,
 }
 
+fn count_rows(rows: &[RowData]) -> usize {
+    rows.iter().map(|row| usize::from(row.player != 0) + count_rows(&row.children)).sum()
+}
+
+fn filter_rows(rows: &[RowData], query: &str, attending: Option<bool>) -> Vec<RowData> {
+    if query.is_empty() && attending.is_none() { return rows.to_vec(); }
+    rows.iter().filter_map(|row| {
+        let children = filter_rows(&row.children, query, attending);
+        let text = row.cells.iter().filter_map(|cell| match cell {
+            Cell::Text(text) => Some(text.to_lowercase()),
+            _ => None,
+        }).collect::<Vec<_>>().join(" ");
+        let text_matches = query.split_whitespace().all(|word| text.contains(word));
+        let status_matches = attending.is_none_or(|present| present != row.dimmed);
+        if (text_matches && status_matches) || !children.is_empty() {
+            let mut result = row.clone();
+            result.children = children;
+            Some(result)
+        } else { None }
+    }).collect()
+}
+
 type ToggleFn = dyn Fn(&[PlayerRef], &str, bool);
 type ActivateFn = dyn Fn(PlayerRef);
 type SelectionFn = dyn Fn();
@@ -76,6 +98,8 @@ struct Inner {
     /// Édition suspendue (phase verrouillée).
     locked: std::cell::Cell<bool>,
     toggles: RefCell<Vec<gtk::CellRendererToggle>>,
+    query: RefCell<String>,
+    attending_filter: std::cell::Cell<Option<bool>>,
 }
 
 #[derive(Clone)]
@@ -112,6 +136,8 @@ impl PlayersListView {
                 on_selection: RefCell::new(None),
                 locked: std::cell::Cell::new(false),
                 toggles: RefCell::new(Vec::new()),
+                query: RefCell::new(String::new()),
+                attending_filter: std::cell::Cell::new(None),
             }),
         };
         {
@@ -228,6 +254,8 @@ impl PlayersListView {
             match spec.kind {
                 CellKind::Text => {
                     let r = gtk::CellRendererText::new();
+                    r.set_padding(8, 4);
+                    if spec.code == "name" { r.set_weight(600); }
                     column.pack_start(&r, true);
                     column.add_attribute(&r, "text", col as i32);
                     column.add_attribute(&r, "sensitive", dim_col as i32);
@@ -235,15 +263,23 @@ impl PlayersListView {
                 }
                 CellKind::Icon => {
                     let r = gtk::CellRendererPixbuf::new();
+                    r.set_padding(6, 4);
                     column.pack_start(&r, false);
                     column.add_attribute(&r, "pixbuf", col as i32);
                 }
                 CellKind::Toggle => {
                     let r = gtk::CellRendererToggle::new();
+                    r.set_padding(8, 4);
                     r.set_activatable(spec.editable);
                     self.inner.toggles.borrow_mut().push(r.clone());
                     column.pack_start(&r, false);
                     column.add_attribute(&r, "active", col as i32);
+                    if spec.code == "attending" {
+                        let status = gtk::CellRendererText::new();
+                        status.set_padding(8, 4);
+                        status.set_weight(500);
+                        column.pack_start(&status, false);
+                    }
                     if spec.editable {
                         let v = self.clone();
                         let code = spec.code.clone();
@@ -254,9 +290,27 @@ impl PlayersListView {
                 }
                 CellKind::Progress => {
                     let r = gtk::CellRendererProgress::new();
+                    r.set_padding(8, 4);
                     column.pack_start(&r, true);
                     column.add_attribute(&r, "value", col as i32);
                 }
+            }
+            for cell in column.cells() {
+                let attendance_badge = spec.code == "attending" && cell.is::<gtk::CellRendererText>();
+                column.set_cell_data_func(&cell, move |_, cell, model, iter| {
+                    let odd = model.path(iter).indices().first().is_some_and(|index| index % 2 != 0);
+                    cell.set_cell_background(Some(if odd { "#f5f8ff" } else { "#ffffff" }));
+                    if attendance_badge && model.get::<u32>(iter, 0) != 0 {
+                        let attending = model.get::<bool>(iter, col as i32);
+                        if let Some(text) = cell.downcast_ref::<gtk::CellRendererText>() {
+                            text.set_text(Some(&bp_core::i18n::tr(if attending { "Present" } else { "Absent" })));
+                            text.set_foreground(Some(if attending { "#11845a" } else { "#d2465e" }));
+                            cell.set_cell_background(Some(if attending { "#e5f6ed" } else { "#fcecf0" }));
+                        }
+                    } else if attendance_badge {
+                        if let Some(text) = cell.downcast_ref::<gtk::CellRendererText>() { text.set_text(None); }
+                    }
+                });
             }
             {
                 let v = self.clone();
@@ -311,8 +365,23 @@ impl PlayersListView {
         self.fill();
     }
 
-    fn sorted(&self, rows: &[RowData]) -> Vec<RowData> {
-        let mut out: Vec<RowData> = rows.to_vec();
+    pub fn set_filter(&self, query: &str, attending: Option<bool>) {
+        *self.inner.query.borrow_mut() = query.trim().to_lowercase();
+        self.inner.attending_filter.set(attending);
+        self.fill();
+    }
+
+    pub fn row_counts(&self) -> (usize, usize) {
+        let rows = self.inner.rows.borrow();
+        if self.inner.query.borrow().is_empty() && self.inner.attending_filter.get().is_none() {
+            let total = count_rows(&rows);
+            return (total, total);
+        }
+        let filtered = filter_rows(&rows, &self.inner.query.borrow(), self.inner.attending_filter.get());
+        (count_rows(&filtered), count_rows(&rows))
+    }
+
+    fn sorted(&self, mut out: Vec<RowData>) -> Vec<RowData> {
         if let Some((col, asc)) = *self.inner.sort.borrow() {
             let code = self.inner.columns.borrow().get(col).map(|c| c.code.clone());
             if let Some(code) = code {
@@ -331,7 +400,7 @@ impl PlayersListView {
             }
         }
         for r in &mut out {
-            r.children = self.sorted(&r.children);
+            r.children = self.sorted(std::mem::take(&mut r.children));
         }
         out
     }
@@ -350,7 +419,8 @@ impl PlayersListView {
             v
         };
         store.clear();
-        let rows = self.sorted(&self.inner.rows.borrow());
+        let filtered = filter_rows(&self.inner.rows.borrow(), &self.inner.query.borrow(), self.inner.attending_filter.get());
+        let rows = self.sorted(filtered);
         let ncols = self.inner.columns.borrow().len();
         self.append_rows(&store, None, &rows, ncols);
         // Retrouver l'état d'avant
@@ -403,4 +473,43 @@ impl PlayersListView {
 
 fn key(c: &ColumnSpec) -> (String, CellKind, bool) {
     (c.code.clone(), c.kind, c.editable)
+}
+
+#[cfg(test)]
+mod search_tests {
+    use super::*;
+
+    fn row(player: u32, text: &[&str], dimmed: bool) -> RowData {
+        RowData { player, cells: text.iter().map(|text| Cell::Text(text.to_string())).collect(),
+            sort: Vec::new(), children: Vec::new(), dimmed }
+    }
+
+    #[test]
+    fn search_combines_name_and_club_without_changing_rows() {
+        let rows = vec![row(1, &["MARTIN", "Lina", "YERRES CE"], false), row(2, &["MARTIN", "Hugo", "BRUNOY AE"], false)];
+        let found = filter_rows(&rows, "martin yerres", None);
+        assert_eq!(found.iter().map(|r| r.player).collect::<Vec<_>>(), vec![1]);
+        assert_eq!(rows.len(), 2);
+    }
+
+    #[test]
+    fn presence_filter_combines_with_search() {
+        let rows = vec![row(1, &["Lina", "YERRES"], false), row(2, &["Hugo", "YERRES"], true)];
+        assert_eq!(filter_rows(&rows, "yerres", Some(true))[0].player, 1);
+        assert_eq!(filter_rows(&rows, "yerres", Some(false))[0].player, 2);
+        assert!(filter_rows(&rows, "lina", Some(false)).is_empty());
+    }
+
+    #[test]
+    fn matching_team_member_keeps_parent_and_counts_real_rows() {
+        let mut team = row(10, &["Equipe A"], false);
+        team.children = vec![row(1, &["Lina"], false), row(2, &["Hugo"], true)];
+        let rows = vec![team];
+        let found = filter_rows(&rows, "hugo", Some(false));
+        assert_eq!(found[0].player, 10);
+        assert_eq!(found[0].children.len(), 1);
+        assert_eq!(found[0].children[0].player, 2);
+        assert_eq!(count_rows(&found), 2);
+        assert_eq!(rows[0].children.len(), 2);
+    }
 }

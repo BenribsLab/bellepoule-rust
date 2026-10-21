@@ -96,13 +96,14 @@ impl Hall {
         }
         let piste_id = piste.and_then(|p| self.piste(p)).map(|p| p.id).unwrap_or(0);
         self.job_set_piste(job, piste_id, start);
+        self.job_make_piste_parcel(job);
         if has_referees {
             self.job_make_referee_parcel(job);
         }
         self.refresh_job_status(job);
 
         if !assigned {
-            if let Some(pk) = piste {
+            for pk in self.slots.get(&sk).map(|s| s.pistes()).unwrap_or_default() {
                 let slots = &self.slots;
                 if let Some(p) = self.pistes.iter_mut().find(|p| p.key == pk) {
                     insert_sorted(&mut p.slots, sk, |a, b| {
@@ -130,7 +131,8 @@ impl Hall {
         s.duration = 0;
         if s.jobs.is_empty() {
             // `Piste::OnSlotRetracted`
-            if let Some(pk) = s.piste {
+            let pistes = s.pistes();
+            for pk in pistes {
                 if let Some(p) = self.piste_mut(pk) {
                     p.slots.retain(|k| *k != sk);
                 }
@@ -141,12 +143,14 @@ impl Hall {
     /// `Slot::AddReferee`.
     pub fn slot_add_referee(&mut self, sk: SlotKey, referee: u32) {
         let Some(s) = self.slots.get_mut(&sk) else { return };
+        if s.referees.contains(&referee) { return; }
         s.referees.insert(0, referee);
         let jobs = s.jobs.clone();
         self.referee_add_slot(referee, sk);
         for j in jobs {
             self.job_make_referee_parcel(j);
             self.refresh_job_status(j);
+            self.job_spread(j);
         }
     }
 
@@ -159,6 +163,7 @@ impl Hall {
             self.job_make_referee_parcel(j);
             self.referee_removed_from_slot(referee, sk);
             self.refresh_job_status(j);
+            self.job_spread(j);
         }
     }
 
@@ -197,6 +202,9 @@ impl Hall {
 
     /// `Slot::Swap` : échange matchs et arbitres de deux créneaux.
     pub fn slot_swap(&mut self, a: SlotKey, b: SlotKey) {
+        // Les réservations communes se modifient ensemble, pas par échange
+        // automatique d'une seule piste.
+        if [a, b].iter().any(|k| self.slots.get(k).is_some_and(|s| !s.additional_pistes.is_empty())) { return; }
         let (ja, ra) = self.slots.get(&a).map(|s| (s.jobs.clone(), s.referees.clone())).unwrap_or_default();
         let (jb, rb) = self.slots.get(&b).map(|s| (s.jobs.clone(), s.referees.clone())).unwrap_or_default();
         self.slot_cancel(a);
@@ -221,16 +229,19 @@ impl Hall {
         let Some(s) = self.slots.get(&sk).cloned() else { return };
         let Some(end) = s.end else { return };
         let mut followers = Vec::new();
-        if let Some(pk) = s.piste {
+        for pk in s.pistes() {
             if let Some(p) = self.piste(pk) {
                 followers.push(Self::slot_after(&p.slots, sk));
             }
         }
-        if let Some(r) = s.referees.first().and_then(|r| self.referees.referees.get(r)) {
-            followers.push(Self::slot_after(&r.slots, sk));
+        for reference in &s.referees {
+            if let Some(r) = self.referees.referees.get(reference) {
+                followers.push(Self::slot_after(&r.slots, sk));
+            }
         }
-        let piste_id = s.piste.and_then(|p| self.piste(p)).map(|p| p.id).unwrap_or(0);
+        let mut seen = std::collections::BTreeSet::new();
         for next in followers.into_iter().flatten() {
+            if !seen.insert(next) { continue; }
             let Some(n) = self.slots.get(&next).cloned() else { continue };
             if diff(end, n.start) > OVERLAP_TOLERANCE {
                 if dry_run {
@@ -244,6 +255,7 @@ impl Hall {
                     }
                     self.slot_set_duration(next, n.duration);
                     if let Some(dep) = n.jobs.first().copied() {
+                        let piste_id = n.piste.and_then(|p| self.piste(p)).map(|p| p.id).unwrap_or(0);
                         self.job_set_piste(dep, piste_id, end);
                         self.job_spread(dep);
                     }
@@ -288,6 +300,7 @@ impl Hall {
         if let Some(p) = self.jobs.get_mut(&job).and_then(|j| j.parcel.as_mut()) {
             recall(outbox, p);
             p.remove("piste");
+            p.remove("pistes");
             p.remove("start_date");
             p.remove("start_time");
             p.remove("referees");
@@ -295,6 +308,7 @@ impl Hall {
     }
 
     pub(crate) fn job_spread(&mut self, job: JobKey) {
+        self.job_make_piste_parcel(job);
         let outbox = &mut self.outbox;
         if let Some(p) = self.jobs.get_mut(&job).and_then(|j| j.parcel.as_mut()) {
             spread(outbox, p);

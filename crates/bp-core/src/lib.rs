@@ -25,6 +25,8 @@ pub mod rounds;
 
 // Formats d'import/export
 pub mod formats;
+pub mod net;
+pub mod smartpoule;
 
 pub use player::{Owner, Player, PlayerClass, PlayerRef, PlayerStore};
 pub use stage::{Stage, StageContext, StageKind};

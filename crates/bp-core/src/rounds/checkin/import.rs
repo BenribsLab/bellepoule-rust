@@ -72,6 +72,10 @@ pub fn parse_fff(bytes: &[u8], class: PlayerClass) -> ImportResult {
         return result;
     }
     for line in &lines[2..] {
+        // `g_strsplit_set` d'une ligne vide ne donne aucun champ : pas de tireur.
+        if line.is_empty() {
+            continue;
+        }
         let fields: Vec<&str> = line.split(';').collect();
         let mut player = new_player(class);
         // Général

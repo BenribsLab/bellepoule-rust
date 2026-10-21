@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/timeline.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : timeline -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkWindow" id="timeline_window">
+    <child>
+      <object class="GtkScrolledWindow" id="canvas_scrolled_window">
+        <property name="hscrollbar-policy">never</property>
+        <property name="vscrollbar-policy">never</property>
+      </object>
+    </child>
+  </object>
+</interface>

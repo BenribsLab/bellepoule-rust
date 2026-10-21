@@ -5,9 +5,15 @@
 //! de liste (`ties_count`, le dépassement de quota de la phase précédente)
 //! sont départagés à la main en cochant « promu » (attribut local
 //! `promoted`). Les autres participants gardent leur rang précédent.
+//!
+//! Extension : les ex-aequo se départagent par des matchs (un seul match
+//! pour deux tireurs, tous contre tous sinon) disputés en autant de touches
+//! que les matchs de la phase d'où vient le barrage. Une fois les matchs
+//! terminés, les meilleurs prennent les places restantes (`promoted`).
 
 use std::any::Any;
 
+use crate::bout::Match;
 use crate::player::{AttrId, Owner, PlayerRef, PlayerStore};
 use crate::rounds::table::common::{self, codes, compare_players};
 use crate::stage::{load_attendee, save_attendees, PreviousStage, RankEntry, Stage, StageBase, StageContext, StageKind};
@@ -19,6 +25,11 @@ pub struct Barrage {
     ties_count: u32,
     result: Option<Vec<PlayerRef>>,
     output_short_list: Option<Vec<PlayerRef>>,
+    /// Touches des matchs de barrage (celles de la phase précédente).
+    max_score: u32,
+    /// Quota de qualifiés de la phase précédente.
+    previous_quota: Option<u32>,
+    matches: Vec<Match>,
 }
 
 impl Barrage {
@@ -26,7 +37,16 @@ impl Barrage {
         let mut base = StageBase::new(StageKind::Barrage, id);
         base.filter = codes(&["promoted", "name", "first_name", "birth_date", "gender", "club", "country"]);
         base.classification_filter = codes(&["rank", "status", "name", "first_name", "club"]);
-        Barrage { base, previous: None, ties_count: 0, result: None, output_short_list: None }
+        Barrage {
+            base,
+            previous: None,
+            ties_count: 0,
+            result: None,
+            output_short_list: None,
+            max_score: 5,
+            previous_quota: None,
+            matches: Vec::new(),
+        }
     }
 
     fn owner(&self) -> Owner {
@@ -107,6 +127,115 @@ impl Barrage {
         out
     }
 
+    pub fn max_score(&self) -> u32 {
+        self.max_score
+    }
+
+    /// Places à attribuer parmi les ex-aequo.
+    pub fn places(&self) -> u32 {
+        let len = self.base.attendees.len() as u32;
+        let ties = self.ties_count.min(len);
+        match self.previous_quota {
+            Some(q) if q > 0 => q.saturating_sub(len - ties).min(ties),
+            _ => ties,
+        }
+    }
+
+    pub fn matches(&self) -> &[Match] {
+        &self.matches
+    }
+
+    /// Crée les matchs entre ex-aequo (tous contre tous).
+    fn create_matches(&mut self) {
+        self.matches.clear();
+        let places = self.places();
+        let players = self.barrage_players().to_vec();
+        if places == 0 || places as usize >= players.len() {
+            return;
+        }
+        for i in 0..players.len() {
+            for j in i + 1..players.len() {
+                let mut m = Match::with_opponents(players[i], players[j], self.max_score);
+                m.number = self.matches.len() as u32 + 1;
+                m.name = format!("{} {}", crate::i18n::tr("Barrage"), m.number);
+                self.matches.push(m);
+            }
+        }
+    }
+
+    pub fn matches_over(&self) -> bool {
+        self.matches.iter().all(|m| m.is_over())
+    }
+
+    /// Saisie d'un score (`V`, `4`…) ; renvoie vrai si la saisie est complète.
+    pub fn set_score(&mut self, ctx: &mut StageContext, index: usize, fencer: PlayerRef, value: &str) -> bool {
+        if self.base.locked {
+            return false;
+        }
+        let Some(m) = self.matches.get_mut(index) else { return false };
+        let complete = m.set_score_str(fencer, value.trim());
+        self.update_promotions(ctx);
+        complete
+    }
+
+    /// Victoires, indice et touches données de chaque ex-aequo, du meilleur
+    /// au moins bon (à égalité : l'ordre de la phase précédente).
+    pub fn standings(&self) -> Vec<(PlayerRef, u32, i32, u32)> {
+        let mut out: Vec<(PlayerRef, u32, i32, u32)> = Vec::new();
+        for r in self.barrage_players() {
+            let (mut v, mut hs, mut hr) = (0u32, 0u32, 0u32);
+            for m in self.matches.iter().filter(|m| m.has_fencer(*r) && m.is_over()) {
+                let pos = m.position_of(*r).unwrap_or(0);
+                hs += m.score_at(pos).get();
+                hr += m.score_at(1 - pos).get();
+                if m.winner() == Some(*r) {
+                    v += 1;
+                }
+            }
+            out.push((*r, v, hs as i32 - hr as i32, hs));
+        }
+        out.sort_by(|a, b| b.1.cmp(&a.1).then(b.2.cmp(&a.2)).then(b.3.cmp(&a.3)));
+        out
+    }
+
+    /// Matchs terminés : les meilleurs prennent les places, les autres sont
+    /// éliminés ; avant, personne n'est promu.
+    fn update_promotions(&mut self, ctx: &mut StageContext) {
+        if self.matches.is_empty() {
+            return;
+        }
+        let over = self.matches_over();
+        let places = self.places() as usize;
+        let owner = self.owner();
+        for (i, (r, ..)) in self.standings().iter().enumerate() {
+            let promoted = over && i < places;
+            if let Some(p) = ctx.players.get_mut(*r) {
+                p.set_uint(&AttrId::local("promoted", owner), promoted as u32);
+                p.set_str(&AttrId::local("status", owner), if promoted { "Q" } else { "N" });
+            }
+        }
+    }
+
+    /// `<Match ID=…><Tireur REF Score Statut/>…</Match>`.
+    fn load_match(&mut self, node: roxmltree::Node) {
+        let fencers: Vec<(roxmltree::Node, PlayerRef)> = node
+            .children()
+            .filter(|n| n.is_element() && n.tag_name().name() != "Arbitre")
+            .filter_map(|n| n.attribute("REF").map(|r| (n, crate::attribute::parse_leading_int(r) as PlayerRef)))
+            .collect();
+        let [(na, a), (nb, b)] = fencers.as_slice() else { return };
+        let mut m = Match::with_opponents(*a, *b, self.max_score);
+        m.load_header(node);
+        m.name = format!("{} {}", crate::i18n::tr("Barrage"), m.number);
+        m.load_fencer(*na, *a);
+        m.load_fencer(*nb, *b);
+        m.after_load();
+        match self.matches.iter_mut().find(|x| x.number == m.number) {
+            Some(existing) => *existing = m,
+            None => self.matches.push(m),
+        }
+    }
+
     fn rank_of(list: &[(PlayerRef, u32)]) -> impl Fn(PlayerRef) -> u32 + '_ {
         move |r| list.iter().find(|(p, _)| *p == r).map(|(_, x)| *x).unwrap_or(0)
     }
@@ -125,6 +254,17 @@ impl Stage for Barrage {
         self.previous = previous;
         if let Some(p) = previous {
             self.ties_count = p.quota_exceedance;
+            self.previous_quota = p.nb_qualified;
+            if let Some(max) = p.max_score.filter(|m| *m > 0) {
+                self.max_score = max;
+                for m in &mut self.matches {
+                    m.max_score = max;
+                }
+            }
+        }
+        // Barrage créé avant l'ajout des matchs (ou rechargé) : on les crée.
+        if !self.base.locked && self.matches.is_empty() && self.ties_count > 0 {
+            self.create_matches();
         }
     }
 
@@ -139,12 +279,17 @@ impl Stage for Barrage {
                 p.set_uint(&AttrId::local("promoted", owner), 1);
             }
         }
+        if self.matches.is_empty() {
+            self.create_matches();
+        }
+        self.update_promotions(ctx);
     }
 
     fn reset(&mut self, ctx: &mut StageContext) {
         common::reset_statuses(&self.base, ctx);
         self.result = None;
         self.output_short_list = None;
+        self.matches.clear();
     }
 
     fn load(&mut self, ctx: &mut StageContext, node: roxmltree::Node) -> Result<(), crate::Error> {
@@ -153,6 +298,10 @@ impl Stage for Barrage {
         let fill = self.base.attendees.is_empty();
         let owner = self.owner();
         for n in node.children().filter(|n| n.is_element()) {
+            if n.tag_name().name() == "Match" {
+                self.load_match(n);
+                continue;
+            }
             if n.tag_name().name() != tag {
                 break;
             }
@@ -173,6 +322,9 @@ impl Stage for Barrage {
         w.start(StageKind::Barrage.xml_name());
         self.save_configuration(w);
         save_attendees(&self.base, ctx, w, self.owner());
+        for m in &self.matches {
+            m.save(ctx.players, w);
+        }
         w.end();
     }
 
@@ -181,7 +333,7 @@ impl Stage for Barrage {
     }
 
     fn is_over(&self, _ctx: &StageContext) -> bool {
-        true
+        self.matches_over()
     }
 
     fn classification(&self, ctx: &StageContext) -> Vec<RankEntry> {
@@ -235,6 +387,13 @@ impl Stage for Barrage {
         self.base.attendees.iter_mut().for_each(tr);
         self.result.iter_mut().flatten().for_each(tr);
         self.output_short_list.iter_mut().flatten().for_each(tr);
+        for m in &mut self.matches {
+            for o in &mut m.opponents {
+                if let Some(f) = o.fencer.as_mut() {
+                    tr(f);
+                }
+            }
+        }
     }
 
     fn as_any(&self) -> &dyn Any {

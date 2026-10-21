@@ -574,6 +574,13 @@ impl Ring {
         message.set_str("address", &format!("http://{}:{}", self.inner.unicast_address, self.inner.unicast_port));
     }
 
+    /// Service web sur le serveur HTTP de l'anneau (ex. `/smartpoule/`).
+    pub fn set_web_handler(&self, prefix: &str, handler: crate::http_server::WebHandler) {
+        if let Some(server) = self.inner.services.lock().unwrap().http_server.as_ref() {
+            server.set_web_handler(prefix, handler);
+        }
+    }
+
     /// Clé de déchiffrement d'un schéma d'authentification (`GetSecretKey`).
     pub fn secret_key(&self, authentication_scheme: &str) -> Option<String> {
         self.inner.get_secret_key(authentication_scheme)

@@ -94,19 +94,12 @@ impl Tournament {
         self.manage(contest)
     }
 
-    /// Nouvel entraînement des jeunes : formule appel → entraînement des
-    /// jeunes → classement général.
+    /// Nouvel entraînement des jeunes : formule appel → création des
+    /// groupes → poules → tableaux → classement général, dans une seule
+    /// compétition.
     pub fn new_youth_training(&mut self) -> ContestId {
         let mut contest = Contest::new_with_default_stages(Some(&mut self.config));
         contest.with_schedule(|schedule, ctx| {
-            let mut i = schedule.len();
-            while i > 1 {
-                i -= 1;
-                let kind = schedule.stage(i).map(|s| s.kind());
-                if matches!(kind, Some(crate::stage::StageKind::PoolSupervisor | crate::stage::StageKind::TableSupervisor)) {
-                    schedule.remove_user_stage(ctx, i);
-                }
-            }
             schedule.add_kind(ctx, crate::stage::StageKind::YouthTraining, Some(0));
         });
         self.manage(contest)
@@ -125,19 +118,6 @@ impl Tournament {
         }
         let target = source.duplicate_split(index, Some(&mut self.config))?;
         Ok(self.manage(target))
-    }
-
-    /// Entraînement des jeunes : crée une compétition par groupe.
-    pub fn create_youth_groups(&mut self, source: ContestId) -> Result<Vec<ContestId>> {
-        let at = self.contests.iter().position(|(id, _)| *id == source)
-            .ok_or_else(|| Error::Format("compétition source introuvable".into()))?;
-        let source = &self.contests[at].1;
-        let index = source.schedule.current_index();
-        if source.schedule.current().is_none_or(|s| s.base().locked) {
-            return Err(Error::Format("l'entraînement des jeunes n'est pas modifiable".into()));
-        }
-        let groups = source.duplicate_youth_groups(index, Some(&mut self.config))?;
-        Ok(groups.into_iter().map(|c| self.manage(c)).collect())
     }
 
     /// `OnContestDeleted`.
@@ -247,7 +227,12 @@ impl Tournament {
     // ----------------------------------------------------------------------
     // Fichiers récents
 
+    /// Seuls les fichiers de compétition (`.cotcot`) sont retenus : les
+    /// listes importées (FFF, CSV, arbitres…) n'en font pas partie.
     pub fn add_recent(&mut self, path: &Path) {
+        if !is_contest_file(path) {
+            return;
+        }
         let path = path.to_string_lossy().to_string();
         let mut list = self.recent_raw();
         list.retain(|p| *p != path);
@@ -263,7 +248,7 @@ impl Tournament {
 
     /// `RecentFileExists` : seuls les fichiers qui existent encore.
     pub fn recent_files(&self) -> Vec<PathBuf> {
-        self.recent_raw().into_iter().map(PathBuf::from).filter(|p| p.is_file()).collect()
+        self.recent_raw().into_iter().map(PathBuf::from).filter(|p| p.is_file() && is_contest_file(p)).collect()
     }
 
     // ----------------------------------------------------------------------
@@ -364,4 +349,9 @@ mod tests {
         assert!(t.close(id).is_some());
         assert!(t.is_empty());
     }
+}
+
+/// Fichier de compétition BellePoule (`.cotcot`).
+fn is_contest_file(path: &Path) -> bool {
+    path.extension().map(|e| e.eq_ignore_ascii_case("cotcot")).unwrap_or(false)
 }

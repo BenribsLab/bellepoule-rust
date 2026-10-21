@@ -1,4 +1,7 @@
-//! Entraînement des jeunes : groupes, poules imposées et tableau croisé.
+//! Entraînement des jeunes dans une seule compétition : groupes, poules par
+//! groupe, tableaux croisés par groupe, retour en arrière.
+
+use std::collections::HashMap;
 
 use bp_core::contest::{players::new_player, Contest};
 use bp_core::player::{AttrId, PlayerClass, PlayerRef};
@@ -6,19 +9,15 @@ use bp_core::rounds::pool::PoolSupervisorStage;
 use bp_core::rounds::table::supervisor::{FencedPlaces, TableSupervisor};
 use bp_core::rounds::youth::{GroupMode, YouthTraining};
 use bp_core::stage::{Stage, StageKind};
-use bp_core::tournament::{user_config::UserConfig, Tournament};
 
-fn ranking(c: &Contest, r: PlayerRef) -> u32 {
-    c.players.get(r).unwrap().attr("ranking").unwrap().as_uint()
-}
-
-/// 16 tireurs présents, classés de 1 à 16, formule appel → entraînement.
-fn source(group_mode: GroupMode) -> Contest {
+/// 16 tireurs présents classés de 1 à 16 ; formule appel → groupes →
+/// poules → tableaux → classement.
+fn contest(group_mode: GroupMode) -> Contest {
     let mut c = Contest::new(None, false);
-    c.create_default_schedule(true);
+    c.create_default_schedule(false);
     for i in 0..16 {
         let mut p = new_player(PlayerClass::Fencer);
-        p.set_str(&AttrId::global("name"), &format!("JEUNE{i:02}"));
+        p.set_str(&AttrId::global("name"), &format!("JEUNE{:02}", i + 1));
         p.set_uint(&AttrId::global("ranking"), i + 1);
         let r = c.add_fencer(p).unwrap();
         c.with_schedule(|s, ctx| {
@@ -35,49 +34,56 @@ fn source(group_mode: GroupMode) -> Contest {
     c
 }
 
+fn next(c: &mut Contest) {
+    c.with_schedule(|s, ctx| {
+        s.lock_current(ctx);
+        s.enter_next(ctx);
+    });
+}
+
+fn rankings(c: &Contest) -> HashMap<PlayerRef, u32> {
+    c.players.iter().map(|p| (p.reference, p.attr("ranking").unwrap().as_uint())).collect()
+}
+
+fn pool_stage(c: &Contest) -> usize {
+    (0..c.schedule.len()).find(|i| c.schedule.stage(*i).unwrap().kind() == StageKind::PoolSupervisor).unwrap()
+}
+
 #[test]
-fn each_group_fences_two_pools_then_a_crossed_table_with_all_places() {
-    let mut t = Tournament::new(UserConfig::new());
-    let id = t.manage(source(GroupMode::Division));
-    let groups = t.create_youth_groups(id).unwrap();
-    assert_eq!(groups.len(), 2);
-
-    let g = t.contest_mut(groups[0]).unwrap();
-    let mut rankings: Vec<u32> = g.players.iter().map(|p| p.attr("ranking").unwrap().as_uint()).collect();
-    rankings.sort();
-    assert_eq!(rankings, (1..=8).collect::<Vec<_>>());
-
-    // Appel → composition des poules : 2 poules de 4 en serpentin.
-    g.with_schedule(|s, ctx| {
-        s.lock_current(ctx);
-        s.enter_next(ctx);
-    });
-    let pool_index = (0..g.schedule.len()).find(|i| g.schedule.stage(*i).unwrap().kind() == StageKind::PoolSupervisor).unwrap();
-    let pools: Vec<Vec<u32>> = {
-        let stage = g.schedule.stage(pool_index).unwrap().as_any().downcast_ref::<PoolSupervisorStage>().unwrap();
+fn groups_have_their_own_pools_and_crossed_tables_in_one_contest() {
+    let mut c = contest(GroupMode::Division);
+    next(&mut c); // groupes → composition des poules
+    let rank = rankings(&c);
+    let pools: Vec<(String, Vec<u32>)> = {
+        let stage = c.schedule.stage(pool_stage(&c)).unwrap().as_any().downcast_ref::<PoolSupervisorStage>().unwrap();
         let round = stage.round();
-        round.pools().iter().map(|p| {
-            let mut r: Vec<u32> = p.fencers().iter().map(|f| ranking(g, *f)).collect();
-            r.sort();
-            r
-        }).collect()
+        round
+            .pools()
+            .iter()
+            .map(|p| {
+                let mut r: Vec<u32> = p.fencers().iter().map(|f| rank[f]).collect();
+                r.sort();
+                (p.name().to_string(), r)
+            })
+            .collect()
     };
-    assert_eq!(pools, vec![vec![1, 4, 5, 8], vec![2, 3, 6, 7]]);
+    assert_eq!(pools.len(), 4);
+    assert_eq!(pools[0].1, vec![1, 4, 5, 8]);
+    assert_eq!(pools[1].1, vec![2, 3, 6, 7]);
+    assert_eq!(pools[2].1, vec![9, 12, 13, 16]);
+    assert_eq!(pools[3].1, vec![10, 11, 14, 15]);
+    assert!(pools[2].0.contains('2'), "{}", pools[2].0);
 
-    // Composition → poules ; le mieux classé gagne chaque match.
-    g.with_schedule(|s, ctx| {
-        s.lock_current(ctx);
-        s.enter_next(ctx);
-    });
-    let rank_of: std::collections::HashMap<PlayerRef, u32> = g.players.iter().map(|p| (p.reference, p.attr("ranking").unwrap().as_uint())).collect();
-    g.with_schedule(|s, ctx| {
-        let stage = s.stage_mut(pool_index).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap();
+    next(&mut c); // composition → poules
+    let index = pool_stage(&c);
+    c.with_schedule(|s, ctx| {
+        let stage = s.stage_mut(index).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap();
         let mut round = stage.round();
         for p in round.pools_mut() {
             for m in 0..p.matches().len() {
                 let a = p.matches()[m].bout.opponent(0).unwrap();
                 let b = p.matches()[m].bout.opponent(1).unwrap();
-                let (w, l) = if rank_of[&a] < rank_of[&b] { (a, b) } else { (b, a) };
+                let (w, l) = if rank[&a] < rank[&b] { (a, b) } else { (b, a) };
                 p.set_score(ctx.players, m, w, 5, true);
                 p.set_score(ctx.players, m, l, 2, false);
             }
@@ -85,37 +91,151 @@ fn each_group_fences_two_pools_then_a_crossed_table_with_all_places() {
         round.refresh_classification(ctx.players);
     });
 
-    // Poules → tableau : 1er P1 / 4e P2, 2e P1 / 3e P2, 3e P1 / 2e P2, 4e P1 / 1er P2.
-    g.with_schedule(|s, ctx| {
-        s.lock_current(ctx);
-        s.enter_next(ctx);
-    });
-    let table = g.schedule.current().unwrap().as_any().downcast_ref::<TableSupervisor>().unwrap();
+    next(&mut c); // poules → tableaux
+    let table = c.schedule.current().unwrap().as_any().downcast_ref::<TableSupervisor>().unwrap();
     assert_eq!(table.fenced_places_mode(), FencedPlaces::AllPlaces);
-    let set = &table.table_sets()[0];
-    let mut pairs: Vec<(u32, u32)> = set
-        .nodes()
-        .iter()
-        .filter_map(|n| {
-            let m = n.bout.as_ref()?;
-            let (a, b) = (m.opponent(0)?, m.opponent(1)?);
-            let (x, y) = (rank_of[&a], rank_of[&b]);
-            Some((x.min(y), x.max(y)))
-        })
-        .collect();
-    pairs.sort();
-    // P1 = 1,4,5,8 (places 1..4) ; P2 = 2,3,6,7.
-    assert_eq!(pairs, vec![(1, 7), (2, 8), (3, 5), (4, 6)]);
+    let roots: Vec<_> = table.table_sets().iter().filter(|s| s.parent().is_none()).collect();
+    assert_eq!(roots.len(), 2);
+    for (g, set) in roots.iter().enumerate() {
+        let mut pairs: Vec<(u32, u32)> = set
+            .nodes()
+            .iter()
+            .filter_map(|n| {
+                let m = n.bout.as_ref()?;
+                let (a, b) = (m.opponent(0)?, m.opponent(1)?);
+                let (x, y) = (rank[&a], rank[&b]);
+                Some((x.min(y), x.max(y)))
+            })
+            .collect();
+        pairs.sort();
+        let o = 8 * g as u32;
+        // 1er P1 / 4e P2, 2e P1 / 3e P2, 3e P1 / 2e P2, 4e P1 / 1er P2.
+        assert_eq!(pairs, vec![(o + 1, o + 7), (o + 2, o + 8), (o + 3, o + 5), (o + 4, o + 6)]);
+        assert_eq!(set.group(), Some(g as u32 + 1));
+    }
+
+    // Retour en arrière jusqu'à la création des groupes : tout est défait.
+    c.with_schedule(|s, ctx| {
+        for _ in 0..3 {
+            s.go_back(ctx);
+        }
+    });
+    assert_eq!(c.schedule.current().unwrap().kind(), StageKind::YouthTraining);
+    assert!(c.players.iter().all(|p| p.attr("youth_group").is_none()));
 }
 
 #[test]
 fn ranking_mode_makes_groups_of_equal_level() {
-    let mut t = Tournament::new(UserConfig::new());
-    let id = t.manage(source(GroupMode::Ranking));
-    let groups = t.create_youth_groups(id).unwrap();
-    let g = t.contest(groups[1]).unwrap();
-    let mut names: Vec<String> = g.players.iter().map(|p| p.name()).collect();
-    names.sort();
-    // Serpentin : 2, 3, 6, 7, 10, 11, 14, 15.
-    assert_eq!(names, ["JEUNE01", "JEUNE02", "JEUNE05", "JEUNE06", "JEUNE09", "JEUNE10", "JEUNE13", "JEUNE14"]);
+    let mut c = contest(GroupMode::Ranking);
+    next(&mut c);
+    let rank = rankings(&c);
+    let mut group2: Vec<u32> = c
+        .players
+        .iter()
+        .filter(|p| p.attr("youth_group").map(|v| v.as_uint()) == Some(2))
+        .map(|p| rank[&p.reference])
+        .collect();
+    group2.sort();
+    assert_eq!(group2, vec![2, 3, 6, 7, 10, 11, 14, 15]);
+}
+
+#[test]
+fn locked_groups_survive_a_save_and_reload() {
+    let mut c = contest(GroupMode::Division);
+    next(&mut c);
+    let xml = c.to_xml();
+    let mut loaded = Contest::new(None, false);
+    loaded.load_xml_str(&xml).unwrap();
+    let stage = loaded.schedule.stage(pool_stage(&loaded)).unwrap().as_any().downcast_ref::<PoolSupervisorStage>().unwrap();
+    let round = stage.round();
+    assert_eq!(round.pools().len(), 4);
+    assert!(round.pools()[3].name().contains('2'));
+}
+
+#[test]
+fn each_group_has_its_ranking_and_points() {
+    use bp_core::rounds::youth::{self, PointsMode};
+    let mut c = contest(GroupMode::Division);
+    c.with_schedule(|s, _| {
+        let youth = s.current_mut().unwrap().as_any_mut().downcast_mut::<YouthTraining>().unwrap();
+        youth.settings.points = PointsMode::ByPlace(vec![10, 8, 6, 5]);
+    });
+    next(&mut c); // groupes → composition
+    next(&mut c); // composition → poules
+    let rank = rankings(&c);
+    let index = pool_stage(&c);
+    c.with_schedule(|s, ctx| {
+        let stage = s.stage_mut(index).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap();
+        let mut round = stage.round();
+        for p in round.pools_mut() {
+            for m in 0..p.matches().len() {
+                let a = p.matches()[m].bout.opponent(0).unwrap();
+                let b = p.matches()[m].bout.opponent(1).unwrap();
+                let (w, l) = if rank[&a] < rank[&b] { (a, b) } else { (b, a) };
+                p.set_score(ctx.players, m, w, 5, true);
+                p.set_score(ctx.players, m, l, 2, false);
+            }
+        }
+        round.refresh_classification(ctx.players);
+    });
+    next(&mut c); // poules → tableaux
+    // Le mieux classé gagne chaque match de tableau, jusqu'au bout.
+    loop {
+        let mut changed = false;
+        c.with_schedule(|s, ctx| {
+            let i = s.current_index();
+            let table = s.stage_mut(i).unwrap().as_any_mut().downcast_mut::<TableSupervisor>().unwrap();
+            let todo: Vec<(usize, usize, PlayerRef, PlayerRef)> = table
+                .table_sets()
+                .iter()
+                .enumerate()
+                .flat_map(|(si, set)| {
+                    set.nodes().iter().enumerate().filter_map(move |(ni, n)| {
+                        let m = n.bout.as_ref()?;
+                        if m.winner().is_some() {
+                            return None;
+                        }
+                        Some((si, ni, m.opponent(0)?, m.opponent(1)?))
+                    })
+                })
+                .collect();
+            for (si, ni, a, b) in todo {
+                let (w, l) = if rank[&a] < rank[&b] { (a, b) } else { (b, a) };
+                table.set_score(ctx, si, ni, w, "V");
+                table.set_score(ctx, si, ni, l, "2");
+                changed = true;
+            }
+        });
+        if !changed {
+            break;
+        }
+    }
+    let results = youth::results(&c.schedule, &c.players).unwrap();
+    let summary: Vec<(u32, Option<u32>, u32, Option<u32>)> =
+        results.iter().map(|r| (r.group, r.place, rank[&r.player], r.points)).collect();
+    // Chaque groupe a son propre classement : 1er, 2e… avec ses points.
+    assert_eq!(summary[0], (1, Some(1), 1, Some(10)));
+    assert_eq!(summary[1], (1, Some(2), 2, Some(8)));
+    assert_eq!(summary[8], (2, Some(1), 9, Some(10)));
+    assert_eq!(summary[15], (2, Some(8), 16, Some(5)));
+    // Le premier a gagné ses 3 matchs de poule et ses 3 de tableau.
+    assert_eq!(results[0].victories, 6);
+
+    // Compétition terminée, enregistrée puis rouverte : mêmes classements.
+    c.with_schedule(|s, ctx| {
+        s.lock_current(ctx);
+        s.enter_next(ctx);
+    });
+    let xml = c.to_xml();
+    let mut reopened = Contest::new(None, false);
+    reopened.load_xml_str(&xml).unwrap();
+    let again = youth::results(&reopened.schedule, &reopened.players).unwrap();
+    let names = |c: &Contest, r: &[youth::YouthResult]| -> Vec<(String, u32, Option<u32>, u32, Option<u32>)> {
+        r.iter().map(|x| (c.players.get(x.player).unwrap().name(), x.group, x.place, x.victories, x.points)).collect()
+    };
+    assert_eq!(names(&reopened, &again), names(&c, &results));
+    assert_eq!(reopened.schedule.current().unwrap().kind(), StageKind::GeneralClassification);
+    // L'export HTML contient le tableau de chaque groupe.
+    let html = reopened.dump_to_html();
+    assert!(html.contains("Group 1 · Place #1") && html.contains("Group 2 · Place #1"));
 }

@@ -172,6 +172,15 @@ pub struct PoolMatch {
     pub rest_error: bool,
 }
 
+/// Affectation commune calculée pour un match, sans changer son identifiant FIE.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchAssignment {
+    pub match_index: usize,
+    pub wave: u32,
+    pub piste: u32,
+    pub referee: Option<PlayerRef>,
+}
+
 impl PoolMatch {
     /// Nom affiché (`M1`, `M2`…).
     pub fn name(&self) -> String {
@@ -196,6 +205,8 @@ pub struct Pool {
     sorted_fencer_list: Vec<PlayerRef>,
     referee_list: Vec<PlayerRef>,
     strip: u32,
+    additional_strips: Vec<u32>,
+    piste_referees: Vec<(u32, PlayerRef)>,
     start_time: Option<StartTime>,
     duration_sec: u32,
     matches: Vec<PoolMatch>,
@@ -209,6 +220,8 @@ pub struct Pool {
     strength_contributors: u32,
     /// Graine des scores aléatoires (`Stuff`), incrémentée à chaque usage.
     stuff_count: u64,
+    /// Groupe (entraînement des jeunes).
+    group: Option<u32>,
 }
 
 impl Pool {
@@ -232,6 +245,8 @@ impl Pool {
             sorted_fencer_list: Vec::new(),
             referee_list: Vec::new(),
             strip: 0,
+            additional_strips: Vec::new(),
+            piste_referees: Vec::new(),
             start_time: None,
             duration_sec: 0,
             matches: Vec::new(),
@@ -243,7 +258,19 @@ impl Pool {
             strength: 0,
             strength_contributors: 0,
             stuff_count: 0,
+            group: None,
         }
+    }
+
+    /// Entraînement des jeunes : rattache la poule au groupe `group`, dont
+    /// elle est la poule `local` (« Groupe 2 · Poule n° 01 »).
+    pub fn set_group(&mut self, group: u32, local: u32) {
+        self.group = Some(group);
+        self.name = format!("{} {} · {}", tr("Group"), group, pool_name(local));
+    }
+
+    pub fn group(&self) -> Option<u32> {
+        self.group
     }
 
     // --- Accesseurs -----------------------------------------------------------
@@ -479,10 +506,12 @@ impl Pool {
 
     pub fn remove_referee(&mut self, referee: PlayerRef) {
         self.referee_list.retain(|r| *r != referee);
+        self.piste_referees.retain(|(_, r)| *r != referee);
     }
 
     pub fn remove_all_referees(&mut self) {
         self.referee_list.clear();
+        self.piste_referees.clear();
     }
 
     // --- Piste et horaire -----------------------------------------------------
@@ -496,10 +525,62 @@ impl Pool {
     /// `SetRoadmap` : piste et heure de début (message `BellePoule2D::Roadmap`).
     pub fn set_roadmap(&mut self, players: &mut PlayerStore, strip: u32, start_time: Option<StartTime>) {
         self.strip = strip;
+        self.additional_strips.clear();
+        self.piste_referees.clear();
         self.start_time = start_time;
         for f in self.sorted_fencer_list.clone() {
             self.set_roadmap_to(players, f, strip, start_time);
         }
+    }
+
+    /// Liste commune des pistes d'une poule ; `strip()` reste la première.
+    pub fn strips(&self) -> Vec<u32> {
+        (self.strip != 0).then_some(self.strip).into_iter().chain(self.additional_strips.iter().copied()).collect()
+    }
+
+    pub fn set_roadmap_pistes(&mut self, players: &mut PlayerStore, pistes: &[u32], start: Option<StartTime>) {
+        let previous = self.piste_referees.clone();
+        let mut list = Vec::new();
+        for &piste in pistes { if piste != 0 && !list.contains(&piste) { list.push(piste); } }
+        self.set_roadmap(players, list.first().copied().unwrap_or(0), start);
+        self.additional_strips = list.into_iter().skip(1).collect();
+        let strips = self.strips();
+        self.piste_referees = if strips.len() > 1 && self.referee_list.len() != strips.len() {
+            previous.into_iter().filter(|(p, r)| strips.contains(p) && self.referee_list.contains(r)).collect()
+        } else { strips.into_iter().zip(self.referee_list.iter().copied()).collect() };
+    }
+
+    pub fn piste_referees(&self) -> &[(u32, PlayerRef)] { &self.piste_referees }
+
+    /// Vagues de matchs sans tireur engagé deux fois simultanément. Les pistes
+    /// les moins chargées sont prioritaires ; l'ordre FIE départage les matchs.
+    pub fn match_assignments(&self) -> Vec<MatchAssignment> {
+        let pistes = self.strips();
+        if pistes.is_empty() { return Vec::new(); }
+        let mut counts = vec![0usize; pistes.len()];
+        let mut pending: Vec<_> = (0..self.matches.len()).collect();
+        let mut result = Vec::new();
+        let mut wave = 0;
+        while !pending.is_empty() {
+            wave += 1;
+            let mut used = Vec::new();
+            let mut order: Vec<_> = (0..pistes.len()).collect();
+            order.sort_by_key(|i| (counts[*i], *i));
+            for i in order {
+                let next = pending.iter().position(|index| {
+                    (0..2).filter_map(|k| self.matches[*index].bout.opponent(k)).all(|p| !used.contains(&p))
+                });
+                let Some(next) = next else { break };
+                let match_index = pending.remove(next);
+                used.extend((0..2).filter_map(|k| self.matches[match_index].bout.opponent(k)));
+                let piste = pistes[i];
+                let referee = self.piste_referees.iter().find(|(p, _)| *p == piste).map(|(_, r)| *r)
+                    .or_else(|| if pistes.len() == 1 { self.referee_list.first().copied() } else { None });
+                result.push(MatchAssignment { match_index, wave, piste, referee });
+                counts[i] += 1;
+            }
+        }
+        result
     }
 
     /// Image de l'heure de début (`FieTime::GetImage`, `%k:%M`).
@@ -513,14 +594,14 @@ impl Pool {
             return None;
         }
         let time = self.start_time_image().unwrap_or_default();
-        Some(format!("{:02}\u{a0}\u{a0}@\u{a0}\u{a0}{}", self.strip, time))
+        let pistes = self.strips().iter().map(|p| format!("{p:02}")).collect::<Vec<_>>().join(", ");
+        Some(format!("{}\u{a0}\u{a0}@\u{a0}\u{a0}{}", pistes, time))
     }
 
     /// `Timestamp` : durée écoulée depuis l'heure de début.
     pub fn timestamp(&mut self) {
         if let Some(t) = self.start_time {
-            let now = chrono::Local::now().naive_local();
-            let now = now.with_second_zero();
+            let now = crate::bout::now_rounded();
             let span = (now - t.0).num_seconds();
             self.duration_sec = if span < 0 { 1 } else { span as u32 };
         }
@@ -940,6 +1021,12 @@ impl Pool {
         if self.strip != 0 {
             w.attr_fmt("Piste", self.strip);
         }
+        if !self.additional_strips.is_empty() {
+            w.attr("Pistes", &self.strips().iter().map(u32::to_string).collect::<Vec<_>>().join(","));
+        }
+        if !self.piste_referees.is_empty() {
+            w.attr("ArbitresPistes", &self.piste_referees.iter().map(|(p, r)| format!("{p}:{r}")).collect::<Vec<_>>().join(","));
+        }
         if let Some(t) = &self.start_time {
             w.attr("Date", &t.xml_date());
             w.attr("Heure", &t.xml_time());
@@ -1000,6 +1087,17 @@ impl Pool {
         if node.attribute("Piste").is_some() {
             self.strip = xml::attr_u32(node, "Piste", 0);
         }
+        self.additional_strips.clear();
+        self.piste_referees = node.attribute("ArbitresPistes").unwrap_or_default().split(',').filter_map(|pair| {
+            let (p, r) = pair.split_once(':')?; Some((p.parse().ok()?, r.parse().ok()?))
+        }).collect();
+        if let Some(pistes) = node.attribute("Pistes") {
+            for piste in pistes.split(',').filter_map(|p| p.trim().parse::<u32>().ok()) {
+                if piste > 0 && piste != self.strip && !self.additional_strips.contains(&piste) {
+                    if self.strip == 0 { self.strip = piste; } else { self.additional_strips.push(piste); }
+                }
+            }
+        }
         if let (Some(d), Some(t)) = (node.attribute("Date"), node.attribute("Heure")) {
             self.start_time = StartTime::parse(d, t);
         }
@@ -1047,7 +1145,12 @@ impl Pool {
     /// Feuille de poule (`Draw`). `for_referees` : feuille vierge pour les
     /// arbitres (numéros de matchs dans les cases, colonne signature).
     pub fn sheet(&self, players: &PlayerStore, referees: &PlayerStore, for_referees: bool) -> PoolSheet {
-        let referee = self.referee_list.first().and_then(|r| referees.get(*r)).map(|p| (p.name(), p.str_attr("first_name").map(str::to_string)));
+        let names: Vec<_> = self.referee_list.iter().filter_map(|r| referees.get(*r)).map(|p| {
+            if self.referee_list.len() == 1 { (p.name(), p.str_attr("first_name").map(str::to_string)) }
+            else { (format!("{} {}", p.name(), p.first_name()).trim().to_string(), None) }
+        }).collect();
+        let referee = if names.len() <= 1 { names.into_iter().next() }
+            else { Some((names.into_iter().map(|(n, _)| n).collect::<Vec<_>>().join(", "), None)) };
         let n = self.nb_players();
         let mut rows = Vec::with_capacity(n);
         for (i, a) in self.sorted_fencer_list.iter().enumerate() {
@@ -1078,10 +1181,12 @@ impl Pool {
             });
             rows.push(SheetRow { position: i + 1, player: *a, identity: player_identity(players, *a), cells, dashboard });
         }
-        let matches = self
+        let assignments = self.match_assignments();
+        let mut matches: Vec<_> = self
             .matches
             .iter()
-            .map(|m| {
+            .enumerate()
+            .map(|(match_index, m)| {
                 let opp = |k: usize| {
                     m.bout.opponent(k).map(|p| MatchSheetFencer {
                         player: p,
@@ -1090,9 +1195,21 @@ impl Pool {
                         score: m.bout.score_at(k).image(self.max_score),
                     })
                 };
-                MatchSheet { name: m.name(), rest_error: m.rest_error, opponents: [opp(0), opp(1)], score_boxes: if self.max_score <= 15 { self.max_score } else { 0 } }
+                let assignment = assignments.iter().find(|a| a.match_index == match_index);
+                let resource = if self.strips().len() > 1 {
+                    assignment.map(|a| {
+                        let referee = a.referee.and_then(|r| referees.get(r)).map(|p| format!("{} {}", p.name(), p.first_name()))
+                            .unwrap_or_else(|| tr("Not assigned"));
+                        format!("{} · {}\n{} {}", tr("Wave %d").replace("%d", &a.wave.to_string()),
+                            tr("Piste %d").replace("%d", &a.piste.to_string()), tr("Referee"), referee)
+                    })
+                } else { None };
+                MatchSheet { match_index, resource, assignment: assignment.cloned(), name: m.name(), rest_error: m.rest_error, opponents: [opp(0), opp(1)], score_boxes: if self.max_score <= 15 { self.max_score } else { 0 } }
             })
             .collect();
+        if self.strips().len() > 1 {
+            matches.sort_by_key(|m| m.assignment.as_ref().map(|a| (a.wave, a.piste)));
+        }
         PoolSheet {
             title: self.name.clone(),
             referee,
@@ -1174,17 +1291,6 @@ enum CombinedOperation {
     Sum,
 }
 
-trait SecondZero {
-    fn with_second_zero(self) -> Self;
-}
-
-impl SecondZero for chrono::NaiveDateTime {
-    fn with_second_zero(self) -> Self {
-        use chrono::Timelike;
-        self.with_second(0).and_then(|t| t.with_nanosecond(0)).unwrap_or(self)
-    }
-}
-
 /// Identité d'un joueur telle qu'affichée dans les feuilles
 /// (`GetPlayerImage` : nom, prénom, club, ligue, région, pays).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1255,6 +1361,10 @@ pub struct MatchSheetFencer {
 /// Feuille de match (liste sous la grille).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchSheet {
+    /// Indice réel du match, indépendant de son ordre d'affichage par vague.
+    pub match_index: usize,
+    pub resource: Option<String>,
+    pub assignment: Option<MatchAssignment>,
     pub name: String,
     /// Icône horloge : assauts consécutifs.
     pub rest_error: bool,
@@ -1267,7 +1377,7 @@ pub struct MatchSheet {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PoolSheet {
     pub title: String,
-    /// Nom et prénom du premier arbitre.
+    /// Noms des arbitres du bandeau (détails par match en multi-pistes).
     pub referee: Option<(String, Option<String>)>,
     pub piste: Option<String>,
     pub for_referees: bool,

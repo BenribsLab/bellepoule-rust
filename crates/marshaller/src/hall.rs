@@ -69,6 +69,7 @@ pub struct ToolbarState {
 pub struct FloatingJob {
     pub job: JobKey,
     pub referees: Vec<u32>,
+    pub additional_pistes: Vec<PisteKey>,
 }
 
 pub struct Hall {
@@ -223,6 +224,29 @@ impl Hall {
         self.dirty = true;
     }
 
+    /// Renumérotation depuis l'interface, sans ambiguïté pour les feuilles de route.
+    pub fn renumber_piste(&mut self, key: PisteKey, id: u32) -> Result<(), String> {
+        let Some(piste) = self.piste(key) else {
+            return Err(bp_core::i18n::tr("Piste not found."));
+        };
+        if id == 0 {
+            return Err(bp_core::i18n::tr("The piste number must be greater than zero."));
+        }
+        if piste.id == id {
+            return Ok(());
+        }
+        if self.pistes.iter().any(|p| p.key != key && p.id == id) {
+            return Err(bp_core::i18n::tr("This piste number is already used."));
+        }
+        let jobs = self.piste_jobs(key);
+        self.set_piste_id(key, id);
+        for job in jobs {
+            self.job_make_piste_parcel(job);
+            self.job_spread(job);
+        }
+        Ok(())
+    }
+
     /// `RemovePiste` : annule les créneaux puis retire la piste.
     pub fn remove_piste(&mut self, key: PisteKey) {
         let slots = self.piste(key).map(|p| p.slots.clone()).unwrap_or_default();
@@ -334,10 +358,14 @@ impl Hall {
             if !blurred {
                 let duration = self.jobs.get(&floating.job).map(|j| j.duration()).unwrap_or(0);
                 let cursor = self.timeline.cursor_time(false);
-                if let Some(free) = self.piste_free_slot(key, cursor, duration) {
+                if let Some(mut free) = self.piste_free_slot(key, cursor, duration) {
+                    if floating.additional_pistes.contains(&key)
+                        || floating.additional_pistes.iter().any(|p| self.piste_free_slot(*p, cursor, duration).is_none())
+                        || floating.referees.iter().any(|r| !self.referee_is_available(*r, &free, duration)) { return; }
+                    free.additional_pistes = floating.additional_pistes.clone();
                     let sk = self.slot_insert(free);
                     self.slot_add_job(sk, floating.job);
-                    for r in &floating.referees {
+                    for r in floating.referees.iter().rev() {
                         self.slot_add_referee(sk, *r);
                     }
                 }
@@ -546,6 +574,27 @@ mod tests {
             assert_eq!(p.blocked, q.blocked);
         }
         assert!(!g.read_json(&serde_json::json!({})));
+    }
+
+    #[test]
+    fn renumbering_rejects_duplicates_and_preserves_piste_geometry() {
+        let mut h = hall();
+        h.default_layout();
+        let key = h.pistes[0].key;
+        let bounds = h.piste(key).unwrap().bounds();
+        h.dirty = false;
+        assert!(h.renumber_piste(key, 0).is_err());
+        assert!(h.renumber_piste(key, 2).is_err());
+        assert_eq!(h.piste(key).unwrap().id, 1);
+        assert!(!h.dirty);
+        h.renumber_piste(key, 12).unwrap();
+        assert_eq!(h.piste(key).unwrap().bounds(), bounds);
+        assert_eq!(h.piste_by_id(12), Some(key));
+        let json = h.to_json();
+        let mut loaded = hall();
+        assert!(loaded.read_json(&json));
+        assert!(loaded.piste_by_id(12).is_some());
+        assert!(loaded.piste_by_id(1).is_none());
     }
 
     #[test]

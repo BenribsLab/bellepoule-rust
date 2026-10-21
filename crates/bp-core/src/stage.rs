@@ -164,6 +164,10 @@ pub struct RankEntry {
 pub struct PreviousStage {
     pub id: u32,
     pub quota_exceedance: u32,
+    /// Score maximum de ses matchs (barrage : même nombre de touches).
+    pub max_score: Option<u32>,
+    /// Quota de qualifiés (barrage : places à attribuer aux ex-aequo).
+    pub nb_qualified: Option<u32>,
 }
 
 /// Données communes à toutes les phases (champs privés de `Stage`).
@@ -299,6 +303,16 @@ pub trait Stage: Any + Send {
     /// phase qui la précède.
     fn on_plugged(&mut self, ctx: &mut StageContext) {
         let _ = ctx;
+    }
+
+    /// Score maximum des matchs de la phase.
+    fn bout_max_score(&self) -> Option<u32> {
+        self.base().max_score
+    }
+
+    /// Quota de qualifiés de la phase.
+    fn qualified_quota(&self) -> Option<u32> {
+        self.base().nb_qualified
     }
 
     /// La phase établit son propre classement (`HasItsOwnRanking`) ; faux

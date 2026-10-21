@@ -129,6 +129,8 @@ fn draw_sheet(canvas: &Canvas, sheet: &PoolSheet, data: &SheetsData, watermark: 
     if let Some((name, first_name)) = &sheet.referee {
         let t = canvas.text(root, name, referee_x + 5.0, box_y + CELL / 3.0, -1.0, Anchor::W);
         canvas.set(t, [Prop::FillColor("darkgreen".into()), Prop::Font(bold(25.0))]);
+        let width = canvas.bounds(t).width();
+        if width > box_w - 10.0 { canvas.set(t, [Prop::Font(bold(25.0 * (box_w - 10.0) / width))]); }
         if let Some(f) = first_name {
             let t = canvas.text(root, f, referee_x + 20.0, box_y + 2.4 * CELL / 3.0, -1.0, Anchor::W);
             canvas.set(t, [Prop::FillColor("darkgreen".into()), Prop::Font(bold(15.0))]);
@@ -137,6 +139,8 @@ fn draw_sheet(canvas: &Canvas, sheet: &PoolSheet, data: &SheetsData, watermark: 
     if let Some(piste) = &sheet.piste {
         let t = canvas.text(root, piste, piste_x + 5.0, box_y + CELL / 2.0, -1.0, Anchor::W);
         canvas.set(t, [Prop::FillColor("darkgreen".into()), Prop::Font(bold(25.0))]);
+        let width = canvas.bounds(t).width();
+        if width > box_w - 10.0 { canvas.set(t, [Prop::Font(bold(25.0 * (box_w - 10.0) / width))]); }
     }
 
     // Noms (à gauche de la grille) : on les place d'abord pour connaître leur largeur.
@@ -229,10 +233,16 @@ fn draw_sheet(canvas: &Canvas, sheet: &PoolSheet, data: &SheetsData, watermark: 
     }
 
     // Liste des matchs (feuilles d'arbitres)
-    if sheet.for_referees && !sheet.matches.is_empty() {
-        let top = grid_top + n as f64 * CELL + CELL / 2.0;
+    if (sheet.for_referees || sheet.matches.iter().any(|m| m.resource.is_some())) && !sheet.matches.is_empty() {
+        let mut top = grid_top + n as f64 * CELL + CELL / 2.0;
         let line_h = 20.0 * s;
-        let block_h = 2.0 * line_h + CELL / 2.0;
+        let has_resources = sheet.matches.iter().any(|m| m.resource.is_some());
+        if has_resources {
+            let instruction = canvas.text(root, &tr("Finish each wave before starting the next one."), 0.0, top, -1.0, Anchor::NW);
+            canvas.set(instruction, [Prop::Font(bold(12.0))]);
+            top += canvas.bounds(instruction).height() + 8.0 * s;
+        }
+        let block_h = 2.0 * line_h + CELL / 2.0 + if has_resources { 36.0 * s } else { 0.0 };
         let box_size = 10.0 * s;
         let clock = bp_gtk::icons::icon_pixbuf("clock", 20)
             .or_else(|| gtk::gdk_pixbuf::Pixbuf::from_file_at_size(bp_gtk::resources::image_path("clock.png"), 20, 20).ok());
@@ -268,6 +278,10 @@ fn draw_sheet(canvas: &Canvas, sheet: &PoolSheet, data: &SheetsData, watermark: 
             let players_end = player_items.iter().map(|(i, _)| canvas.bounds(*i).x2).fold(players_x, f64::max) + 8.0;
             for (_, k) in &player_items {
                 score_boxes(canvas, block, m.score_boxes, players_end, line_h / 2.0 + *k as f64 * line_h, box_size);
+            }
+            if let Some(resource) = &m.resource {
+                let label = canvas.text(block, resource, 0.0, 2.0 * line_h + 2.0, -1.0, Anchor::NW);
+                canvas.set(label, [Prop::Font(bold(12.0)), Prop::FillColor("black".into())]);
             }
             blocks.push(block);
         }

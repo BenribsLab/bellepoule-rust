@@ -20,6 +20,33 @@ use std::thread::JoinHandle;
 use crate::cryptor::Cryptor;
 use crate::message::Message;
 
+/// Requête adressée à un service web de l'application (ex. `/smartpoule/…`).
+#[derive(Debug, Clone)]
+pub struct WebRequest {
+    pub method: String,
+    /// Chemin et paramètres (`/smartpoule/v1/jobs?ref=12&key=…`).
+    pub url: String,
+    pub body: Vec<u8>,
+}
+
+/// Réponse d'un service web.
+#[derive(Debug, Clone)]
+pub struct WebResponse {
+    pub status: u16,
+    pub content_type: String,
+    pub body: Vec<u8>,
+}
+
+impl WebResponse {
+    pub fn json(status: u16, body: String) -> Self {
+        WebResponse { status, content_type: "application/json; charset=utf-8".into(), body: body.into_bytes() }
+    }
+}
+
+/// Service web : appelé (dans le thread du serveur) pour les URL qui
+/// commencent par son préfixe ; `None` laisse le traitement habituel.
+pub type WebHandler = Arc<dyn Fn(WebRequest) -> Option<WebResponse> + Send + Sync>;
+
 /// Écouteur du serveur (`HttpServer::Listener`).
 pub trait HttpListener: Send + Sync {
     /// Clé de déchiffrement pour un schéma d'authentification (l'URL).
@@ -32,6 +59,7 @@ pub struct HttpServer {
     port: u16,
     server: Arc<tiny_http::Server>,
     document_root: Arc<Mutex<Option<PathBuf>>>,
+    web: Arc<Mutex<Vec<(String, WebHandler)>>>,
     thread: Option<JoinHandle<()>>,
 }
 
@@ -43,17 +71,30 @@ impl HttpServer {
         let port = server.server_addr().to_ip().map(|a| a.port()).unwrap_or(port);
         let server = Arc::new(server);
         let document_root: Arc<Mutex<Option<PathBuf>>> = Arc::new(Mutex::new(None));
+        let web: Arc<Mutex<Vec<(String, WebHandler)>>> = Arc::new(Mutex::new(Vec::new()));
         let thread = {
             let server = server.clone();
             let root = document_root.clone();
+            let web = web.clone();
             std::thread::Builder::new().name("HttpServer".into()).spawn(move || {
                 for request in server.incoming_requests() {
+                    let handler = {
+                        let url = request.url().to_string();
+                        web.lock().unwrap().iter().find(|(prefix, _)| url.starts_with(prefix.as_str())).map(|(_, h)| h.clone())
+                    };
+                    let request = match handler {
+                        Some(h) => match Self::on_web_request(request, &h) {
+                            Some(r) => r,
+                            None => continue,
+                        },
+                        None => request,
+                    };
                     let root = root.lock().unwrap().clone();
                     Self::on_request(request, listener.as_ref(), root.as_deref());
                 }
             })?
         };
-        Ok(HttpServer { port, server, document_root, thread: Some(thread) })
+        Ok(HttpServer { port, server, document_root, web, thread: Some(thread) })
     }
 
     /// Serveur dont les messages arrivent dans un canal.
@@ -81,6 +122,42 @@ impl HttpServer {
     /// `GetPort`.
     pub fn port(&self) -> u16 {
         self.port
+    }
+
+    /// Installe un service web pour les URL qui commencent par `prefix`.
+    pub fn set_web_handler(&self, prefix: &str, handler: WebHandler) {
+        let mut web = self.web.lock().unwrap();
+        web.retain(|(p, _)| p != prefix);
+        web.push((prefix.to_string(), handler));
+    }
+
+    /// Requête d'un service web : réponse (avec en-têtes CORS pour les
+    /// pages servies ailleurs), ou la requête rendue si le service l'ignore.
+    fn on_web_request(mut request: tiny_http::Request, handler: &WebHandler) -> Option<tiny_http::Request> {
+        let cors = |r: tiny_http::ResponseBox| {
+            r.with_header(tiny_http::Header::from_bytes("Access-Control-Allow-Origin", "*").unwrap())
+                .with_header(tiny_http::Header::from_bytes("Access-Control-Allow-Headers", "Content-Type").unwrap())
+                .with_header(tiny_http::Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap())
+        };
+        if *request.method() == tiny_http::Method::Options {
+            let _ = request.respond(cors(tiny_http::Response::empty(204).boxed()));
+            return None;
+        }
+        let mut body = Vec::new();
+        let _ = request.as_reader().read_to_end(&mut body);
+        let web = WebRequest { method: request.method().as_str().to_string(), url: request.url().to_string(), body };
+        match handler(web) {
+            Some(r) => {
+                let header = tiny_http::Header::from_bytes("Content-Type", r.content_type.as_bytes()).unwrap();
+                let response = tiny_http::Response::from_data(r.body).with_status_code(r.status).with_header(header).boxed();
+                let _ = request.respond(cors(response));
+                None
+            }
+            None => {
+                let _ = request.respond(cors(tiny_http::Response::empty(404).boxed()));
+                None
+            }
+        }
     }
 
     /// Dossier servi en `GET` (pages web, fichiers publiés).

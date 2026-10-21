@@ -184,7 +184,12 @@ impl Schedule {
         let mut previous: Option<PreviousStage> = None;
         for s in self.stages.iter_mut() {
             s.set_previous(previous);
-            previous = Some(PreviousStage { id: s.base().id, quota_exceedance: s.base().quota_exceedance });
+            previous = Some(PreviousStage {
+                id: s.base().id,
+                quota_exceedance: s.base().quota_exceedance,
+                max_score: s.bout_max_score(),
+                nb_qualified: s.qualified_quota(),
+            });
         }
     }
 
@@ -356,9 +361,41 @@ impl Schedule {
         }
         self.plug_stage(ctx, next);
         self.retrieve_attendees(ctx, next);
+        self.apply_youth_training(next);
         self.stages[next].garnish(ctx);
         self.set_current(next);
         self.refresh_general_classification(ctx);
+    }
+
+    /// Entraînement des jeunes (extension) : une phase de poules ou de
+    /// tableaux placée après la création des groupes travaille groupe par
+    /// groupe (poules de chaque groupe, sortie croisée, places tirées).
+    fn apply_youth_training(&mut self, index: usize) {
+        use crate::rounds::youth::{PoolMode, YouthTraining};
+        let youth = self.stages[..index]
+            .iter()
+            .rev()
+            .find_map(|s| s.as_any().downcast_ref::<YouthTraining>())
+            .map(|y| (y.settings.clone(), y.locked_layout()));
+        let stage = &mut self.stages[index];
+        if let Some(allocator) = stage.as_any().downcast_ref::<crate::rounds::pool::PoolAllocatorStage>() {
+            let mut round = allocator.round();
+            match &youth {
+                Some((settings, layout)) => {
+                    round.youth_groups = Some(layout.iter().map(|l| l.nb_pools).collect());
+                    round.cross_output = true;
+                    round.set_youth_seeding(settings.pool_mode == PoolMode::Snake, &settings.swapping);
+                }
+                None => {
+                    round.youth_groups = None;
+                    round.cross_output = false;
+                }
+            }
+        } else if let Some(table) = stage.as_any_mut().downcast_mut::<crate::rounds::table::supervisor::TableSupervisor>() {
+            if let Some((settings, _)) = &youth {
+                table.fenced_places = settings.fenced_places.value();
+            }
+        }
     }
 
     /// `GeneralClassification::GetCurrentClassification` : le classement
@@ -553,7 +590,11 @@ impl Schedule {
         }
         if let Some(node) = node {
             self.stages[index].load(ctx, node)?;
-            if self.stages[index].as_any().is::<GeneralClassificationStage>() && index > 0 && self.stages[index - 1].base().locked {
+            // Le classement général et l'entraînement des jeunes n'enregistrent
+            // pas leurs participants : ce sont les qualifiés de la phase d'avant.
+            let derived = self.stages[index].as_any().is::<GeneralClassificationStage>()
+                || self.stages[index].as_any().is::<crate::rounds::youth::YouthTraining>();
+            if derived && index > 0 && self.stages[index - 1].base().locked {
                 self.retrieve_attendees(ctx, index);
             }
         }

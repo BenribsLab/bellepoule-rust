@@ -32,6 +32,7 @@ pub struct ContestPage {
     css: gtk::CssProvider,
     save_timer: RefCell<Option<glib::SourceId>>,
     pub schedule: RefCell<Option<Rc<crate::schedule_view::ScheduleView>>>,
+    hero: crate::visuals::CompetitionHeader,
 }
 
 impl ContestPage {
@@ -54,10 +55,15 @@ impl ContestPage {
         app.notebook.set_current_page(Some(last));
 
         let css = gtk::CssProvider::new();
+        title.add_css_class("bp-competition-summary");
+        glade.get::<gtk::Widget>("colorbox").add_css_class("bp-event-color");
         for w in [&title, &glade.get::<gtk::Widget>("colorbox")] {
             w.style_context().add_provider(&css, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
         }
         glade.attach_actions(&root);
+        root.add_css_class("bp-competition-page");
+        let hero = crate::visuals::CompetitionHeader::new();
+        if let Some(container) = root.downcast_ref::<gtk::Box>() { container.prepend(&hero.root); }
 
         let page = Rc::new(ContestPage {
             id,
@@ -69,6 +75,7 @@ impl ContestPage {
             css,
             save_timer: RefCell::new(None),
             schedule: RefCell::new(None),
+            hero,
         });
         page.populate_combos();
         page.connect_handlers();
@@ -96,6 +103,14 @@ impl ContestPage {
     pub fn with_contest<R>(&self, f: impl FnOnce(&mut Contest) -> R) -> Option<R> {
         let app = self.app()?;
         let mut t = app.tournament.borrow_mut();
+        t.contest_mut(self.id).map(f)
+    }
+
+    /// Comme `with_contest`, sans attendre : `None` si le tournoi est déjà
+    /// en cours d'utilisation (boîte de dialogue ouverte pendant une action).
+    pub fn try_with_contest<R>(&self, f: impl FnOnce(&mut Contest) -> R) -> Option<R> {
+        let app = self.app()?;
+        let mut t = app.tournament.try_borrow_mut().ok()?;
         t.contest_mut(self.id).map(f)
     }
 
@@ -141,6 +156,24 @@ impl ContestPage {
             }};
         }
         on!("on_save_toolbutton_clicked", on_save);
+        // Ctrl+S : enregistrer la compétition affichée.
+        {
+            let w = Rc::downgrade(self);
+            let shortcut = gtk::Shortcut::new(
+                gtk::ShortcutTrigger::parse_string("<Control>s"),
+                Some(gtk::CallbackAction::new(move |_, _| {
+                    if let Some(p) = w.upgrade() {
+                        p.on_save();
+                    }
+                    gtk::glib::Propagation::Stop
+                })),
+            );
+            let controller = gtk::ShortcutController::new();
+            controller.set_scope(gtk::ShortcutScope::Managed);
+            controller.add_shortcut(shortcut);
+            self.root.add_controller(controller);
+        }
+        self.show_saved_state(true);
         on!("on_properties_toolbutton_clicked", on_properties);
         on!("on_calendar_button_clicked", on_calendar);
         on!("on_contest_close_button_clicked", on_close);
@@ -292,12 +325,33 @@ impl ContestPage {
         self.glade.get::<gtk::Label>("contest_weapon_label").set_text(&weapon);
         self.glade.get::<gtk::Label>("contest_gender_label").set_text(&gender);
         self.glade.get::<gtk::Label>("contest_category_label").set_text(&category);
+        self.refresh_header();
+    }
+
+    pub fn widget(&self) -> gtk::Widget { self.root.clone() }
+
+    pub fn show_properties(self: &Rc<Self>) { self.on_properties(); }
+
+    pub fn refresh_header(&self) {
+        if let Some((name, subtitle, meta, phase)) = self.try_with_contest(|c| {
+            let subtitle = format!("{} · {} · {}", c.weapon.label(), c.gender_label(), c.category_label());
+            let meta = [c.location.clone(), c.date_image()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("  |  ");
+            let phase = c.schedule.current().map(|stage| tr(stage.kind().class_name())).unwrap_or_default();
+            (c.name.clone(), subtitle, meta, phase)
+        }) {
+            self.hero.name.set_text(&name);
+            self.hero.subtitle.set_text(&subtitle);
+            self.hero.meta.set_text(&meta);
+            self.hero.phase.set_text(&phase);
+        }
     }
 
     /// `PaintColor` : couleur de la compétition sur l'onglet.
     fn paint_color(&self) {
         let Some(color) = self.with_contest(|c| c.color.clone()) else { return };
-        self.css.load_from_string(&format!("* {{ background-color: {color}; }}"));
+        self.css.load_from_string(&format!(
+            ".bp-competition-summary {{ border-left: 4px solid {color}; }} .bp-event-color {{ background-color: {color}; }}"
+        ));
         let combo: gtk::ComboBox = self.glade.get("color_combobox");
         if let Some(i) = bp_core::contest::COLORS.iter().position(|c| c.eq_ignore_ascii_case(&color)) {
             combo.set_active(Some(i as u32));
@@ -415,15 +469,56 @@ impl ContestPage {
         }
         let result = app.tournament.borrow_mut().save_contest(self.id);
         match result {
-            Ok(()) => self.glade.get::<gtk::Widget>("save_toolbutton").set_sensitive(false),
+            Ok(()) => {
+                self.show_saved_state(true);
+                // `Contest::Publish`
+                if let Some(target) = crate::publication::target(&app.glade) {
+                    self.with_contest(|c| crate::publication::publish(&target, c));
+                }
+            }
             Err(e) => dialogs::error(Some(&app.window), &format!("{e}")),
         }
+    }
+
+    /// Bouton « Enregistrer » : toujours cliquable, son libellé dit si la
+    /// dernière version est enregistrée.
+    fn show_saved_state(&self, saved: bool) {
+        let button = self.glade.get::<gtk::Widget>("save_toolbutton");
+        button.set_sensitive(true);
+        let label = button
+            .first_child()
+            .and_then(|b| b.last_child())
+            .and_then(|l| l.downcast::<gtk::Label>().ok());
+        if let Some(label) = label {
+            label.set_use_underline(false);
+            label.set_text(&if saved { tr("Saved") } else { tr("Save") });
+        }
+        if saved {
+            button.remove_css_class("suggested-action");
+        } else {
+            button.add_css_class("suggested-action");
+        }
+    }
+
+    /// À la fermeture de l'application : enregistre la compétition si elle a
+    /// un fichier. Renvoie vrai s'il reste des changements non enregistrés.
+    pub fn save_before_quit(&self) -> bool {
+        let named = self.with_contest(|c| c.filename.is_some() && !c.read_only) == Some(true);
+        if named {
+            self.save();
+        }
+        self.with_contest(|c| c.dirty && !c.read_only) == Some(true)
+    }
+
+    /// Nom affiché de la compétition.
+    pub fn display_name(&self) -> String {
+        self.with_contest(|c| c.name.clone()).unwrap_or_default()
     }
 
     /// `MakeDirty` : l'enregistrement automatique part 5 secondes plus tard.
     pub fn mark_dirty(self: &Rc<Self>) {
         self.with_contest(|c| c.mark_dirty());
-        self.glade.get::<gtk::Widget>("save_toolbutton").set_sensitive(true);
+        self.show_saved_state(false);
         if let Some(t) = self.save_timer.borrow_mut().take() {
             t.remove();
         }

@@ -52,6 +52,8 @@ pub struct SupervisorScreen {
     updating: Cell<bool>,
     entries: RefCell<HashMap<Key, gtk::Entry>>,
     order: RefCell<Vec<(usize, PlayerRef)>>,
+    /// Ordre de saisie dans la grille : ligne par ligne, de gauche à droite.
+    grid_order: RefCell<Vec<(usize, PlayerRef)>>,
     refresh_pending: Cell<bool>,
     focus: RefCell<Option<Focus>>,
 }
@@ -92,6 +94,7 @@ impl SupervisorScreen {
             updating: Cell::new(false),
             entries: RefCell::new(HashMap::new()),
             order: RefCell::new(Vec::new()),
+            grid_order: RefCell::new(Vec::new()),
             refresh_pending: Cell::new(false),
             focus: RefCell::new(None),
         });
@@ -188,7 +191,8 @@ impl SupervisorScreen {
             s.refresh();
             if let Some(focus) = focus.filter(|f| f.pool == s.selected.get()) {
                 let key = if focus.advance {
-                    let order = s.order.borrow();
+                    // Grille : case suivante de la ligne ; liste des matchs : match suivant.
+                    let order = if focus.key.2 { s.order.borrow() } else { s.grid_order.borrow() };
                     order
                         .iter()
                         .position(|k| *k == (focus.key.0, focus.key.1))
@@ -324,6 +328,7 @@ impl SupervisorScreen {
     ) {
         self.entries.borrow_mut().clear();
         self.order.borrow_mut().clear();
+        self.grid_order.borrow_mut().clear();
         let content = gtk::Box::new(gtk::Orientation::Vertical, 16);
         content.set_margin_top(12);
         content.set_margin_start(12);
@@ -367,6 +372,7 @@ impl SupervisorScreen {
             }
             for (j, cell) in row.cells.iter().enumerate() {
                 if let Some(mi) = cell.match_index.filter(|_| !cell.grey) {
+                    self.grid_order.borrow_mut().push((mi, row.player));
                     let frame = gtk::Box::new(gtk::Orientation::Horizontal, 0);
                     frame.add_css_class("bp-cell");
                     frame.append(&self.score_entry(
@@ -438,6 +444,7 @@ impl SupervisorScreen {
         bouts.set_row_spacing(4);
         bouts.set_column_spacing(8);
         for (i, bout) in sheet.matches.iter().enumerate() {
+            let match_index = bout.match_index;
             Self::label(
                 &bouts,
                 &format!("{}{}", bout.name, if bout.rest_error { " ⏱" } else { "" }),
@@ -456,24 +463,24 @@ impl SupervisorScreen {
                         i,
                     );
                     // Les matchs et la feuille partagent les mêmes indices du modèle.
-                    let key = (i, opponent.player);
+                    let key = (match_index, opponent.player);
                     let editable = sheet
                         .rows
                         .iter()
                         .find(|r| r.player == opponent.player)
                         .is_some_and(|r| {
-                            r.cells.iter().any(|c| c.match_index == Some(i) && !c.grey)
+                            r.cells.iter().any(|c| c.match_index == Some(match_index) && !c.grey)
                         });
                     if editable {
                         self.order.borrow_mut().push(key);
                         bouts.attach(
                             &self.score_entry(
-                                i,
+                                match_index,
                                 opponent.player,
                                 &opponent.score,
                                 true,
                                 locked,
-                                errors.contains(&i),
+                                errors.contains(&match_index),
                             ),
                             (2 + j * 2) as i32,
                             i as i32,
@@ -482,6 +489,9 @@ impl SupervisorScreen {
                         );
                     }
                 }
+            }
+            if let Some(resource) = &bout.resource {
+                Self::label(&bouts, resource, 5, i);
             }
         }
         content.append(&bouts);

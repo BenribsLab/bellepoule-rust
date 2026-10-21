@@ -453,10 +453,17 @@ impl Hall {
     pub fn referee_wifi_key(&mut self, reference: u32) -> Option<String> {
         let r = self.referees.referees.get_mut(&reference)?;
         if r.wifi_key.is_none() {
+            if let Some(password) = r.player.str_attr("password").filter(|p| p.len() == 32).map(str::to_string) {
+                r.wifi_key = Some(password.clone());
+                self.outbox.push(NetCommand::RegisterSecretKey { referee: reference, key: password });
+                return Some(r.wifi_key.clone().unwrap_or_default());
+            }
             let key = crate::wifi::new_key256();
             r.player.set_str(&AttrId::global("password"), &key);
             r.wifi_key = Some(key.clone());
             self.outbox.push(NetCommand::RegisterSecretKey { referee: reference, key });
+            // BellePoule reçoit la clé (chiffrée) pour répondre au smartphone.
+            self.referee_update(reference);
         }
         self.referees.referees.get(&reference).and_then(|r| r.wifi_key.clone())
     }

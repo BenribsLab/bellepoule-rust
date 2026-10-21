@@ -1519,3 +1519,240 @@ msgstr "Avec un entraînement des jeunes, les poules et les tableaux se tirent d
 
 msgid "Groups creation. Drag a fencer onto another group to move him. Each group becomes its own competition: its pools (fencers can be moved from one pool to another in its \"Pools arrangement\") then its table. Settings are in the preferences of this round. Click \"Next round\" to create the groups."
 msgstr "Création des groupes. Glissez un tireur sur un autre groupe pour le déplacer. Chaque groupe devient une compétition à part : ses poules (on peut y déplacer les tireurs d'une poule à l'autre dans sa « Composition des poules »), puis son tableau. Les réglages sont dans les préférences de cette phase. Cliquez sur « Tour suivant » pour créer les groupes."
+
+msgid "Points"
+msgstr "Points"
+
+msgid "The same points for everybody"
+msgstr "Le même nombre de points pour tous"
+
+msgid "Points per victory (pools and table)"
+msgstr "Des points par victoire (poules et tableau)"
+
+msgid "Points according to the place in the group"
+msgstr "Des points selon la place dans le groupe"
+
+msgid "1st, 2nd, 3rd… separated by commas; beyond the list, the last value."
+msgstr "1er, 2e, 3e… séparés par des virgules ; au-delà de la liste, la dernière valeur."
+
+msgid "Groups creation. Drag a fencer onto another group to move him. Each group then has its own pools (fencers can be moved from one pool to another in the pools arrangement) and its own table, in this competition. Settings are in the preferences of this round. \"Previous round\" undoes everything."
+msgstr "Création des groupes. Glissez un tireur sur un autre groupe pour le déplacer. Chaque groupe a ensuite ses poules (on peut déplacer les tireurs d'une poule à l'autre dans la composition des poules) et son tableau, dans cette même compétition. Les réglages sont dans les préférences de cette phase. « Tour précédent » défait tout."
+
+msgid "Place in the group"
+msgstr "Place dans le groupe"
+
+msgid "Youth training — ranking of each group"
+msgstr "Entraînement des jeunes — classement de chaque groupe"
+
+msgid "General classification (all groups)"
+msgstr "Classement général (tous les groupes)"
+
+msgid "Barrage bouts"
+msgstr "Matchs de barrage"
+
+msgid "Bouts to"
+msgstr "Matchs en"
+
+msgid "Places to award"
+msgstr "places à prendre"
+
+msgid "Print score sheets"
+msgstr "Imprimer les feuilles de match"
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "Saved"
+msgstr "Enregistré"
+
+msgid "These competitions are not saved:"
+msgstr "Ces compétitions ne sont pas enregistrées :"
+
+msgid "Connection"
+msgstr "Connexion"
+
+msgid "Presence"
+msgstr "Présence"
+
+msgid "Last name"
+msgstr "Nom"
+
+msgid "First name"
+msgstr "Prénom"
+
+msgid "Workload"
+msgstr "Charge"
+
+msgid "Club"
+msgstr "Club"
+
+msgid "Region"
+msgstr "Région"
+
+msgid "Country"
+msgstr "Pays"
+
+msgid "Hall"
+msgstr "Salle"
+
+msgid "Present"
+msgstr "Présent"
+
+msgid "Licence"
+msgstr "Licence"
+
+msgid "Choose a referee file to import..."
+msgstr "Choisissez un fichier d'arbitres à importer..."
+
+msgid "All referee files (FFF, CSV)"
+msgstr "Tous les fichiers d'arbitres (FFF, CSV)"
+
+msgid "<b><big>Authentication failed!</big></b>"
+msgstr "<b><big>Échec de l'authentification !</big></b>"
+
+msgid "<b><big>Another Marshaller is already running on the network!</big></b>"
+msgstr "<b><big>Un autre Marshaller est déjà présent sur le réseau !</big></b>"
+
+msgid "Change piste number…"
+msgstr "Modifier le numéro…"
+
+msgid "Piste number"
+msgstr "Numéro de piste"
+
+msgid "Piste not found."
+msgstr "Piste introuvable."
+
+msgid "The piste number must be greater than zero."
+msgstr "Le numéro de piste doit être supérieur à zéro."
+
+msgid "This piste number is already used."
+msgstr "Ce numéro de piste est déjà utilisé."
+
+msgid "Pool resources"
+msgstr "Pistes et arbitres de la poule"
+
+msgid "Pool resources…"
+msgstr "Pistes et arbitres de la poule…"
+
+msgid "Pool not found."
+msgstr "Poule introuvable."
+
+msgid "These resources are only available for pools."
+msgstr "Ces ressources sont réservées aux poules."
+
+msgid "Place the pool on a piste first."
+msgstr "Placez d’abord la poule sur une piste."
+
+msgid "Select at least one piste."
+msgstr "Sélectionnez au moins une piste."
+
+msgid "Assign a different referee to each piste."
+msgstr "Affectez un arbitre différent à chaque piste."
+
+msgid "Piste unavailable:"
+msgstr "Piste indisponible :"
+
+msgid "Referee not found."
+msgstr "Arbitre introuvable."
+
+msgid "Referee unavailable:"
+msgstr "Arbitre indisponible :"
+
+msgid "Referees (single piste)"
+msgstr "Arbitres (une seule piste)"
+
+msgid "Select a referee"
+msgstr "Choisir un arbitre"
+
+msgid "Select the pistes for this pool. For multiple pistes, choose a different referee beside each selected piste. Matches are scheduled in waves without simultaneous bouts for a fencer."
+msgstr "Cochez les pistes de cette poule. Pour plusieurs pistes, choisissez un arbitre différent à côté de chacune. Les matchs sont répartis par vagues, sans assauts simultanés pour un même tireur."
+
+msgid "Not assigned"
+msgstr "Non affecté"
+
+msgid "Wave %d"
+msgstr "Vague %d"
+
+msgid "Finish each wave before starting the next one."
+msgstr "Terminez tous les matchs d’une vague avant de commencer la suivante."
+
+msgid "Organisation"
+msgstr "Organisation"
+
+msgid "Manage referees"
+msgstr "Gérer les arbitres"
+
+msgid "Manage pistes"
+msgstr "Gérer les pistes"
+
+msgid "Optional organisation tools. Enable referees, pistes, or both. Your competitions remain available in their tabs."
+msgstr "Activez les arbitres, les pistes, les deux ou aucun. Vos compétitions restent accessibles dans leurs onglets."
+
+msgid "Assign referees"
+msgstr "Affecter des arbitres"
+
+msgid "Resources…"
+msgstr "Affectations…"
+
+msgid "Close organisation"
+msgstr "Fermer l’organisation"
+
+msgid "Import"
+msgstr "Importer"
+
+msgid "TOURNAMENT"
+msgstr "TOURNOI"
+
+msgid "MANAGEMENT"
+msgstr "GESTION"
+
+msgid "Dashboard"
+msgstr "Tableau de bord"
+
+msgid "Participants"
+msgstr "Participants"
+
+msgid "Fencing tournament"
+msgstr "Tournoi d’escrime"
+
+msgid "Show or hide navigation"
+msgstr "Afficher ou masquer la navigation"
+
+msgid "Your tournament starts here"
+msgstr "Votre compétition commence ici"
+
+msgid "Open a competition or create a new event.\nParticipants, pools and organisation, all in one place."
+msgstr "Ouvrez une compétition ou créez une nouvelle épreuve.\nParticipants, poules et organisation, au même endroit."
+
+msgid "Open a competition"
+msgstr "Ouvrir une compétition"
+
+msgid "Resume competition"
+msgstr "Revenir à la compétition"
+
+msgid "Search a participant…"
+msgstr "Rechercher un participant…"
+
+msgid "rows displayed"
+msgstr "lignes affichées"
+
+msgid "Mark everyone present"
+msgstr "Marquer tout le monde présent"
+
+msgid "Mark everyone absent"
+msgstr "Marquer tout le monde absent"
+
+msgid "Recent competitions"
+msgstr "COMPÉTITIONS RÉCENTES"
+
+msgid "Start time of the bout (HH:MM)"
+msgstr "Heure de début du match (HH:MM)"
+
+msgid "Set the time"
+msgstr "Changer l'heure"
+
+msgid "Time:"
+msgstr "Heure :"
+
+msgid "Enter the time as HH:MM."
+msgstr "Saisissez l'heure sous la forme HH:MM."

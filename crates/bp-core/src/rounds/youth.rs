@@ -1,8 +1,8 @@
 //! Entraînement des jeunes (extension propre au portage Rust, absente du C++).
 //!
-//! Les tireurs présents sont répartis en groupes (8 par défaut). Chaque
-//! groupe devient une compétition autonome : des poules (2 par défaut), puis
-//! un tableau croisé (1er de la poule 1 contre dernier de la poule 2…) où
+//! Les tireurs présents sont répartis en groupes (8 par défaut), dans la
+//! même compétition. Chaque groupe a ses poules (2 par défaut), puis son
+//! tableau croisé (1er de la poule 1 contre dernier de la poule 2…) où
 //! l'on tire toutes les places, la 3e place seulement, ou aucune.
 //!
 //! Les réglages par défaut (préférences de la phase) : taille des groupes,
@@ -45,6 +45,56 @@ pub enum PoolMode {
     Level,
 }
 
+/// Attribution des points (pour un classement suivi sur plusieurs épreuves).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PointsMode {
+    /// Le même nombre de points pour tous.
+    Same(u32),
+    /// Des points par victoire (poules et tableaux).
+    PerVictory(u32),
+    /// Des points selon la place dans le groupe (1er, 2e…) ; au-delà de la
+    /// liste, la dernière valeur.
+    ByPlace(Vec<u32>),
+}
+
+impl PointsMode {
+    fn image(&self) -> String {
+        match self {
+            PointsMode::Same(n) => format!("Identiques:{n}"),
+            PointsMode::PerVictory(n) => format!("ParVictoire:{n}"),
+            PointsMode::ByPlace(l) => format!("ParPlace:{}", l.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(",")),
+        }
+    }
+
+    fn parse(s: &str) -> Option<PointsMode> {
+        let (kind, value) = s.split_once(':')?;
+        let n = || value.trim().parse::<u32>().ok();
+        match kind {
+            "Identiques" => n().map(PointsMode::Same),
+            "ParVictoire" => n().map(PointsMode::PerVictory),
+            "ParPlace" => Some(PointsMode::ByPlace(parse_points_list(value))),
+            _ => None,
+        }
+    }
+
+    /// Points d'un tireur.
+    pub fn points(&self, place: Option<u32>, victories: u32) -> Option<u32> {
+        match self {
+            PointsMode::Same(n) => Some(*n),
+            PointsMode::PerVictory(n) => Some(n * victories),
+            PointsMode::ByPlace(list) => {
+                let place = place? as usize;
+                list.get(place.saturating_sub(1)).or(list.last()).copied()
+            }
+        }
+    }
+}
+
+/// « 10, 8, 6 » → [10, 8, 6].
+pub fn parse_points_list(s: &str) -> Vec<u32> {
+    s.split([',', ';', ' ']).filter_map(|v| v.trim().parse::<u32>().ok()).collect()
+}
+
 /// Réglages par défaut de la phase.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct YouthSettings {
@@ -56,6 +106,8 @@ pub struct YouthSettings {
     pub swapping: Vec<String>,
     /// Places tirées dans le tableau de chaque groupe.
     pub fenced_places: FencedPlaces,
+    /// Attribution des points.
+    pub points: PointsMode,
 }
 
 impl Default for YouthSettings {
@@ -67,6 +119,7 @@ impl Default for YouthSettings {
             pool_mode: PoolMode::Snake,
             swapping: vec!["club".to_string()],
             fenced_places: FencedPlaces::AllPlaces,
+            points: PointsMode::Same(10),
         }
     }
 }
@@ -277,13 +330,15 @@ pub struct YouthTraining {
     /// Tireurs déplacés à la main d'un groupe à l'autre (glisser-déposer) :
     /// affectation complète, groupe par groupe.
     assignment: Option<Vec<Vec<PlayerRef>>>,
+    /// Groupes figés au verrouillage (« Tour suivant »).
+    locked_groups: Option<Vec<Group>>,
 }
 
 impl YouthTraining {
     pub fn new(id: u32) -> Self {
         let mut base = StageBase::new(StageKind::YouthTraining, id);
         base.filter = codes(&["stage_start_rank", "name", "first_name", "club", "ranking"]);
-        YouthTraining { base, settings: YouthSettings::default(), layout: None, assignment: None }
+        YouthTraining { base, settings: YouthSettings::default(), layout: None, assignment: None, locked_groups: None }
     }
 
     /// Composition courante (modifiée ou par défaut).
@@ -385,8 +440,37 @@ impl YouthTraining {
         self.assignment = None;
     }
 
+    /// Groupes d'après l'attribut `youth_group` des tireurs.
+    fn groups_from_players(&self, players: &PlayerStore) -> Vec<Group> {
+        let layout = self.layout();
+        let mut groups: Vec<Group> = Vec::new();
+        for p in &self.base.attendees {
+            let g = players.get(*p).and_then(|pl| pl.attr("youth_group")).map(|v| v.as_uint()).unwrap_or(1).max(1) as usize;
+            while groups.len() < g {
+                let nb_pools = layout.get(groups.len()).map(|l| l.nb_pools).unwrap_or(1);
+                groups.push(Group { players: Vec::new(), layout: GroupLayout { size: 0, nb_pools } });
+            }
+            groups[g - 1].players.push(*p);
+        }
+        for g in &mut groups {
+            g.layout.size = g.players.len() as u32;
+        }
+        groups
+    }
+
+    /// Composition retenue au verrouillage (sinon : courante, sans les tireurs).
+    pub fn locked_layout(&self) -> Vec<GroupLayout> {
+        match &self.locked_groups {
+            Some(g) => g.iter().map(|g| g.layout).collect(),
+            None => self.layout(),
+        }
+    }
+
     /// Groupes avec la composition courante.
     pub fn groups(&self, players: &PlayerStore) -> Vec<Group> {
+        if let Some(g) = &self.locked_groups {
+            return g.clone();
+        }
         if let Some(a) = self.valid_assignment() {
             let layout = self.layout();
             return a
@@ -460,6 +544,7 @@ impl Stage for YouthTraining {
                 .attribute("PlacesTirees")
                 .map(|v| FencedPlaces::from_value(crate::attribute::parse_leading_int(v).max(0) as u32))
                 .unwrap_or(d.fenced_places),
+            points: node.attribute("Points").and_then(PointsMode::parse).unwrap_or(d.points),
         };
         self.layout = node.attribute("Composition").and_then(parse_layout);
         self.assignment = node.attribute("Affectation").map(|v| {
@@ -468,6 +553,13 @@ impl Stage for YouthTraining {
         let attendees = self.base.attendees.clone();
         common::retrieve_attendees(&mut self.base, ctx, attendees);
         Ok(())
+    }
+
+    fn on_loading_completed(&mut self, ctx: &mut StageContext) {
+        // Phase déjà franchie : les groupes sont ceux enregistrés sur les tireurs.
+        if self.base.locked {
+            self.locked_groups = Some(self.groups_from_players(ctx.players));
+        }
     }
 
     fn save(&self, _ctx: &StageContext, w: &mut XmlWriter) {
@@ -491,6 +583,7 @@ impl Stage for YouthTraining {
         w.attr("Poules", if self.settings.pool_mode == PoolMode::Level { "Niveau" } else { "Serpentin" });
         w.attr("Decalage", &format!("/{}/", self.settings.swapping.join("/")));
         w.attr_fmt("PlacesTirees", self.settings.fenced_places.value());
+        w.attr("Points", &self.settings.points.image());
         if let Some(l) = &self.layout {
             w.attr("Composition", &layout_image(l));
         }
@@ -511,7 +604,44 @@ impl Stage for YouthTraining {
     }
 
     fn output(&self, _ctx: &StageContext) -> Vec<PlayerRef> {
-        self.base.attendees.clone()
+        match &self.locked_groups {
+            Some(groups) => groups.iter().flat_map(|g| g.players.iter().copied()).collect(),
+            None => self.base.attendees.clone(),
+        }
+    }
+
+    /// « Tour suivant » : les groupes sont figés et chaque tireur reçoit
+    /// son numéro de groupe (attribut `youth_group`).
+    fn lock(&mut self, ctx: &mut StageContext) {
+        self.base.locked = true;
+        // Relecture d'un fichier (ou groupes déjà attribués) : on garde les
+        // groupes enregistrés sur les tireurs, qui ont pu changer en poules.
+        let known = !self.base.attendees.is_empty()
+            && self.base.attendees.iter().all(|p| ctx.players.get(*p).and_then(|pl| pl.attr("youth_group")).is_some());
+        if known {
+            self.locked_groups = Some(self.groups_from_players(ctx.players));
+            return;
+        }
+        let groups = self.groups(ctx.players);
+        for (g, group) in groups.iter().enumerate() {
+            for p in &group.players {
+                if let Some(pl) = ctx.players.get_mut(*p) {
+                    pl.set_uint(&crate::player::AttrId::global("youth_group"), g as u32 + 1);
+                }
+            }
+        }
+        self.locked_groups = Some(groups);
+    }
+
+    /// « Tour précédent » : tout est défait.
+    fn unlock(&mut self, ctx: &mut StageContext) {
+        for p in &self.base.attendees {
+            if let Some(pl) = ctx.players.get_mut(*p) {
+                pl.remove(&crate::player::AttrId::global("youth_group"));
+            }
+        }
+        self.locked_groups = None;
+        self.base.locked = false;
     }
 
     fn remap_players(&mut self, map: &std::collections::HashMap<PlayerRef, PlayerRef>) {
@@ -522,6 +652,11 @@ impl Stage for YouthTraining {
         };
         self.base.attendees.iter_mut().for_each(tr);
         self.assignment.iter_mut().flatten().flatten().for_each(tr);
+        if let Some(groups) = self.locked_groups.as_mut() {
+            for g in groups.iter_mut() {
+                g.players.iter_mut().for_each(tr);
+            }
+        }
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -531,6 +666,84 @@ impl Stage for YouthTraining {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+}
+
+/// Résultat d'un tireur dans son groupe.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct YouthResult {
+    pub player: PlayerRef,
+    pub group: u32,
+    /// Place dans le groupe, une fois les tableaux commencés.
+    pub place: Option<u32>,
+    /// Victoires en poule et en tableau.
+    pub victories: u32,
+    pub points: Option<u32>,
+}
+
+/// Résultats de l'entraînement des jeunes, groupe par groupe (le classement
+/// de chaque groupe), ou `None` si la compétition n'en est pas un ou si les
+/// groupes ne sont pas encore faits.
+pub fn results(schedule: &crate::schedule::Schedule, players: &PlayerStore) -> Option<Vec<YouthResult>> {
+    let index = (0..schedule.len()).find(|i| schedule.stage(*i).map(|s| s.kind() == StageKind::YouthTraining).unwrap_or(false))?;
+    let youth = schedule.stage(index)?.as_any().downcast_ref::<YouthTraining>()?;
+    if !youth.base().locked {
+        return None;
+    }
+    let mut victories: std::collections::HashMap<PlayerRef, u32> = std::collections::HashMap::new();
+    let mut places: std::collections::HashMap<PlayerRef, u32> = std::collections::HashMap::new();
+    for i in index + 1..schedule.len() {
+        let Some(stage) = schedule.stage(i) else { continue };
+        if !stage.base().locked && i > schedule.current_index() {
+            continue;
+        }
+        if let Some(pools) = stage.as_any().downcast_ref::<crate::rounds::pool::PoolSupervisorStage>() {
+            let round = pools.round();
+            for pool in round.pools() {
+                for f in pool.fencers() {
+                    *victories.entry(*f).or_default() += pool.result(*f).victories;
+                }
+            }
+        } else if let Some(table) = stage.as_any().downcast_ref::<crate::rounds::table::supervisor::TableSupervisor>() {
+            let mut base: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
+            for set in table.table_sets() {
+                for node in set.nodes() {
+                    let Some(m) = node.bout.as_ref() else { continue };
+                    if let (Some(_), Some(_), Some(w)) = (m.opponent(0), m.opponent(1), m.winner()) {
+                        *victories.entry(w).or_default() += 1;
+                    }
+                }
+                if let Some(g) = set.group() {
+                    let b = base.entry(g).or_insert(u32::MAX);
+                    *b = (*b).min(set.first_place());
+                }
+            }
+            let (_, ranks) = table.compute_classification(players);
+            for (p, rank) in ranks {
+                let g = players.get(p).and_then(|pl| pl.attr("youth_group")).map(|v| v.as_uint()).unwrap_or(1);
+                let first = base.get(&g).copied().unwrap_or(1);
+                if rank >= first {
+                    places.insert(p, rank - first + 1);
+                }
+            }
+        }
+    }
+    let mut out: Vec<YouthResult> = youth
+        .groups(players)
+        .iter()
+        .enumerate()
+        .flat_map(|(g, group)| {
+            group.players.iter().map(move |p| (g as u32 + 1, *p))
+        })
+        .map(|(g, p)| {
+            let group = players.get(p).and_then(|pl| pl.attr("youth_group")).map(|v| v.as_uint()).unwrap_or(g);
+            let place = places.get(&p).copied();
+            let v = victories.get(&p).copied().unwrap_or(0);
+            YouthResult { player: p, group, place, victories: v, points: youth.settings.points.points(place, v) }
+        })
+        .collect();
+    let order: Vec<PlayerRef> = youth.base().attendees.clone();
+    out.sort_by_key(|r| (r.group, r.place.unwrap_or(u32::MAX), order.iter().position(|x| *x == r.player).unwrap_or(usize::MAX)));
+    Some(out)
 }
 
 /// Fabrique des phases de ce module.

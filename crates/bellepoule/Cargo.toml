@@ -8,6 +8,8 @@ license.workspace = true
 [dependencies]
 bp-core = { workspace = true }
 bp-gtk = { workspace = true }
+marshaller = { workspace = true }
+bp-net = { workspace = true }
 gtk4 = { workspace = true }
 cairo-rs = { workspace = true }
 glib = { workspace = true }
@@ -18,3 +20,6 @@ log = { workspace = true }
 env_logger = { workspace = true }
 zip = { workspace = true }
 rand = { workspace = true }
+ureq = { workspace = true }
+serde_json = { workspace = true }
+pangocairo = { workspace = true }

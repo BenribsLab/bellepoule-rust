@@ -294,6 +294,7 @@ impl Glade {
         builder
             .add_from_string(&prepared.text)
             .map_err(|e| GladeError(format!("<<{}>> {e}", inner.path.display())))?;
+        crate::appearance::polish(&builder, inner.path.file_name().and_then(|name| name.to_str()).unwrap_or(""));
 
         let glade = Glade { inner };
         glade.create_actions();

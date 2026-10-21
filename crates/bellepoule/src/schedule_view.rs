@@ -70,6 +70,18 @@ impl ScheduleView {
             }
         }
         view.connect_handlers();
+        let weak_page = Rc::downgrade(page);
+        view.notebook.connect_switch_page(move |_, _, _| {
+            let weak_page = weak_page.clone();
+            gtk::glib::idle_add_local_once(move || {
+                if let Some(page) = weak_page.upgrade() {
+                    if let Some(app) = page.app.upgrade() {
+                        let shell = app.shell.borrow().clone();
+                        if let Some(shell) = shell { shell.refresh_navigation(); }
+                    }
+                }
+            });
+        });
         view.build_add_menu();
         view
     }
@@ -86,6 +98,29 @@ impl ScheduleView {
         let w: gtk::Widget = self.glade.get("config_vbox");
         Glade::detach_from_parent(&w);
         w
+    }
+
+    fn stage_widget(&self, kinds: &[StageKind]) -> Option<gtk::Widget> {
+        let screens = self.screens.borrow();
+        kinds.iter().find_map(|kind| screens.iter().rev().flatten()
+            .find(|(candidate, screen)| candidate == kind && self.notebook.page_num(&screen.widget()).is_some())
+            .map(|(_, screen)| screen.widget()))
+    }
+
+    pub fn has_visible_stage(&self, kinds: &[StageKind]) -> bool { self.stage_widget(kinds).is_some() }
+
+    /// Navigation d'affichage uniquement : aucune phase n'est avancée ou déverrouillée.
+    pub fn show_stage(&self, kinds: &[StageKind]) -> bool {
+        let Some(widget) = self.stage_widget(kinds) else { return false };
+        self.notebook.set_current_page(self.notebook.page_num(&widget));
+        true
+    }
+
+    pub fn visible_stage_kind(&self) -> Option<StageKind> {
+        let current = self.notebook.current_page()?;
+        self.screens.borrow().iter().flatten()
+            .find(|(_, screen)| self.notebook.page_num(&screen.widget()) == Some(current))
+            .map(|(kind, _)| *kind)
     }
 
     fn connect_handlers(self: &Rc<Self>) {
@@ -158,6 +193,15 @@ impl ScheduleView {
             self.updating.set(true);
             tree.selection().select_path(&fp);
             self.updating.set(false);
+        }
+    }
+
+    /// Réaffiche le contenu des écrans des phases (données reçues du
+    /// réseau), sans changer d'onglet.
+    pub fn refresh_screens(&self) {
+        let screens: Vec<_> = self.screens.borrow().iter().flatten().map(|(_, s)| s.clone()).collect();
+        for screen in screens {
+            screen.refresh();
         }
     }
 
@@ -271,6 +315,7 @@ impl ScheduleView {
         }
         self.refresh_sensitivity();
         self.show_configuration();
+        page.refresh_header();
     }
 
     /// `Schedule::RefreshSensitivity` et état des boutons d'édition.
@@ -373,35 +418,9 @@ impl ScheduleView {
     fn add_stage(self: &Rc<Self>, kind: StageKind) {
         let Some(page) = self.page() else { return };
         let after = self.selected_index();
-        // Entraînement des jeunes : les poules et tableaux se font dans les
-        // groupes ; on propose de retirer ceux de la formule qui le suivent.
-        let remove_rounds = kind == StageKind::YouthTraining
-            && page
-                .with_contest(|c| {
-                    let from = after.map(|a| a + 1).unwrap_or(c.schedule.len());
-                    (from..c.schedule.len()).any(|i| {
-                        matches!(c.schedule.stage(i).map(|s| s.kind()), Some(StageKind::PoolSupervisor | StageKind::TableSupervisor))
-                    })
-                })
-                .unwrap_or(false)
-            && dialogs::ask_yes_no(
-                page.window().as_ref(),
-                &tr("<b><big>Remove the pools and tables rounds that follow?</big></b>"),
-                Some(&tr("With a youth training, pools and tables are fenced inside each group.")),
-                None,
-            );
         page.with_contest(|c| {
             c.with_schedule(|s, ctx| {
-                let at = s.add_kind(ctx, kind, after);
-                if remove_rounds {
-                    let mut i = s.len();
-                    while i > at + 1 {
-                        i -= 1;
-                        if matches!(s.stage(i).map(|st| st.kind()), Some(StageKind::PoolSupervisor | StageKind::TableSupervisor)) {
-                            s.remove_user_stage(ctx, i);
-                        }
-                    }
-                }
+                s.add_kind(ctx, kind, after);
             })
         });
         page.mark_dirty();
@@ -460,16 +479,6 @@ impl ScheduleView {
                 Err(e) => { dialogs::error(page.window().as_ref(), &e.to_string()); return; }
             }
         } else { None };
-        // Entraînement des jeunes : une compétition par groupe.
-        let youth = page.with_contest(|c| c.schedule.current().map(|s| s.kind() == StageKind::YouthTraining)).flatten().unwrap_or(false);
-        let youth_contests = if youth {
-            let Some(app) = page.app.upgrade() else { return };
-            let result = app.tournament.borrow_mut().create_youth_groups(page.id);
-            match result {
-                Ok(ids) => ids,
-                Err(e) => { dialogs::error(page.window().as_ref(), &e.to_string()); return; }
-            }
-        } else { Vec::new() };
         let exceedance = page
             .with_contest(|c| c.with_schedule(|s, ctx| s.lock_current(ctx)))
             .unwrap_or(0);
@@ -492,11 +501,7 @@ impl ScheduleView {
         if let (Some(id), Some(app)) = (split_contest, page.app.upgrade()) {
             if let Some(derived) = app.show_managed_contest(id) { derived.mark_dirty(); }
         }
-        if let Some(app) = page.app.upgrade() {
-            for id in youth_contests {
-                if let Some(derived) = app.show_managed_contest(id) { derived.mark_dirty(); }
-            }
-        }
+
     }
 
     /// `Schedule::OnPrint` : la formule, phase par phase, avec ses réglages.

@@ -59,6 +59,8 @@ struct Snapshot {
     best: Option<usize>,
     pools: Vec<PoolView>,
     locked: bool,
+    /// Entraînement des jeunes : poules fixées groupe par groupe.
+    youth: bool,
     swap_errors: usize,
     criteria: Vec<String>,
     adjustable: bool,
@@ -304,6 +306,7 @@ impl AllocatorScreen {
                 .collect();
 
             Snapshot {
+                youth: round.youth_groups.is_some(),
                 configs,
                 selected: round.selected_config(),
                 best: round.best_config(),
@@ -333,8 +336,8 @@ impl AllocatorScreen {
         let size_combo: gtk::ComboBox = self.glade.get("pool_size_combobox");
         nb_combo.set_active(s.selected.map(|i| i as u32));
         size_combo.set_active(s.selected.map(|i| i as u32));
-        nb_combo.set_sensitive(!s.locked);
-        size_combo.set_sensitive(!s.locked);
+        nb_combo.set_sensitive(!s.locked && !s.youth);
+        size_combo.set_sensitive(!s.locked && !s.youth);
         for id in ["extra_toggle", "extra_combobox", "regular_swapping_hbox"] {
             self.glade.get::<gtk::Widget>(id).set_sensitive(!s.locked);
         }

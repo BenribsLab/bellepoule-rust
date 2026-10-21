@@ -1,0 +1,664 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/hall.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : hall -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkSizeGroup" id="choice_group" />
+  <object class="GtkDialog" id="job_dialog">
+    <property name="modal">True</property>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox6">
+        <property name="orientation">vertical</property>
+        <property name="spacing">10</property>
+        <child>
+          <object class="GtkBox" id="vbox2">
+            <property name="orientation">vertical</property>
+            <property name="spacing">7</property>
+            <child>
+              <object class="GtkFrame" id="aspectframe1">
+                <property name="label-xalign">0</property>
+                <child>
+                  <object class="GtkBox" id="hbox8">
+                    <property name="orientation">horizontal</property>
+                    <child>
+                      <object class="GtkLabel" id="label11">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">From:</property>
+                        <attributes>
+                          <attribute name="weight" value="bold" />
+                        </attributes>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel" id="cursor_date">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">label</property>
+                        <property name="use-markup">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <property name="vexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkViewport" id="viewport1">
+                <child>
+                  <object class="GtkBox" id="hbox3">
+                    <property name="orientation">horizontal</property>
+                    <property name="spacing">10</property>
+                    <child>
+                      <object class="GtkLabel" id="label7">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">Matches</property>
+                        <attributes>
+                          <attribute name="weight" value="bold" />
+                        </attributes>
+                        <property name="hexpand">True</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkBox" id="vbox3">
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkCheckButton" id="all_jobs">
+                            <property name="receives-default">False</property>
+                            <property name="label" translatable="yes" context="jobs">All</property>
+                            <property name="active">True</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="radiobutton2">
+                            <property name="receives-default">False</property>
+                            <property name="label" translatable="yes" context="jobs">Only the selected</property>
+                            <property name="group">all_jobs</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                        <property name="hexpand">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <property name="vexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkViewport" id="viewport3">
+                <child>
+                  <object class="GtkBox" id="hbox7">
+                    <property name="orientation">horizontal</property>
+                    <property name="spacing">10</property>
+                    <child>
+                      <object class="GtkLabel" id="label10">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">Pistes</property>
+                        <attributes>
+                          <attribute name="weight" value="bold" />
+                        </attributes>
+                        <property name="hexpand">True</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkBox" id="vbox5">
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkCheckButton" id="all_pistes">
+                            <property name="receives-default">False</property>
+                            <property name="label" translatable="yes" context="pistes">All</property>
+                            <property name="active">True</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="radiobutton6">
+                            <property name="receives-default">False</property>
+                            <property name="label" translatable="yes" context="pistes">Only the selected</property>
+                            <property name="group">all_pistes</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                        <property name="hexpand">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <property name="vexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkViewport" id="viewport2">
+                <child>
+                  <object class="GtkBox" id="hbox5">
+                    <property name="orientation">horizontal</property>
+                    <property name="spacing">10</property>
+                    <child>
+                      <object class="GtkLabel" id="label9">
+                        <property name="xalign">0</property>
+                        <property name="label" translatable="yes">Referees</property>
+                        <attributes>
+                          <attribute name="weight" value="bold" />
+                        </attributes>
+                        <property name="hexpand">True</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkBox" id="vbox4">
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkCheckButton" id="all_referees">
+                            <property name="receives-default">False</property>
+                            <property name="label" translatable="yes" context="referees">All</property>
+                            <property name="active">True</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="selected_referees">
+                            <property name="receives-default">False</property>
+                            <property name="label" translatable="yes" context="referees">Only the selected</property>
+                            <property name="group">all_referees</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkCheckButton" id="no_referee">
+                            <property name="receives-default">False</property>
+                            <property name="label" translatable="yes">None</property>
+                            <property name="active">True</property>
+                            <property name="group">all_referees</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                        <property name="hexpand">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <property name="vexpand">True</property>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child type="action">
+      <object class="GtkButton" id="button3">
+        <property name="receives-default">True</property>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkImage">
+                <property name="icon-name">process-stop</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">_Cancel</property>
+                <property name="use-underline">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child type="action">
+      <object class="GtkButton" id="button2">
+        <property name="receives-default">True</property>
+        <child>
+          <object class="GtkBox">
+            <property name="spacing">4</property>
+            <child>
+              <object class="GtkImage">
+                <property name="icon-name">emblem-ok-symbolic</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel">
+                <property name="label" translatable="yes">_OK</property>
+                <property name="use-underline">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="1">button3</action-widget>
+      <action-widget response="0">button2</action-widget>
+    </action-widgets>
+  </object>
+  <object class="GtkSizeGroup" id="item_group">
+    <widgets>
+      <widget name="label7" />
+      <widget name="label9" />
+      <widget name="label10" />
+      <widget name="label11" />
+    </widgets>
+  </object>
+  <object class="GtkListStore" id="overlap_liststore">
+    <columns>
+      <column type="gchararray" />
+      <column type="gchararray" />
+      <column type="gpointer" />
+      <column type="gchararray" />
+    </columns>
+  </object>
+  <object class="GtkMessageDialog" id="referee_error_dialog">
+    <property name="modal">True</property>
+    <property name="message-type">warning</property>
+    <property name="buttons">close</property>
+    <property name="text" translatable="yes">&lt;b&gt;No referee available!&lt;/b&gt;</property>
+    <property name="use-markup">True</property>
+    <property name="secondary-text" translatable="yes">Didn't you forget to check them in?</property>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox">
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkMessageDialog" id="slot_overlap_dialog">
+    <property name="message-type">warning</property>
+    <property name="buttons">yes-no</property>
+    <property name="text" translatable="yes">Overlap of time slots</property>
+    <property name="secondary-text">Secondary text</property>
+    <child internal-child="content_area">
+      <object class="GtkBox" id="dialog-vbox1">
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkAdjustment" id="timeline_adjustment">
+    <property name="upper">100</property>
+    <property name="step-increment">10</property>
+    <property name="page-increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="zoom_adjustment">
+    <property name="lower">0.80000000000000004</property>
+    <property name="upper">1.5</property>
+    <property name="value">1.2</property>
+    <property name="step-increment">0.01</property>
+    <property name="page-increment">0.10000000000000001</property>
+    <property name="page-size">0.10000000000000001</property>
+  </object>
+  <object class="GtkWindow" id="window1">
+    <child>
+      <object class="GtkBox" id="root">
+        <property name="orientation">vertical</property>
+        <property name="spacing">8</property>
+        <child>
+          <object class="GtkBox" id="vbox1">
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkBox" id="toolbar">
+                <property name="orientation">horizontal</property>
+                <child>
+                  <object class="GtkBox" id="toolbar2">
+                    <property name="orientation">horizontal</property>
+                    <style>
+                      <class name="toolbar" />
+                    </style>
+                    <child>
+                      <object class="GtkButton" id="add_piste_button">
+                        <signal name="clicked" handler="on_add_piste_button_clicked" swapped="no" />
+                        <property name="has-frame">False</property>
+                        <property name="tooltip-text" translatable="yes">Add</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">2</property>
+                            <child>
+                              <object class="GtkImage">
+                                <property name="icon-name">list-add</property>
+                                <property name="icon-size">large</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="label" translatable="yes">_Add</property>
+                                <property name="use-underline">True</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="remove_piste_button">
+                        <signal name="clicked" handler="on_remove_piste_button_clicked" swapped="no" />
+                        <property name="has-frame">False</property>
+                        <property name="tooltip-text" translatable="yes">Remove</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">2</property>
+                            <child>
+                              <object class="GtkImage">
+                                <property name="icon-name">list-remove</property>
+                                <property name="icon-size">large</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="label" translatable="yes">_Remove</property>
+                                <property name="use-underline">True</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="rotate_piste_button">
+                        <signal name="clicked" handler="on_rotate_piste_button_clicked" swapped="no" />
+                        <property name="has-frame">False</property>
+                        <property name="tooltip-text" translatable="yes">Rotate</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">2</property>
+                            <child>
+                              <object class="GtkImage" id="image2">
+                                <property name="file">../glade/images/rotate.png</property>
+                                <property name="pixel-size">-1</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="label" translatable="yes">Rotate</property>
+                                <property name="use-underline">True</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkToggleButton" id="cone_togglebutton">
+                        <property name="has-frame">False</property>
+                        <property name="tooltip-text" translatable="yes">Block</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">2</property>
+                            <child>
+                              <object class="GtkImage" id="image1">
+                                <property name="file">../glade/images/VLC.png</property>
+                                <property name="pixel-size">-1</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="label" translatable="yes">Block</property>
+                                <property name="use-underline">True</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparator" id="separatortoolitem2">
+                        <property name="orientation">vertical</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkButton" id="print_toolbutton">
+                        <property name="has-frame">False</property>
+                        <property name="tooltip-text" translatable="yes">Print</property>
+                        <child>
+                          <object class="GtkBox">
+                            <property name="orientation">vertical</property>
+                            <property name="spacing">2</property>
+                            <child>
+                              <object class="GtkImage">
+                                <property name="icon-name">document-print</property>
+                                <property name="icon-size">large</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel">
+                                <property name="label" translatable="yes">Print</property>
+                                <property name="use-underline">True</property>
+                              </object>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkSeparator" id="separatortoolitem1">
+                        <property name="orientation">vertical</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkBox" id="toolitem1">
+                        <property name="orientation">vertical</property>
+                        <child>
+                          <object class="GtkBox" id="vbox6">
+                            <property name="orientation">vertical</property>
+                            <child>
+                              <object class="GtkBox" id="hbox4">
+                                <property name="orientation">horizontal</property>
+                                <property name="homogeneous">True</property>
+                                <child>
+                                  <object class="GtkBox" id="club_box">
+                                    <property name="orientation">vertical</property>
+                                    <child>
+                                      <object class="GtkBox" id="vbox7">
+                                        <property name="orientation">vertical</property>
+                                        <child>
+                                          <object class="GtkFrame" id="aspectframe2">
+                                            <property name="label-xalign">0</property>
+                                            <child>
+                                              <object class="GtkCheckButton" id="club_checkbutton">
+                                                <property name="receives-default">False</property>
+                                                <property name="tooltip-text" translatable="yes">club</property>
+                                                <signal name="toggled" handler="on_warning_checkbutton_toggled" swapped="no" />
+                                                <property name="active">True</property>
+                                              </object>
+                                            </child>
+                                            <property name="vexpand">True</property>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel" id="label2">
+                                            <property name="label" translatable="yes">&lt;span size="x-small"&gt;club&lt;/span&gt;</property>
+                                            <property name="use-markup">True</property>
+                                            <property name="vexpand">True</property>
+                                          </object>
+                                        </child>
+                                        <property name="hexpand">True</property>
+                                        <property name="vexpand">True</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkBox" id="league_box">
+                                    <property name="orientation">vertical</property>
+                                    <child>
+                                      <object class="GtkBox" id="vbox8">
+                                        <property name="orientation">vertical</property>
+                                        <child>
+                                          <object class="GtkFrame" id="aspectframe3">
+                                            <property name="label-xalign">0</property>
+                                            <child>
+                                              <object class="GtkCheckButton" id="league_checkbutton">
+                                                <property name="receives-default">False</property>
+                                                <property name="tooltip-markup">league</property>
+                                                <signal name="toggled" handler="on_warning_checkbutton_toggled" swapped="no" />
+                                                <property name="active">True</property>
+                                              </object>
+                                            </child>
+                                            <property name="vexpand">True</property>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel" id="label3">
+                                            <property name="label" translatable="yes">&lt;span size="x-small"&gt;league&lt;/span&gt;</property>
+                                            <property name="use-markup">True</property>
+                                            <property name="vexpand">True</property>
+                                          </object>
+                                        </child>
+                                        <property name="hexpand">True</property>
+                                        <property name="vexpand">True</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <child>
+                                  <object class="GtkBox" id="country_box">
+                                    <property name="orientation">vertical</property>
+                                    <child>
+                                      <object class="GtkBox" id="vbox9">
+                                        <property name="orientation">vertical</property>
+                                        <child>
+                                          <object class="GtkFrame" id="aspectframe4">
+                                            <property name="label-xalign">0</property>
+                                            <child>
+                                              <object class="GtkCheckButton" id="country_checkbutton">
+                                                <property name="receives-default">False</property>
+                                                <signal name="toggled" handler="on_warning_checkbutton_toggled" swapped="no" />
+                                                <property name="active">True</property>
+                                              </object>
+                                            </child>
+                                            <property name="vexpand">True</property>
+                                          </object>
+                                        </child>
+                                        <child>
+                                          <object class="GtkLabel" id="label5">
+                                            <property name="label" translatable="yes">&lt;span size="x-small"&gt;country&lt;/span&gt;</property>
+                                            <property name="use-markup">True</property>
+                                            <property name="vexpand">True</property>
+                                          </object>
+                                        </child>
+                                        <property name="hexpand">True</property>
+                                        <property name="vexpand">True</property>
+                                      </object>
+                                    </child>
+                                  </object>
+                                </child>
+                                <property name="vexpand">True</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkLabel" id="label1">
+                                <property name="label" translatable="yes">Warnings</property>
+                                <property name="vexpand">True</property>
+                                <property name="valign">center</property>
+                              </object>
+                            </child>
+                            <property name="hexpand">True</property>
+                            <property name="vexpand">True</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="clock_button">
+                    <property name="receives-default">True</property>
+                    <property name="focus-on-click">False</property>
+                    <signal name="clicked" handler="on_clock_button_clicked" swapped="no" />
+                    <property name="has-frame">False</property>
+                    <child>
+                      <object class="GtkLabel" id="clock_label">
+                        <property name="label">14:30</property>
+                        <attributes>
+                          <attribute name="weight" value="bold" />
+                          <attribute name="scale" value="3" />
+                        </attributes>
+                      </object>
+                    </child>
+                    <property name="hexpand">True</property>
+                    <property name="halign">center</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkScrolledWindow" id="scrolledwindow1">
+                    <property name="hscrollbar-policy">automatic</property>
+                    <property name="vscrollbar-policy">automatic</property>
+                    <property name="visible">False</property>
+                    <child>
+                      <object class="GtkTreeView" id="overlap_treeview">
+                        <property name="model">overlap_liststore</property>
+                        <property name="headers-visible">False</property>
+                        <signal name="row-activated" handler="on_overlap_treeview_row_activated" swapped="no" />
+                        <child>
+                          <object class="GtkTreeViewColumn" id="treeviewcolumn1">
+                            <property name="title">column</property>
+                            <child>
+                              <object class="GtkCellRendererPixbuf" id="cellrendererpixbuf1">
+                                <property name="icon-name">dialog-warning</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkCellRendererText" id="cellrenderertext1">
+                                <property name="weight">800</property>
+                              </object>
+                              <attributes>
+                                <attribute name="foreground">3</attribute>
+                                <attribute name="text">1</attribute>
+                              </attributes>
+                            </child>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <property name="hexpand">True</property>
+                  </object>
+                </child>
+                <property name="vexpand">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkViewport" id="timeline_viewport">
+                <property name="height-request">50</property>
+                <property name="vexpand">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkViewport" id="main_hook">
+            <child>
+              <object class="GtkScrolledWindow" id="canvas_scrolled_window">
+                <property name="hscrollbar-policy">automatic</property>
+                <property name="vscrollbar-policy">automatic</property>
+              </object>
+            </child>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox" id="hbox2">
+            <property name="orientation">horizontal</property>
+            <child>
+              <object class="GtkLabel" id="label4">
+                <property name="label" translatable="yes">Zoom</property>
+                <attributes>
+                  <attribute name="weight" value="bold" />
+                </attributes>
+              </object>
+            </child>
+            <child>
+              <object class="GtkScale" id="zoom_scale">
+                <property name="orientation">horizontal</property>
+                <property name="adjustment">zoom_adjustment</property>
+                <property name="draw-value">False</property>
+                <property name="hexpand">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

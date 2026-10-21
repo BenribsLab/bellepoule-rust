@@ -120,6 +120,7 @@ version = "5.7.0"
 dependencies = [
  "bp-core",
  "bp-gtk",
+ "bp-net",
  "cairo-rs",
  "chrono",
  "env_logger",
@@ -127,8 +128,12 @@ dependencies = [
  "glib",
  "gtk4",
  "log",
+ "marshaller",
+ "pangocairo",
  "rand",
  "roxmltree",
+ "serde_json",
+ "ureq",
  "zip",
 ]
 
@@ -1187,6 +1192,7 @@ dependencies = [
  "aes",
  "base64",
  "bp-core",
+ "bp-gtk",
  "bp-net",
  "cairo-rs",
  "cbc",
@@ -1196,6 +1202,7 @@ dependencies = [
  "gio",
  "glib",
  "gtk4",
+ "log",
  "pango",
  "pangocairo",
  "qrcode",

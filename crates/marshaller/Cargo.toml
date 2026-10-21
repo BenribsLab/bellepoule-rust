@@ -10,17 +10,26 @@ path = "src/lib.rs"
 [[bin]]
 name = "marshaller"
 path = "src/main.rs"
+required-features = ["gui"]
+
+[features]
+# Interface GTK (fenêtre du Marshaller, vue intégrée à BellePoule). Sans elle,
+# la bibliothèque ne contient que la logique (utilisée par l'API web).
+default = ["gui"]
+gui = ["dep:bp-gtk", "dep:gtk4", "dep:cairo-rs", "dep:pango", "dep:pangocairo", "dep:glib", "dep:gio", "dep:gdk-pixbuf"]
 
 [dependencies]
 bp-core = { workspace = true }
 bp-net = { workspace = true }
-gtk4 = { workspace = true }
-cairo-rs = { workspace = true }
-pango = { workspace = true }
-pangocairo = { workspace = true }
-glib = { workspace = true }
-gio = { workspace = true }
-gdk-pixbuf = { workspace = true }
+bp-gtk = { workspace = true, optional = true }
+gtk4 = { workspace = true, optional = true }
+cairo-rs = { workspace = true, optional = true }
+pango = { workspace = true, optional = true }
+pangocairo = { workspace = true, optional = true }
+glib = { workspace = true, optional = true }
+log = { workspace = true }
+gio = { workspace = true, optional = true }
+gdk-pixbuf = { workspace = true, optional = true }
 chrono = { workspace = true }
 roxmltree = { workspace = true }
 serde_json = { workspace = true }

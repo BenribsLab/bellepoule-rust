@@ -139,9 +139,9 @@ pub struct PoolRound {
     /// dans la poule puis par numéro de poule, pour que le tableau oppose le
     /// 1er de la poule 1 au dernier de la poule 2, etc.
     pub cross_output: bool,
-    /// Nombre de poules imposé (entraînement des jeunes) au lieu de la
-    /// meilleure formule.
-    pub forced_nb_pools: Option<u32>,
+    /// Entraînement des jeunes : nombre de poules de chaque groupe (les
+    /// groupes sont donnés par l'attribut `youth_group` des tireurs).
+    pub youth_groups: Option<Vec<u32>>,
 }
 
 /// Attributs exclus des listes d'affichage (`CreateExcludingList`).
@@ -291,7 +291,7 @@ impl PoolRound {
             quota_exceedance: 0,
             distribution_dirty: false,
             cross_output: false,
-            forced_nb_pools: None,
+            youth_groups: None,
         }
     }
 
@@ -458,6 +458,9 @@ impl PoolRound {
 
     /// La poule a la taille prévue par la formule (`is_balanced`).
     pub fn pool_is_balanced(&self, index: usize) -> bool {
+        if self.youth_groups.is_some() {
+            return self.pools.get(index).map(|p| p.nb_players() >= 2).unwrap_or(false);
+        }
         let Some(c) = self.selected() else { return false };
         let Some(p) = self.pools.get(index) else { return false };
         let size = p.nb_players() as u32;
@@ -544,6 +547,10 @@ impl PoolRound {
     /// `CreatePools` : répartition en serpentin (avec séparation) ou par
     /// niveau selon `RepartitionEquilibre`.
     pub fn create_pools(&mut self, players: &mut PlayerStore) {
+        if self.youth_groups.is_some() {
+            self.create_youth_pools(players);
+            return;
+        }
         let Some(config) = self.selected() else { return };
         let nb_pool = config.nb_pool as usize;
         self.pools = (0..nb_pool).map(|i| self.new_pool(i as u32 + 1)).collect();
@@ -577,6 +584,91 @@ impl PoolRound {
         }
     }
 
+    /// Groupes de l'entraînement des jeunes, dans l'ordre des participants :
+    /// (numéro du groupe, tireurs).
+    pub fn youth_members(&self, players: &PlayerStore) -> Vec<(u32, Vec<PlayerRef>)> {
+        let mut groups: Vec<(u32, Vec<PlayerRef>)> = Vec::new();
+        for p in &self.attendees {
+            if fencer_is_absent(players, *p) {
+                continue;
+            }
+            let g = players.get(*p).and_then(|pl| pl.attr("youth_group")).map(|v| v.as_uint()).unwrap_or(1);
+            match groups.iter_mut().find(|(n, _)| *n == g) {
+                Some((_, list)) => list.push(*p),
+                None => groups.push((g, vec![*p])),
+            }
+        }
+        groups.sort_by_key(|(g, _)| *g);
+        groups
+    }
+
+    /// Entraînement des jeunes : les poules de chaque groupe, numérotées à
+    /// la suite (serpentin avec décalage, ou par niveau).
+    fn create_youth_pools(&mut self, players: &mut PlayerStore) {
+        let nb_pools = self.youth_groups.clone().unwrap_or_default();
+        let groups = self.youth_members(players);
+        let owner = self.allocator_owner();
+        self.pools.clear();
+        let mut number = 1u32;
+        for (gi, (group, members)) in groups.iter().enumerate() {
+            let k = nb_pools.get(gi).copied().unwrap_or(1).clamp(1, members.len().max(1) as u32) as usize;
+            let first = self.pools.len();
+            for local in 0..k {
+                let mut pool = self.new_pool(number);
+                pool.set_group(*group, local as u32 + 1);
+                self.pools.push(pool);
+                number += 1;
+            }
+            let distribution: Vec<Vec<PlayerRef>> = if self.seeding_balanced {
+                let mut swapper = NeoSwapper::new();
+                swapper.configure(k, &self.swapping_criteria, owner);
+                swapper.swap(players, members)
+            } else {
+                // Par niveau : les meilleurs dans la première poule.
+                let n = members.len();
+                let mut it = members.iter().copied();
+                (0..k).map(|i| it.by_ref().take(n / k + usize::from(i < n % k)).collect()).collect()
+            };
+            for (i, fencers) in distribution.into_iter().enumerate() {
+                for f in fencers {
+                    self.original_pool.insert(f, (first + i) as u32 + 1);
+                    if let Some(pool) = self.pools.get_mut(first + i) {
+                        pool.add_fencer(players, f, None);
+                    }
+                }
+            }
+        }
+        self.swapper.configure(self.pools.len(), &self.swapping_criteria, owner);
+    }
+
+    /// Après relecture d'un fichier : groupe et nom des poules d'après leurs tireurs.
+    fn name_youth_pools(&mut self, players: &PlayerStore) {
+        if self.youth_groups.is_none() {
+            return;
+        }
+        let mut local: Vec<(u32, u32)> = Vec::new();
+        for pool in &mut self.pools {
+            let g = pool
+                .fencers()
+                .first()
+                .and_then(|f| players.get(*f))
+                .and_then(|p| p.attr("youth_group"))
+                .map(|v| v.as_uint())
+                .unwrap_or(1);
+            let n = match local.iter_mut().find(|(group, _)| *group == g) {
+                Some((_, n)) => {
+                    *n += 1;
+                    *n
+                }
+                None => {
+                    local.push((g, 1));
+                    1
+                }
+            };
+            pool.set_group(g, n);
+        }
+    }
+
     fn store_swapping(&mut self, players: &mut PlayerStore, distribution: Vec<Vec<PlayerRef>>) {
         for (i, fencers) in distribution.into_iter().enumerate() {
             for f in fencers {
@@ -600,8 +692,10 @@ impl PoolRound {
     pub fn garnish(&mut self, players: &mut PlayerStore) {
         if self.pools.is_empty() {
             self.setup(players);
-            let forced = self.forced_nb_pools.and_then(|n| self.configs.iter().position(|c| c.nb_pool == n));
-            if let Some(best) = forced.or(self.best_config) {
+            if self.youth_groups.is_some() {
+                self.selected_config = self.best_config;
+                self.create_pools(players);
+            } else if let Some(best) = self.best_config {
                 self.selected_config = Some(best);
                 self.create_pools(players);
             }
@@ -627,6 +721,25 @@ impl PoolRound {
             }
             self.refresh_composition(players);
         }
+    }
+
+    /// Entraînement des jeunes : serpentin (avec décalage) ou par niveau,
+    /// fixé avant la composition des poules.
+    pub fn set_youth_seeding(&mut self, balanced: bool, swapping: &[String]) {
+        self.seeding_balanced = balanced;
+        let regular = regular_swapping_criteria();
+        let extra = extra_swapping_criteria();
+        let mut list: Vec<String> = Vec::new();
+        let mut image = String::from("/");
+        for code in swapping {
+            if regular.contains(&code.as_str()) || extra.contains(&code.as_str()) {
+                list.push(code.clone());
+                image.push_str(code);
+                image.push('/');
+            }
+        }
+        self.swapping_criteria = if balanced { list } else { Vec::new() };
+        self.swapping = Some(image);
     }
 
     /// Critères de séparation (`OnSwappingToggled`) : `regular` parmi
@@ -694,6 +807,12 @@ impl PoolRound {
         }
         if let Some(f) = from {
             self.pools[f].remove_fencer(players, player);
+        }
+        // Entraînement des jeunes : changer de poule peut changer de groupe.
+        if let Some(g) = self.pools[to].group() {
+            if let Some(p) = players.get_mut(player) {
+                p.set_uint(&AttrId::global("youth_group"), g);
+            }
         }
         self.pools[to].add_fencer(players, player, None);
         self.swapper.move_fencer(player, from, Some(to));
@@ -1069,17 +1188,19 @@ impl PoolRound {
         if !self.cross_output {
             return list;
         }
-        let mut keyed: Vec<(u32, usize, usize, PlayerRef)> = list
+        // Groupe d'abord (entraînement des jeunes), puis place, puis poule.
+        let mut keyed: Vec<(u32, u32, usize, usize, PlayerRef)> = list
             .iter()
             .enumerate()
             .map(|(i, p)| {
                 let pool = self.pool_of(*p).unwrap_or(usize::MAX);
+                let group = self.pools.get(pool).and_then(|pl| pl.group()).unwrap_or(0);
                 let place = self.pools.get(pool).map(|pl| pl.result(*p).rank).filter(|r| *r > 0).unwrap_or(u32::MAX);
-                (place, pool, i, *p)
+                (group, place, pool, i, *p)
             })
             .collect();
         keyed.sort();
-        keyed.into_iter().map(|(_, _, _, p)| p).collect()
+        keyed.into_iter().map(|(_, _, _, _, p)| p).collect()
     }
 
     /// `GiveEliminatedAFinalRank` : place finale des éliminés.
@@ -1153,8 +1274,8 @@ impl PoolRound {
         if self.cross_output {
             w.attr("SortieCroisee", "1");
         }
-        if let Some(n) = self.forced_nb_pools {
-            w.attr_fmt("NbPoulesImpose", n);
+        if let Some(g) = &self.youth_groups {
+            w.attr("GroupesJeunes", &g.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(","));
         }
         if let Some(s) = &self.swapping {
             w.attr("Decalage", s);
@@ -1228,7 +1349,9 @@ impl PoolRound {
             self.seeding_balanced = attribute::parse_leading_int(v) == 1;
         }
         self.cross_output = node.attribute("SortieCroisee") == Some("1");
-        self.forced_nb_pools = node.attribute("NbPoulesImpose").map(|v| attribute::parse_leading_int(v).max(1) as u32);
+        self.youth_groups = node
+            .attribute("GroupesJeunes")
+            .map(|v| v.split(',').filter_map(|n| n.trim().parse::<u32>().ok()).collect());
         self.swapping = node.attribute("Decalage").map(str::to_string);
         self.parse_swapping();
     }
@@ -1276,6 +1399,7 @@ impl PoolRound {
             }
         }
         if !self.pools.is_empty() {
+            self.name_youth_pools(players);
             self.check_distribution(players);
         }
     }
@@ -1297,7 +1421,8 @@ impl PoolRound {
                 }
             } else if name == "Arbitre" {
                 let r = xml::attr_u32(child, "REF", 0);
-                if players.get(r).is_some() {
+                // Les arbitres ont un magasin distinct de celui des tireurs.
+                if r != 0 {
                     pool.append_referee(r);
                 }
             } else if name == "Match" && !matches_loaded {

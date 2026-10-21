@@ -12,7 +12,19 @@ pub fn config_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("BELLEPOULE2D_CONFIG_DIR") {
         return PathBuf::from(dir);
     }
-    glib::user_config_dir().join("BellePoule2D")
+    #[cfg(feature = "gui")]
+    {
+        glib::user_config_dir().join("BellePoule2D")
+    }
+    #[cfg(not(feature = "gui"))]
+    {
+        let base = std::env::var_os("XDG_CONFIG_HOME")
+            .or_else(|| std::env::var_os("LOCALAPPDATA"))
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+            .unwrap_or_else(std::env::temp_dir);
+        base.join("BellePoule2D")
+    }
 }
 
 /// Dossier `resources` (variable `BELLEPOULE_RESOURCES`, à côté de

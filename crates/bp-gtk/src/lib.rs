@@ -4,6 +4,7 @@
 pub use gtk4;
 
 pub mod canvas;
+pub mod appearance;
 pub mod dialogs;
 pub mod glade;
 pub mod icons;

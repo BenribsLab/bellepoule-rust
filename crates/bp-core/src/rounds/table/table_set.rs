@@ -124,9 +124,7 @@ pub fn compare_matches(a: &Match, b: &Match) -> Ordering {
 pub(crate) fn timestamp(m: &mut Match) {
     if let Some(start) = m.start_time {
         if m.is_over() {
-            use chrono::Timelike;
-            let now = chrono::Local::now().naive_local();
-            let now = now.with_second(0).unwrap_or(now).with_nanosecond(0).unwrap_or(now);
+            let now = crate::bout::now_rounded();
             let span = (now - start.0).num_seconds();
             m.duration_sec = if span < 0 { 1 } else { span as u32 };
         }
@@ -169,6 +167,10 @@ pub struct TableSet {
     pub(crate) first_error: Option<NodeId>,
     /// Compteur de numéros de match par tableau (entrées de recherche rapide).
     next_number: Vec<u32>,
+    /// Entraînement des jeunes : groupe de la suite (sinon `None`).
+    pub(crate) group: Option<u32>,
+    /// Première place de la suite principale de son groupe (1 hors groupes).
+    pub(crate) base_place: u32,
 }
 
 impl TableSet {
@@ -191,6 +193,25 @@ impl TableSet {
             is_over: false,
             first_error: None,
             next_number: Vec::new(),
+            group: None,
+            base_place: 1,
+        }
+    }
+
+    /// Place dans le groupe (ou dans la phase hors groupes).
+    pub fn relative_place(&self, place: u32) -> u32 {
+        place + 1 - self.base_place
+    }
+
+    /// Groupe (entraînement des jeunes).
+    pub fn group(&self) -> Option<u32> {
+        self.group
+    }
+
+    fn place_label(&self) -> String {
+        match self.group {
+            Some(g) => format!("{} {} · {}{}", tr("Group"), g, tr("Place #"), self.relative_place(self.first_place)),
+            None => format!("{}{}", tr("Place #"), self.first_place),
         }
     }
 
@@ -208,7 +229,7 @@ impl TableSet {
 
     /// Nom court « Place #N » (`_short_name`, aussi écrit dans `Titre`).
     pub fn name(&self) -> String {
-        format!("{}{}", tr("Place #"), self.first_place)
+        self.place_label()
     }
 
     pub fn parent(&self) -> Option<usize> {
@@ -347,9 +368,9 @@ impl TableSet {
     /// Nom à imprimer (`GetPrintName`).
     pub fn print_name(&self, stage_name: &str) -> String {
         if stage_name.is_empty() {
-            format!("{} - {}{}", tr("Table"), tr("Place #"), self.first_place)
+            format!("{} - {}", tr("Table"), self.place_label())
         } else {
-            format!("{} - {} - {}{}", tr("Table"), stage_name, tr("Place #"), self.first_place)
+            format!("{} - {} - {}", tr("Table"), stage_name, self.place_label())
         }
     }
 
@@ -504,7 +525,8 @@ impl TableSet {
         } else {
             bout.name = name_space;
             self.nodes[id].bout = Some(bout);
-            let player = if self.first_place == 1 {
+            // Suite principale (de la phase ou d'un groupe) : têtes de série.
+            let player = if self.parent.is_none() {
                 self.attendees.get(expected as usize - 1).copied().flatten()
             } else {
                 self.attendees.get(table_index as usize).copied().flatten()
@@ -850,7 +872,7 @@ impl TableSet {
         list.sort_by(|a, b| self.compare_player(env, *a, *b, &best));
         list.extend(self.withdrawals.iter().copied());
 
-        let place_is_fenced = |place: u32| place != 4 || self.tables.len() <= 2 || fourth_place_fenced;
+        let place_is_fenced = |place: u32| self.relative_place(place) != 4 || self.tables.len() <= 2 || fourth_place_fenced;
         let mut out = Vec::with_capacity(list.len());
         let mut previous: Option<PlayerRef> = None;
         let mut previous_rank = 0;

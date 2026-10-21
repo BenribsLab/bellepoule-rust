@@ -446,6 +446,8 @@ fn build_registry() -> Registry {
     d.discrete = dv(&[
         ("M", "Male", Some("glade/images/male.png")),
         ("F", "Female", Some("glade/images/female.png")),
+        // Ajout du portage : épreuves mixtes.
+        ("X", "Mixed", None),
     ]);
     v.push(d);
 
@@ -553,6 +555,10 @@ fn build_registry() -> Registry {
         d.uniqueness = Uniqueness::NotSingular;
         v.push(d);
     }
+
+    // Entraînement des jeunes (extension du portage) : groupe du tireur.
+    d = AttributeDesc::new(UInt, "youth_group", "Groupe", "Group");
+    v.push(d);
 
     d = AttributeDesc::new(Str, "cyphered_password", "MotDePasseChiffre", "cyphered password");
     d.rights = Rights::Private;

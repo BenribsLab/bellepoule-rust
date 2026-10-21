@@ -417,6 +417,21 @@ fn barrage_breaks_ties_at_the_quota() {
     assert_eq!(kinds[3], StageKind::Barrage, "{kinds:?}");
     let ties = c.schedule.stage(3).unwrap().as_any().downcast_ref::<Barrage>().unwrap().ties_count();
     assert_eq!(ties, exceedance, "le barrage doit porter sur les ex æquo");
+    {
+        let b = c.schedule.stage(3).unwrap().as_any().downcast_ref::<Barrage>().unwrap();
+        assert_eq!(b.max_score(), 5, "barrage en 5 touches après les poules");
+        assert!(!b.matches().is_empty(), "matchs de barrage créés");
+        assert!(b.matches().iter().all(|m| m.max_score == 5), "{:?}", b.matches().iter().map(|m| m.max_score).collect::<Vec<_>>());
+    }
+    {
+        let xml = c.to_xml();
+        let mut r = Contest::new(None, false);
+        r.load_xml_str(&xml).unwrap();
+        let b = r.schedule.stage(3).unwrap().as_any().downcast_ref::<Barrage>().unwrap();
+        assert_eq!(b.max_score(), 5, "barrage rechargé : 5 touches");
+        assert!(b.matches().iter().all(|m| m.max_score == 5), "{:?}", b.matches().iter().map(|m| m.max_score).collect::<Vec<_>>());
+        assert_eq!(b.matches().len(), c.schedule.stage(3).unwrap().as_any().downcast_ref::<Barrage>().unwrap().matches().len());
+    }
     // Promouvoir le premier du barrage seulement.
     c.with_schedule(|s, ctx| {
         let b = s.stage_mut(3).unwrap().as_any_mut().downcast_mut::<Barrage>().unwrap();

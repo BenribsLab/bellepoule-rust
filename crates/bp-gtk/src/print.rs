@@ -605,7 +605,13 @@ pub fn run_document(
             render_page(source.as_mut(), number as usize, *pages, &ctx.cairo_context(), ctx.width(), ctx.height(), header.as_ref(), &layout);
         }
     });
-    let result = operation.run(gtk::PrintOperationAction::PrintDialog, parent)?;
+    let result = operation.run(gtk::PrintOperationAction::PrintDialog, parent);
+    // La boîte d'impression de Windows n'est pas une fenêtre GTK : la
+    // fenêtre de BellePoule reprend explicitement la main.
+    if let Some(p) = parent.cloned().or_else(crate::dialogs::main_window) {
+        p.present();
+    }
+    let result = result?;
     Ok(result == gtk::PrintOperationResult::Apply)
 }
 
@@ -769,4 +775,29 @@ pub fn export_png(
     drop(cr);
     let mut file = std::fs::File::create(path).map_err(|e| e.to_string())?;
     surface.write_to_png(&mut file).map_err(|e| e.to_string())
+}
+
+/// Enregistre un document en PDF avec la même mise en page que l'impression
+/// (bandeau, pied de page, pagination), au format de papier par défaut.
+pub fn export_pdf(source: &mut dyn PageSource, path: &std::path::Path) -> Result<(), String> {
+    let setup = gtk::PageSetup::new();
+    let (paper_w, paper_h) = (setup.paper_width(gtk::Unit::Points), setup.paper_height(gtk::Unit::Points));
+    let (left, top) = (setup.left_margin(gtk::Unit::Points), setup.top_margin(gtk::Unit::Points));
+    let (page_w, page_h) = (setup.page_width(gtk::Unit::Points), setup.page_height(gtk::Unit::Points));
+    let header = current_header();
+    let layout = layout();
+    let (t, b) = margins(page_w, header.as_ref(), &layout);
+    let total = source.begin(page_w, (page_h - t - b).max(1.0)).max(1);
+    let surface = cairo::PdfSurface::new(paper_w, paper_h, path).map_err(|e| e.to_string())?;
+    let cr = cairo::Context::new(&surface).map_err(|e| e.to_string())?;
+    for page in 0..total {
+        cr.save().map_err(|e| e.to_string())?;
+        cr.translate(left, top);
+        render_page(source, page, total, &cr, page_w, page_h, header.as_ref(), &layout);
+        cr.restore().map_err(|e| e.to_string())?;
+        cr.show_page().map_err(|e| e.to_string())?;
+    }
+    drop(cr);
+    surface.finish();
+    Ok(())
 }

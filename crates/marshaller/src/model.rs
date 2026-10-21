@@ -100,6 +100,7 @@ pub enum JobStatus {
 /// Poule ou match à placer (port de `marshaller/job.cpp`).
 #[derive(Debug, Clone)]
 pub struct Job {
+    pub is_pool: bool,
     pub key: JobKey,
     pub netid: u32,
     pub competition: u32,
@@ -134,6 +135,7 @@ impl Job {
         parcel.set_uint("duration_span", duration_span);
         parcel.set_fitness(1);
         Job {
+            is_pool: message.get_str("kind").as_deref() == Some("pool"),
             key,
             netid,
             competition,

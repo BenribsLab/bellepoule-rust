@@ -16,7 +16,7 @@ use bp_core::i18n::tr;
 use bp_core::player::PlayerRef;
 use bp_core::rounds::pool::round::regular_swapping_criteria;
 use bp_core::rounds::table::supervisor::FencedPlaces;
-use bp_core::rounds::youth::{self, GroupLayout, GroupMode, PoolMode, YouthSettings, YouthTraining};
+use bp_core::rounds::youth::{self, GroupLayout, GroupMode, PointsMode, PoolMode, YouthSettings, YouthTraining};
 use bp_core::stage::Stage;
 use gtk::glib;
 use gtk::prelude::*;
@@ -48,6 +48,12 @@ struct SettingsWidgets {
     all_places: gtk::CheckButton,
     third_place: gtk::CheckButton,
     no_place: gtk::CheckButton,
+    points_same: gtk::CheckButton,
+    points_victory: gtk::CheckButton,
+    points_place: gtk::CheckButton,
+    same_value: gtk::SpinButton,
+    victory_value: gtk::SpinButton,
+    place_values: gtk::Entry,
 }
 
 pub struct YouthScreen {
@@ -154,6 +160,31 @@ impl SettingsWidgets {
             root.append(w);
         }
 
+        root.append(&bold(&tr("Points")));
+        let points_same = gtk::CheckButton::with_label(&tr("The same points for everybody"));
+        let points_victory = gtk::CheckButton::with_label(&tr("Points per victory (pools and table)"));
+        let points_place = gtk::CheckButton::with_label(&tr("Points according to the place in the group"));
+        points_victory.set_group(Some(&points_same));
+        points_place.set_group(Some(&points_same));
+        let same_value = gtk::SpinButton::with_range(0.0, 1000.0, 1.0);
+        let victory_value = gtk::SpinButton::with_range(0.0, 1000.0, 1.0);
+        let place_values = gtk::Entry::new();
+        place_values.set_placeholder_text(Some("10, 8, 6, 5, 4, 3, 2, 1"));
+        place_values.set_hexpand(true);
+        let points_grid = gtk::Grid::new();
+        points_grid.set_row_spacing(4);
+        points_grid.set_column_spacing(8);
+        points_grid.attach(&points_same, 0, 0, 1, 1);
+        points_grid.attach(&same_value, 1, 0, 1, 1);
+        points_grid.attach(&points_victory, 0, 1, 1, 1);
+        points_grid.attach(&victory_value, 1, 1, 1, 1);
+        points_grid.attach(&points_place, 0, 2, 1, 1);
+        points_grid.attach(&place_values, 1, 2, 1, 1);
+        let points_hint = left(&tr("1st, 2nd, 3rd… separated by commas; beyond the list, the last value."));
+        points_hint.add_css_class("dim-label");
+        points_grid.attach(&points_hint, 0, 3, 2, 1);
+        root.append(&points_grid);
+
         SettingsWidgets {
             root,
             group_size,
@@ -167,6 +198,12 @@ impl SettingsWidgets {
             all_places,
             third_place,
             no_place,
+            points_same,
+            points_victory,
+            points_place,
+            same_value,
+            victory_value,
+            place_values,
         }
     }
 
@@ -190,6 +227,14 @@ impl SettingsWidgets {
             } else {
                 FencedPlaces::AllPlaces
             },
+            points: if self.points_victory.is_active() {
+                PointsMode::PerVictory(self.victory_value.value_as_int().max(0) as u32)
+            } else if self.points_place.is_active() {
+                let list = youth::parse_points_list(&self.place_values.text());
+                PointsMode::ByPlace(if list.is_empty() { vec![10, 8, 6, 5, 4, 3, 2, 1] } else { list })
+            } else {
+                PointsMode::Same(self.same_value.value_as_int().max(0) as u32)
+            },
         }
     }
 
@@ -207,6 +252,26 @@ impl SettingsWidgets {
         self.all_places.set_active(s.fenced_places == FencedPlaces::AllPlaces);
         self.third_place.set_active(s.fenced_places == FencedPlaces::ThirdPlaces);
         self.no_place.set_active(matches!(s.fenced_places, FencedPlaces::None | FencedPlaces::Quota));
+        match &s.points {
+            PointsMode::Same(n) => {
+                self.points_same.set_active(true);
+                self.same_value.set_value(*n as f64);
+            }
+            PointsMode::PerVictory(n) => {
+                self.points_victory.set_active(true);
+                self.victory_value.set_value(*n as f64);
+            }
+            PointsMode::ByPlace(list) => {
+                self.points_place.set_active(true);
+                let text = list.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ");
+                if youth::parse_points_list(&self.place_values.text()) != *list {
+                    self.place_values.set_text(&text);
+                }
+            }
+        }
+        if self.same_value.value_as_int() == 0 && !matches!(s.points, PointsMode::Same(_)) {
+            self.same_value.set_value(10.0);
+        }
         self.root.set_sensitive(!locked);
     }
 }
@@ -220,7 +285,7 @@ impl YouthScreen {
         root.set_margin_end(12);
 
         let intro = left(&tr(
-            "Groups creation. Drag a fencer onto another group to move him. Each group becomes its own competition: its pools (fencers can be moved from one pool to another in its \"Pools arrangement\") then its table. Settings are in the preferences of this round. Click \"Next round\" to create the groups.",
+            "Groups creation. Drag a fencer onto another group to move him. Each group then has its own pools (fencers can be moved from one pool to another in the pools arrangement) and its own table, in this competition. Settings are in the preferences of this round. \"Previous round\" undoes everything.",
         ));
         intro.set_wrap(true);
         root.append(&intro);
@@ -289,6 +354,22 @@ impl YouthScreen {
         for check in checks {
             let f = on_settings.clone();
             check.connect_toggled(move |_| f());
+        }
+        for spin in [&self.settings.same_value, &self.settings.victory_value] {
+            let f = on_settings.clone();
+            spin.connect_value_changed(move |_| f());
+        }
+        for check in [&self.settings.points_same, &self.settings.points_victory, &self.settings.points_place] {
+            let f = on_settings.clone();
+            check.connect_toggled(move |_| f());
+        }
+        {
+            let f = on_settings.clone();
+            self.settings.place_values.connect_activate(move |_| f());
+            let f = on_settings.clone();
+            let focus = gtk::EventControllerFocus::new();
+            focus.connect_leave(move |_| f());
+            self.settings.place_values.add_controller(focus);
         }
         let w = Rc::downgrade(self);
         self.group_count.connect_value_changed(move |spin| {
@@ -375,8 +456,11 @@ impl YouthScreen {
         }
         let settings = self.settings.read();
         self.edit(|y| {
+            let regroup = YouthSettings { points: settings.points.clone(), ..y.settings.clone() } != settings;
             y.settings = settings;
-            y.reset_layout();
+            if regroup {
+                y.reset_layout();
+            }
         });
     }
 

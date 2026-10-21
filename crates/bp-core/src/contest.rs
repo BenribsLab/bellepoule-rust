@@ -126,7 +126,7 @@ pub struct Contest {
     pub dirty: bool,
     /// Attributs de joueurs inconnus du registre, déclarés par le fichier
     /// (`GetUnknownAttributes`).
-    extra_attributes: Vec<String>,
+    pub(crate) extra_attributes: Vec<String>,
 }
 
 impl Contest {
@@ -567,7 +567,7 @@ impl Contest {
 
     /// `SaveHeader` : prologue, élément racine, attributs, puis les listes
     /// de tireurs, d'équipes et d'arbitres. L'élément racine reste ouvert.
-    fn save_header(&mut self, w: &mut XmlWriter) {
+    pub(crate) fn save_header(&mut self, w: &mut XmlWriter) {
         let root = if self.settings.team_event { "CompetitionParEquipes" } else { "CompetitionIndividuelle" };
         w.dtd(root);
         w.comment(&format!(
@@ -697,61 +697,6 @@ impl Contest {
         c
     }
 
-    /// Entraînement des jeunes : une compétition par groupe, avec ses tireurs
-    /// (classement d'entrée = place dans le groupe, tous présents), des poules
-    /// au nombre imposé, une sortie croisée vers un tableau où toutes les
-    /// places sont tirées.
-    pub fn duplicate_youth_groups(&self, index: usize, mut config: Option<&mut UserConfig>) -> Result<Vec<Contest>> {
-        use crate::player::AttrId;
-        use crate::rounds::youth::{PoolMode, YouthTraining};
-        let youth = self
-            .schedule
-            .stage(index)
-            .and_then(|s| s.as_any().downcast_ref::<YouthTraining>())
-            .ok_or_else(|| Error::Format("la phase choisie n'est pas un entraînement des jeunes".into()))?;
-        let settings = youth.settings.clone();
-        let groups = youth.groups(&self.players);
-        if groups.is_empty() {
-            return Err(Error::Format("aucun tireur à répartir".into()));
-        }
-        let mut contests = Vec::new();
-        for (g, group) in groups.iter().enumerate() {
-            let label = format!("{} {}", crate::i18n::tr("Group"), g + 1);
-            let mut target = self.duplicate_with(Some(&label), config.as_deref_mut(), false);
-            for (rank, reference) in group.players.iter().enumerate() {
-                let Some(player) = self.players.get(*reference) else { continue };
-                let mut copy = split_player(player);
-                copy.set_uint(&AttrId::global("ranking"), rank as u32 + 1);
-                copy.set(&AttrId::global("attending"), crate::attribute::Value::Bool(true));
-                copy.set_str(&AttrId::global("global_status"), "Q");
-                target.add_fencer(copy).ok_or_else(|| Error::Format("impossible d'ajouter un tireur au groupe".into()))?;
-            }
-            target.with_schedule(|schedule, ctx| {
-                if let Some(checkin) = schedule.checkin_mut() {
-                    checkin.on_list_changed(ctx);
-                }
-                for i in 0..schedule.len() {
-                    let Some(stage) = schedule.stage_mut(i) else { continue };
-                    if let Some(pools) = stage.as_any().downcast_ref::<crate::rounds::pool::PoolSupervisorStage>() {
-                        let mut round = pools.round();
-                        round.forced_nb_pools = Some(group.layout.nb_pools);
-                        round.cross_output = true;
-                        round.set_seeding_balanced(ctx.players, settings.pool_mode == PoolMode::Snake);
-                        if settings.pool_mode == PoolMode::Snake {
-                            let regular: Vec<&str> = settings.swapping.iter().map(String::as_str).collect();
-                            round.set_swapping_criteria(ctx.players, &regular, None);
-                        }
-                    } else if let Some(table) = stage.as_any_mut().downcast_mut::<crate::rounds::table::supervisor::TableSupervisor>() {
-                        table.fenced_places = settings.fenced_places.value();
-                    }
-                }
-            });
-            target.dirty = true;
-            contests.push(target);
-        }
-        Ok(contests)
-    }
-
     /// `Splitting::OnLocked` : copie des seuls participants cochés, avec les
     /// positions de départ de la scission et les membres des équipes.
     pub fn duplicate_split(&self, index: usize, config: Option<&mut UserConfig>) -> Result<Contest> {
@@ -849,6 +794,12 @@ impl Contest {
 
     /// `DumpToHTML` : page web de la compétition (un onglet par phase).
     pub fn dump_to_html(&mut self) -> String {
+        self.dump_to_html_with(None)
+    }
+
+    /// Export HTML ; `classification` remplace le contenu du classement
+    /// général (entraînement des jeunes : classement de chaque groupe).
+    pub fn dump_to_html_with(&mut self, classification: Option<String>) -> String {
         let header = self.header();
         let current = self.schedule.current_index();
         let ctx = StageContext { players: &mut self.players, settings: &self.settings };
@@ -859,7 +810,10 @@ impl Contest {
             }
             let mut html = String::new();
             if index <= current {
-                stage.dump_to_html(&ctx, &mut html);
+                match (&classification, stage.kind()) {
+                    (Some(c), crate::stage::StageKind::GeneralClassification) => html.push_str(c),
+                    _ => stage.dump_to_html(&ctx, &mut html),
+                }
             }
             rounds.push(crate::formats::html::HtmlRound {
                 id: stage.base().id,

@@ -22,6 +22,7 @@ authors = ["Yannick Le Roux (original C++)", "BellePoule Rust contributors"]
 bp-core = { path = "crates/bp-core" }
 bp-net = { path = "crates/bp-net" }
 bp-gtk = { path = "crates/bp-gtk" }
+marshaller = { path = "crates/marshaller" }
 
 roxmltree = "0.20"
 encoding_rs = "0.8"

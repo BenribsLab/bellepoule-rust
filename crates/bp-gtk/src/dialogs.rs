@@ -28,6 +28,67 @@ pub fn set_main_window(window: &impl IsA<gtk::Window>) {
     MAIN_WINDOW.with(|m| *m.borrow_mut() = Some(weak));
 }
 
+/// Sous Windows, fermer ou masquer une fenêtre secondaire rend la main à la
+/// fenêtre d'une autre application : BellePoule semble planté. Chaque
+/// fenêtre de l'application, dès qu'elle apparaît, ramène donc au premier
+/// plan sa fenêtre parente (ou la fenêtre principale) quand elle disparaît.
+pub fn keep_focus_in_app() {
+    let toplevels = gtk::Window::toplevels();
+    let watch = |model: &gio::ListModel, from: u32, count: u32| {
+        for i in from..from + count {
+            let Some(window) = model.item(i).and_downcast::<gtk::Window>() else { continue };
+            if unsafe { window.data::<bool>("bp-focus-watch").is_some() } {
+                continue;
+            }
+            unsafe { window.set_data("bp-focus-watch", true) };
+            // `hide` pour une fenêtre masquée, `unmap` pour une fenêtre
+            // détruite (aperçu d'impression, dialogues créés par le code).
+            window.connect_hide(|w| refocus_after(w));
+            window.connect_unmap(|w| refocus_after(w));
+        }
+    };
+    watch(&toplevels, 0, toplevels.n_items());
+    toplevels.connect_items_changed(move |model, position, _removed, added| watch(model, position, added));
+}
+
+/// Fenêtre à remettre au premier plan quand `w` disparaît : sa parente
+/// visible, sinon la fenêtre principale.
+fn focus_target(w: &gtk::Window) -> Option<gtk::Window> {
+    let parent = w.transient_for().filter(|p| p.is_visible());
+    parent.or_else(main_window).filter(|t| t != w && t.is_visible())
+}
+
+/// Remet la parente au premier plan **avant** que `w` ne disparaisse :
+/// BellePoule a encore la main, Windows accepte donc le changement de
+/// fenêtre active (après coup, il peut le refuser et activer une autre
+/// application).
+pub fn hand_focus_back(w: &impl IsA<gtk::Window>) {
+    if let Some(target) = focus_target(w.as_ref()) {
+        target.present();
+    }
+}
+
+/// Après la disparition d'une fenêtre : seconde tentative, au cas où la
+/// fenêtre n'est pas passée par `run_dialog`.
+fn refocus_after(w: &gtk::Window) {
+    let Some(target) = focus_target(w) else { return };
+    // Après la fin du traitement en cours (destruction…).
+    glib::idle_add_local_once(move || {
+        // Le modèle GTK peut déclarer GObject comme type d'élément, même si
+        // ses éléments sont des fenêtres : iter::<Window>() paniquerait.
+        let windows = gtk::Window::toplevels();
+        let other_active = (0..windows.n_items()).any(|i| {
+            windows
+                .item(i)
+                .and_downcast::<gtk::Window>()
+                .is_some_and(|o| o != target && o.is_visible() && o.is_active())
+        });
+        if target.is_visible() && !other_active {
+            target.present();
+        }
+    });
+}
+
 /// Fenêtre principale, si elle existe encore.
 pub fn main_window() -> Option<gtk::Window> {
     MAIN_WINDOW.with(|m| m.borrow().as_ref().and_then(|w| w.upgrade()))
@@ -82,6 +143,9 @@ pub fn run_dialog(dialog: &impl IsA<gtk::Dialog>) -> gtk::ResponseType {
     dialog.present();
     main_loop.run();
 
+    // La parente reprend la main avant que l'appelant masque ou détruise
+    // le dialogue.
+    hand_focus_back(dialog);
     dialog.disconnect(h1);
     dialog.disconnect(h2);
     dialog.disconnect(h3);

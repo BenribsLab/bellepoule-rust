@@ -148,10 +148,10 @@ impl TableSupervisor {
 
     /// `TableSetIsFenced`.
     pub fn table_set_is_fenced(&self, i: usize) -> bool {
-        let first = self.sets[i].first_place;
-        if first == 1 {
+        if self.sets[i].parent.is_none() {
             return true;
         }
+        let first = self.sets[i].relative_place(self.sets[i].first_place);
         match self.fenced_places_mode() {
             FencedPlaces::AllPlaces => true,
             FencedPlaces::ThirdPlaces => first <= 3,
@@ -179,26 +179,59 @@ impl TableSupervisor {
     }
 
     fn feed_table_set_store(&mut self, from_place: u32, nb_tables: u32, parent: Option<usize>, nb_players: u32) {
+        self.feed_group_table_sets(from_place, nb_tables, parent, nb_players, None, 1);
+    }
+
+    /// Arbre des suites ; `group`/`base_place` pour l'entraînement des
+    /// jeunes (une suite principale par groupe, places à la suite).
+    fn feed_group_table_sets(&mut self, from_place: u32, nb_tables: u32, parent: Option<usize>, nb_players: u32, group: Option<u32>, base_place: u32) {
         let idx = self.sets.len();
-        let id = match parent {
-            None => "0".to_string(),
-            Some(p) => format!("{}:{}", self.sets[p].id, self.sets[p].children.len()),
+        let id = match (parent, group) {
+            (None, None) => "0".to_string(),
+            (None, Some(g)) => format!("G{g}"),
+            (Some(p), _) => format!("{}:{}", self.sets[p].id, self.sets[p].children.len()),
         };
-        self.sets.push(TableSet::new(id, from_place, parent));
+        let mut set = TableSet::new(id, from_place, parent);
+        set.group = group;
+        set.base_place = base_place;
+        self.sets.push(set);
         if let Some(p) = parent {
             self.sets[p].children.push(idx);
         }
         let mut place_offset = 1u32;
         for i in 0..nb_tables.saturating_sub(1) {
             place_offset <<= 1;
-            if from_place + place_offset < nb_players {
-                self.feed_table_set_store(from_place + place_offset, i + 1, Some(idx), nb_players);
+            if from_place + place_offset + 1 < nb_players + base_place {
+                self.feed_group_table_sets(from_place + place_offset, i + 1, Some(idx), nb_players, group, base_place);
             }
         }
     }
 
+    /// Groupes de l'entraînement des jeunes parmi les participants, dans
+    /// l'ordre d'entrée (`None` hors entraînement des jeunes).
+    fn youth_groups(&self, players: &PlayerStore) -> Option<Vec<(u32, Vec<PlayerRef>)>> {
+        let group_of = |p: &PlayerRef| players.get(*p).and_then(|pl| pl.attr("youth_group")).map(|v| v.as_uint());
+        if self.base.attendees.is_empty() || !self.base.attendees.iter().all(|p| group_of(p).is_some()) {
+            return None;
+        }
+        let mut groups: Vec<(u32, Vec<PlayerRef>)> = Vec::new();
+        for p in &self.base.attendees {
+            let g = group_of(p).unwrap_or(1);
+            match groups.iter_mut().find(|(n, _)| *n == g) {
+                Some((_, list)) => list.push(*p),
+                None => groups.push((g, vec![*p])),
+            }
+        }
+        groups.sort_by_key(|(g, _)| *g);
+        Some(groups)
+    }
+
     /// `CreateTableSets` : arbre des suites et suite principale garnie.
     fn create_table_sets(&mut self, players: &PlayerStore) {
+        if let Some(groups) = self.youth_groups(players) {
+            self.create_youth_table_sets(players, groups);
+            return;
+        }
         let nb_players = self.base.attendees.len() as u64;
         if nb_players > 0 {
             let mut nb_tables = 0;
@@ -218,6 +251,30 @@ impl TableSupervisor {
                 self.displayed = Some(0);
             }
         }
+        self.set_table_sets_state();
+    }
+
+    /// Entraînement des jeunes : une suite principale par groupe, les places
+    /// des groupes se suivant (groupe 1 : 1 à 8, groupe 2 : 9 à 16…).
+    fn create_youth_table_sets(&mut self, players: &PlayerStore, groups: Vec<(u32, Vec<PlayerRef>)>) {
+        self.sets.clear();
+        let id = AttrId::local("stage_start_rank", self.owner());
+        let mut base = 1u32;
+        for (group, mut members) in groups {
+            let n = members.len() as u32;
+            let nb_tables = (0..32u32).find(|i| (1u64 << i) >= n as u64).unwrap_or(0);
+            if nb_tables == 0 {
+                // Un seul tireur : il est premier de son groupe, sans tableau.
+                base += n;
+                continue;
+            }
+            let root = self.sets.len();
+            self.feed_group_table_sets(base, nb_tables, None, n, Some(group), base);
+            members.sort_by(|a, b| compare_players(players, *a, *b, &id, 0));
+            self.set_set_attendees(root, members.into_iter().map(Some).collect(), None, players);
+            base += n;
+        }
+        self.displayed = if self.sets.is_empty() { None } else { Some(0) };
         self.set_table_sets_state();
     }
 
@@ -555,6 +612,16 @@ impl TableSupervisor {
 
     /// Export HTML de la suite affichée (`DumpToHTML`).
     pub fn dump_to_html(&self, players: &PlayerStore) -> String {
+        // Entraînement des jeunes : le tableau principal de chaque groupe.
+        if self.sets.iter().any(|s| s.group.is_some()) {
+            return self
+                .sets
+                .iter()
+                .filter(|s| s.parent.is_none())
+                .map(|s| format!("<h3>{}</h3>\n{}", s.name().replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;"), s.dump_to_html(players)))
+                .collect::<Vec<_>>()
+                .join("\n");
+        }
         self.displayed.map(|d| self.sets[d].dump_to_html(players)).unwrap_or_default()
     }
 
@@ -577,12 +644,21 @@ impl Stage for TableSupervisor {
         &self.base
     }
 
+    /// `Supervisor::DumpToHTML` : la suite affichée (ou chaque groupe).
+    fn dump_to_html(&self, ctx: &StageContext, html: &mut String) {
+        html.push_str(&TableSupervisor::dump_to_html(self, ctx.players));
+    }
+
     fn base_mut(&mut self) -> &mut StageBase {
         &mut self.base
     }
 
     fn set_previous(&mut self, previous: Option<PreviousStage>) {
         self.previous = previous;
+    }
+
+    fn bout_max_score(&self) -> Option<u32> {
+        Some(self.max_score())
     }
 
     fn set_attendees(&mut self, ctx: &mut StageContext, attendees: Vec<PlayerRef>) {
@@ -655,7 +731,7 @@ impl Stage for TableSupervisor {
     }
 
     fn is_over(&self, _ctx: &StageContext) -> bool {
-        self.sets.iter().filter(|s| s.visible && s.first_place == 1).all(|s| s.is_over)
+        self.sets.iter().filter(|s| s.visible && s.parent.is_none()).all(|s| s.is_over)
     }
 
     fn error(&self, _ctx: &StageContext) -> Option<StageError> {

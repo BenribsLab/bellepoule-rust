@@ -5,7 +5,7 @@ use std::rc::Rc;
 use bp_core::i18n::tr;
 use bp_core::rounds::table::{NodeId, PrintSession, PrintType, SheetCompositor};
 use bp_gtk::{
-    canvas::{Anchor, Bounds, Canvas, Prop},
+    canvas::{Bounds, Canvas, Prop},
     dialogs,
     glade::Glade,
 };
@@ -108,7 +108,7 @@ impl bp_gtk::print::PageSource for TablesDoc {
     }
 }
 
-fn score_sheet(snapshot: &Snapshot, node: NodeId) -> Option<Canvas> {
+fn score_sheet(snapshot: &Snapshot, node: NodeId) -> Option<crate::widgets::score_sheet::SheetInfo> {
     let set = snapshot.set.as_ref()?;
     let sheet = set.score_sheet_with_referees(
         node,
@@ -117,75 +117,20 @@ fn score_sheet(snapshot: &Snapshot, node: NodeId) -> Option<Canvas> {
         snapshot.contest_net_id,
         snapshot.base.net_id,
     )?;
-    let canvas = Canvas::new();
-    let root = canvas.root();
-    let heading = canvas.text(
-        root,
-        &format!("{} — {}", snapshot.base.name, sheet.name),
-        0.0,
-        0.0,
-        680.0,
-        Anchor::NW,
-    );
-    canvas.set(heading, [Prop::Font("Sans Bold 20px".into())]);
-    let details = format!(
-        "{}: {} {}     {}: {}",
-        sheet.referee_label,
-        sheet
-            .referee
-            .as_ref()
-            .map(|r| r.0.as_str())
-            .unwrap_or("________"),
-        sheet.referee.as_ref().map(|r| r.1.as_str()).unwrap_or(""),
-        sheet.piste_label,
-        sheet.piste.as_deref().unwrap_or("________")
-    );
-    canvas.text(root, &details, 0.0, 32.0, 680.0, Anchor::NW);
-    for (i, player) in sheet.fencers.into_iter().enumerate() {
-        let Some(player) = player else { continue };
-        let y = 75.0 + i as f64 * 62.0;
-        let identity = scene::identity(
-            &snapshot.players,
-            player,
-            &snapshot.base.filter,
-            snapshot.base.owner(),
-            false,
-        );
-        let name = canvas.text(root, &identity, 0.0, y, 500.0, Anchor::NW);
-        canvas.set(
-            name,
-            [
-                Prop::Font("Sans Bold 16px".into()),
-                Prop::Ellipsize(gtk::pango::EllipsizeMode::End),
-            ],
-        );
-        canvas.text(root, "____", 515.0, y, -1.0, Anchor::NW);
-        let boxes = sheet
-            .score_boxes
-            .map(|n| {
-                (1..=n)
-                    .map(|n| format!("□{n}"))
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            })
-            .unwrap_or_default();
-        let hits = canvas.text(root, &boxes, 0.0, y + 25.0, 540.0, Anchor::NW);
-        canvas.set(hits, [Prop::Font("Sans 11px".into())]);
-    }
-    let signature = canvas.text(
-        root,
-        &format!("{}: ____________________", sheet.signature_label),
-        0.0,
-        205.0,
-        -1.0,
-        Anchor::NW,
-    );
-    canvas.set(signature, [Prop::Font("Sans 12px".into())]);
-    if let Some(reference) = sheet.flash_ref {
-        let label = canvas.text(root, &reference, 0.0, 230.0, -1.0, Anchor::NW);
-        canvas.set(label, [Prop::Font("Sans 10px".into())]);
-    }
-    Some(canvas)
+    let max_score = set.bout(node).map(|m| m.max_score).unwrap_or(0);
+    Some(crate::widgets::score_sheet::SheetInfo {
+        name: sheet.name,
+        referee: sheet.referee,
+        piste: sheet.piste,
+        fencers: sheet
+            .fencers
+            .iter()
+            .flatten()
+            .map(|p| crate::widgets::score_sheet::fencer_markup(&snapshot.players, *p))
+            .collect(),
+        max_score,
+        flash_ref: sheet.flash_ref,
+    })
 }
 
 pub(super) fn score_sheets(
@@ -267,26 +212,8 @@ impl bp_gtk::print::PageSource for ScoreSheetsDoc {
     fn draw(&mut self, page: usize, cr: &cairo::Context, width: f64, height: f64) {
         let Some(nodes) = self.pages.get(page) else { return };
         let count = if width > height { 2 } else { 4 };
-        let sheet_height = height / count as f64;
-        for (i, node) in nodes.iter().enumerate() {
-            let Some(canvas) = score_sheet(&self.snapshot, *node) else { continue };
-            let bounds = canvas.scene_bounds();
-            let factor = (width / bounds.width().max(1.0)).min((sheet_height - 10.0) / bounds.height().max(1.0));
-            let _ = cr.save();
-            cr.translate(0.0, i as f64 * sheet_height);
-            cr.scale(factor, factor);
-            canvas.render(cr, None, 1.0);
-            let _ = cr.restore();
-            if i + 1 < nodes.len() {
-                cr.set_source_rgb(0.5, 0.5, 0.5);
-                cr.set_line_width(0.5);
-                cr.set_dash(&[3.0, 3.0], 0.0);
-                cr.move_to(0.0, (i + 1) as f64 * sheet_height - 5.0);
-                cr.line_to(width, (i + 1) as f64 * sheet_height - 5.0);
-                let _ = cr.stroke();
-                cr.set_dash(&[], 0.0);
-            }
-        }
+        let sheets: Vec<_> = nodes.iter().filter_map(|n| score_sheet(&self.snapshot, *n)).collect();
+        crate::widgets::score_sheet::draw_page(cr, width, height, &sheets, count);
     }
 }
 

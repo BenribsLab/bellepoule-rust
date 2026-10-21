@@ -87,6 +87,10 @@ impl ClassificationScreen {
     }
 
     fn document(&self) -> Option<ListDocument> {
+        let page = self.page.upgrade()?;
+        if let Some(Some(doc)) = page.with_contest(Self::youth_document) {
+            return Some(doc);
+        }
         self.page
             .upgrade()?
             .with_contest(|c| {
@@ -111,6 +115,92 @@ impl ClassificationScreen {
                 })
             })
             .flatten()
+    }
+
+    /// Entraînement des jeunes : le classement de chaque groupe, groupe par
+    /// groupe, avec les victoires et les points.
+    fn youth_document(c: &mut bp_core::contest::Contest) -> Option<ListDocument> {
+        use crate::widgets::players_list::{Cell, CellKind, ColumnSpec, RowData};
+        use bp_core::attribute::{Look, Value};
+        let results = bp_core::rounds::youth::results(&c.schedule, &c.players)?;
+        let column = |code: &str, title: String| ColumnSpec { code: code.into(), title, look: Look::LongText, kind: CellKind::Text, editable: false };
+        let specs = vec![
+            column("youth_group", tr("Group")),
+            column("rank", tr("Place in the group")),
+            column("name", tr("last name")),
+            column("first_name", tr("first name")),
+            column("club", tr("club")),
+            column("victories_count", tr("Victories")),
+            column("points", tr("Points")),
+        ];
+        // Une ligne de tireur ; `place` : dans le groupe ou au général.
+        let row = |r: &bp_core::rounds::youth::YouthResult, place: Option<u32>| -> Option<RowData> {
+            let p = c.players.get(r.player)?;
+            let text = |code: &str| p.str_attr(code).unwrap_or_default().to_string();
+            let opt = |v: Option<u32>| v.map(|n| n.to_string()).unwrap_or_default();
+            Some(RowData {
+                player: r.player,
+                cells: vec![
+                    Cell::Text(r.group.to_string()),
+                    Cell::Text(opt(place)),
+                    Cell::Text(p.name()),
+                    Cell::Text(text("first_name")),
+                    Cell::Text(text("club")),
+                    Cell::Text(r.victories.to_string()),
+                    Cell::Text(opt(r.points)),
+                ],
+                sort: vec![
+                    Some(Value::UInt(r.group)),
+                    Some(Value::UInt(place.unwrap_or(u32::MAX))),
+                    Some(Value::Str(p.name())),
+                    Some(Value::Str(text("first_name"))),
+                    Some(Value::Str(text("club"))),
+                    Some(Value::UInt(r.victories)),
+                    Some(Value::UInt(r.points.unwrap_or(0))),
+                ],
+                children: Vec::new(),
+                dimmed: false,
+            })
+        };
+        // Ligne de titre d'une section, ses tireurs en sous-lignes.
+        let section = |title: String, children: Vec<RowData>| RowData {
+            player: 0,
+            cells: std::iter::once(Cell::Text(title)).chain((1..specs.len()).map(|_| Cell::Text(String::new()))).collect(),
+            sort: specs.iter().map(|_| None).collect(),
+            children,
+            dimmed: false,
+        };
+        let mut rows = Vec::new();
+        let mut groups: Vec<u32> = results.iter().map(|r| r.group).collect();
+        groups.dedup();
+        for g in groups {
+            let members = results.iter().filter(|r| r.group == g).filter_map(|r| row(r, r.place)).collect();
+            rows.push(section(format!("{} {}", tr("Group"), g), members));
+        }
+        // Tous les groupes mélangés : points, puis victoires ; ex æquo à égalité.
+        let mut all: Vec<&bp_core::rounds::youth::YouthResult> = results.iter().collect();
+        all.sort_by_key(|r| (std::cmp::Reverse(r.points.unwrap_or(0)), std::cmp::Reverse(r.victories), r.place.unwrap_or(u32::MAX)));
+        let mut general = Vec::new();
+        let mut place = 0u32;
+        let mut previous: Option<(u32, u32)> = None;
+        for (i, r) in all.iter().enumerate() {
+            let key = (r.points.unwrap_or(0), r.victories);
+            if previous != Some(key) {
+                place = i as u32 + 1;
+                previous = Some(key);
+            }
+            if let Some(line) = row(r, Some(place)) {
+                general.push(line);
+            }
+        }
+        rows.push(section(tr("General classification (all groups)"), general));
+        Some(ListDocument {
+            title: c.name.clone(),
+            subtitle: tr("Youth training — ranking of each group"),
+            specs,
+            rows,
+            classification_borders: false,
+        })
     }
 
     fn on_filter(&self) {
@@ -273,9 +363,10 @@ impl ClassificationScreen {
                 .ok_or_else(|| tr("Competition not found"))
                 .and_then(|d| d.export_pdf(&path)),
             _ => {
+                let youth = page.with_contest(Self::youth_document).flatten().map(|d| d.to_html());
                 let bytes = page
                     .with_contest(|c| match format {
-                        ExportType::Html => Some(c.dump_to_html().into_bytes()),
+                        ExportType::Html => Some(c.dump_to_html_with(youth).into_bytes()),
                         ExportType::Fff => c.export_final_classification_fff(offset),
                         ExportType::Frd => Some(c.export_askfred().into_bytes()),
                         ExportType::Pdf => unreachable!(),
@@ -311,6 +402,7 @@ impl StageScreen for ClassificationScreen {
         };
         self.list.set_columns(document.specs);
         self.list.set_rows(document.rows);
+        self.list.expand_all();
         self.list.set_locked(true);
     }
 }

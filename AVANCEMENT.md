@@ -1,8 +1,83 @@
-# État d'avancement du portage — 20/10/2026
+# État d'avancement du portage — mise à jour du 21/10/2026
 
 **→ Pour reprendre le travail : lire `REPRISE.md` (point d’arrêt exact et suite).**
 
-**Tout est fusionné dans `master`** (une seule branche) et `cargo check --workspace` passe sans erreur.
+## Synthèse actuelle pour une autre IA
+
+**La section « Transmission prioritaire » de `REPRISE.md` fait foi pour les dernières décisions.**
+Les estimations en pourcentage et étapes plus anciennes ci-dessous sont historiques ; elles ne
+constituent pas une mesure de la validation de la nouvelle interface.
+
+| Chantier | Réalisé | État de validation |
+|---|---|---|
+| Unification | Une fenêtre BellePoule, bibliothèque Marshaller embarquée, échanges locaux en mémoire | Compilée ; essais utilisateur à poursuivre |
+| Organisation facultative | Aucun outil, arbitres seuls, pistes seules ou les deux ; options mémorisées | Quatre modes codés ; validation interactive restante |
+| Ressources | Catalogue persistant, disponibilités, arbitres sans piste et pistes sans arbitre | Persistance et affectations à confirmer en utilisation |
+| Poules multi-pistes | Plusieurs pistes, arbitre par piste, vagues de matchs et indications sur les feuilles | Extension écrite ; scénario complet à valider |
+| Navigation | Accueil au démarrage, Organisation à la demande, fermeture explicite, retour à la compétition | Nouvelle structure codée ; retours utilisateur attendus |
+| Graphisme | Maquette moderne : barre latérale, bandeau illustré, cartes, actions compactes, tableaux harmonisés | CSS accepté par GTK ; rendu final non validé par l'agent |
+| Appel | Recherche multi-mots, filtres de présence, compteur de lignes, tri et équipes conservés | Tests écrits/compilés, non exécutés ; dernières retouches non recompilées |
+
+**Lancement : `lancer.bat`**, puis créer/ouvrir une compétition. L'ancien Marshaller séparé reste
+disponible, mais n'est plus requis. Organisation est accessible depuis la barre latérale ; fermer
+sa vue conserve les données et les affectations. Seules les armes des compétitions ouvertes sont
+affichées ; sans compétition, toutes restent accessibles pour préparer les arbitres.
+
+Fichiers d'entrée pour poursuivre :
+
+- Unification : `bellepoule/src/management.rs`, `network.rs`, `marshaller/src/ui/mod.rs`,
+  `resources.rs`, `assign.rs`, `ui/pool_resources.rs`, `ui/job_referees.rs` et `ui/embedded_layout.rs`
+  (sous `crates/`). Conception : `INTEGRATION.md`.
+- Graphisme : `bellepoule/src/shell.rs`, `visuals.rs`, `app.rs`, `contest_page.rs`,
+  `schedule_view.rs`, `bp-gtk/src/appearance.rs`, `appearance.css`, `glade.rs`,
+  `bellepoule/src/stages/checkin.rs` et `widgets/players_list.rs`. Conception : `DESIGN.md`.
+- Images générées : `resources/visuals/fencing-header.png`, `fencers-sidebar.png` ; icônes SVG
+  dans `resources/visuals/icons`. Prompts et provenance : `resources/visuals/README.md`.
+- Suivi des plantages : `%LOCALAPPDATA%\BellePoule\logs\bellepoule-panic.log`.
+
+**Consigne utilisateur en vigueur : arrêter les vérifications, il les fait lui-même.** Ne pas
+relancer de tests, compilation ou application de sa propre initiative. Attendre ses retours sur
+le rendu et les scénarios fonctionnels. Aucun commit de ces derniers travaux n'a été créé ;
+préserver les modifications existantes du répertoire.
+
+## Journal des changements récents
+
+**Maquette utilisateur intégrée** — nouvelle structure avec barre latérale, accueil, bandeau illustré
+de compétition, cartes de présence et recherche/filtres fonctionnels dans l'Appel. Deux images générées
+et intégrées dans `resources/visuals` ; SVG de navigation cohérents. Menus historiques conservés en haut,
+navigation des phases limitée à celles déjà accessibles. Aucun essai interactif par l'agent.
+**L'utilisateur a demandé l'arrêt des vérifications et prend les tests à sa charge.**
+
+**Refonte graphique autorisée (21/10)** — noms et emplacements généraux des menus conservés,
+thème clair moderne partagé, boutons et onglets compacts, tableaux plus lisibles. Correction
+des expansions GTK2 : commandes de l'Appel et des phases à hauteur naturelle ; listes et canevas
+gardent l'espace. Actions de l'Appel adaptables à la largeur. Couleur de compétition en bordure.
+Conception dans `DESIGN.md`. CSS accepté par GTK ; validation visuelle restant à faire par l'utilisateur.
+
+**Organisation : navigation et place des panneaux** — accueil BellePoule par défaut ; bouton
+Organisation dans l'en-tête et bouton explicite pour fermer la vue sans perdre les affectations.
+Disposition compacte : arbitres à gauche, pistes et matchs superposés à droite, séparateurs
+réglables, commandes sans étirement vertical et listes défilables. Validation interactive restante.
+
+**Organisation : filtrage des armes** — seuls les onglets d'arbitres correspondant aux compétitions
+ouvertes sont affichés ; sans compétition, les quatre armes restent accessibles pour préparer le
+catalogue. Masquage uniquement, sans suppression des arbitres. Compilation vérifiée.
+
+**21/10 — Plantage à la fermeture d'une compétition corrigé** : le journal de 21:21 situe
+la panique dans `App::close_page` (`RefCell already borrowed`). La liste des onglets est désormais
+modifiée dans un seul emprunt, libéré avant le retrait GTK. Compilation vérifiée ; validation
+interactive Organisation → poules et fermeture d'une compétition à faire par l'utilisateur.
+
+**21/10 — Organisation facultative intégrée à BellePoule** : un seul lancement `lancer.bat` ;
+onglet Organisation avec deux options indépendantes, arbitres et pistes. Les quatre usages
+(aucun, arbitres seuls, pistes seules, les deux) sont branchés. Synchronisation locale en mémoire,
+catalogue d'arbitres persistant et affectation d'arbitres sans piste obligatoire. Voir `INTEGRATION.md`.
+Compilé, tests compilés non exécutés ; validation interactive restante. Le Marshaller séparé reste
+disponible pour l'ancien usage, sans être nécessaire au fonctionnement intégré.
+
+**État historique avant les derniers changements** : le portage était indiqué comme fusionné dans
+`master`, avec un `cargo check --workspace` réussi. Cela ne décrit pas les modifications récentes
+de l'unification et du graphisme, encore présentes dans le répertoire de travail.
 Aucun agent n'est actif. On avance **un chantier à la fois**, et les tests sont lancés
 par l'utilisateur à la demande (voir « Tests demandés » en bas).
 
@@ -20,7 +95,7 @@ Légende : ✅ fait · 🟡 écrit, compile, non vérifié · ❌ pas commencé
 | Poules | ✅ logique terminée (hors réseau et écrans) | ~90 % |
 | Compétition, pointage, classement | ✅ logique terminée (hors réseau) | ~90 % |
 | Socle graphique + fenêtre principale | 🟡 fenêtre et tous les types de phases écrits ; validation interactive restante | ~45 % |
-| Marshaller | 🟡 | ~30 % |
+| Marshaller | 🟡 poules et tableaux reliés à BellePoule (salle, frise, lots, arbitres, smartphones) ; à valider | ~85 % |
 | Vague 2 (écrans des phases, impression, liaison réseau) | 🟡 tous les types de phases et leurs impressions compilés, non vérifiés | à réévaluer |
 
 **Global : ~55 %.**
@@ -150,6 +225,34 @@ joueurs et équipes, export HTML, phase de pointage, classement général.
 ---
 
 ## Tests demandés à l'utilisateur
+- Ne lancer que `lancer.bat`. Dans Organisation, essayer aucune option, arbitres seuls, pistes
+  seules puis les deux. Importer/ajouter des arbitres, double-cliquer une poule et utiliser
+  « Affectations… » sans piste ; en mode pistes seules, affecter plusieurs pistes sans arbitre.
+  Vérifier la conservation des données en changeant de mode puis après fermeture/réouverture.
+
+- Dialogue des ressources : vérifier que les arbitres occupés ailleurs à l'horaire de la poule
+  sont masqués, que les arbitres de la poule restent visibles et qu'un arbitre sélectionné sur
+  une piste n'est plus proposé sur une autre piste cochée.
+
+- Glisser-déposer multi-pistes corrigé : reprendre une poule déjà placée dans la liste « Matchs »
+  et la déposer sur une deuxième piste libre. Le dialogue s'ouvre avec les deux pistes cochées ;
+  choisir l'arbitre de la nouvelle piste puis OK. Annuler doit laisser la première affectation intacte.
+
+- Extension multi-pistes : clic droit sur une piste occupée dans Marshaller → « Pistes et arbitres
+  de la poule… ». Choisir plusieurs pistes et un arbitre distinct pour chacune. Réservation commune,
+  contrôle des conflits, vagues de matchs sans double engagement, piste/arbitre indiqués sur chaque
+  match à l'écran et sur la feuille imprimée. XML et réseau étendus ; relecture à vérifier.
+  Tests `pool_resources` des crates `bp-core` et `marshaller` ajoutés et compilés, non exécutés.
+  Pour une poule de trois tireurs, un seul match simultané reste possible.
+
+- Marshaller : clic droit sur une piste → « Modifier le numéro… ». Vérifier sauvegarde/réouverture,
+  refus d'un numéro déjà utilisé et retour du nouveau numéro dans BellePoule pour un match affecté.
+
+- Correction du plantage BellePoule2D du 21/10 à 20:05 : la pile du dump Windows désigne
+  la restauration du focus (`keep_focus_in_app`), pas la connexion réseau. Parcours des fenêtres
+  corrigé ; journal persistant des futures paniques ajouté. À retester en ouvrant/fermant le
+  dialogue et en lançant BellePoule + Marshaller sur le même PC (voir `REPRISE.md`).
+
 *(à remplir au fil de l'eau : quoi lancer, résultat attendu, retour)*
 
 À vérifier avec `lancer.bat` (détails dans `REPRISE.md`) :

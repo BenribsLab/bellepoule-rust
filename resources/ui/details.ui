@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Converti depuis resources/glade/details.glade (GTK2) vers GTK4.
+     Préfixe des actions de menus : details -->
+<interface>
+  <requires lib="gtk" version="4.0" />
+  <object class="GtkWindow" id="window1">
+    <child>
+      <object class="GtkBox" id="root">
+        <property name="orientation">horizontal</property>
+        <child>
+          <object class="GtkTreeView" id="players_list">
+            <property name="enable-tree-lines">True</property>
+            <property name="hexpand">True</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparator" id="vseparator1">
+            <property name="orientation">vertical</property>
+            <property name="height-request">50</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

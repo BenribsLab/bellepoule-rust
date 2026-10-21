@@ -1,0 +1,220 @@
+/* BellePoule : surfaces claires, commandes compactes, priorité aux données. */
+.bp-app {
+  font-family: "Segoe UI", "Noto Sans", sans-serif;
+  font-size: 13px;
+  color: #243247;
+  background-color: #f3f5f9;
+}
+.bp-app popover, .bp-app dialog { background-color: #ffffff; }
+.bp-app menubar {
+  background-color: #ffffff;
+  padding: 4px 8px;
+  border-bottom: 1px solid #dde3ec;
+}
+.bp-app menubar > item { padding: 6px 10px; border-radius: 5px; }
+.bp-app menubar > item:hover { background-color: #edf3ff; }
+.bp-app button {
+  min-height: 24px;
+  min-width: 16px;
+  padding: 5px 10px;
+  border: 1px solid #d8e0eb;
+  border-radius: 6px;
+  color: #243247;
+  background-image: none;
+  background-color: #ffffff;
+  box-shadow: none;
+  text-shadow: none;
+}
+.bp-app button:hover { background-color: #edf3ff; border-color: #aebfda; }
+.bp-app button:active, .bp-app button:checked {
+  background-color: #e5edff;
+  border-color: #2563eb;
+  color: #1649ad;
+}
+.bp-app button:disabled { color: #96a0af; background-color: #f5f7fa; border-color: #e5e9f0; }
+.bp-app button:focus-visible, .bp-app entry:focus-within {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+.bp-app .suggested-action { color: #ffffff; background-color: #2563eb; border-color: #2563eb; }
+.bp-app .suggested-action:hover { background-color: #1d4ed8; }
+.bp-app .bp-command-bar {
+  background-color: #ffffff;
+  padding: 5px 8px;
+  border-bottom: 1px solid #e2e7ef;
+}
+.bp-app .bp-command-bar button { background-color: transparent; border-color: transparent; }
+.bp-app .bp-command-bar button:hover { background-color: #edf3ff; border-color: #d5e0f5; }
+.bp-app .bp-command-bar button:checked { background-color: #e5edff; border-color: #adc5ff; }
+.bp-app .bp-command-bar separator { margin: 4px 8px; background-color: #e2e7ef; }
+.bp-app .bp-attendance { padding: 2px 6px; }
+.bp-app .bp-count-present { color: #087b59; font-weight: bold; background-color: #e8f7ef; border-radius: 5px; padding: 3px 8px; }
+.bp-app .bp-count-absent { color: #b34141; font-weight: bold; background-color: #fceeee; border-radius: 5px; padding: 3px 8px; }
+.bp-app notebook > header { background-color: #eef2f7; border: none; padding: 3px 5px 0; }
+.bp-app notebook > header tabs { border: none; }
+.bp-app notebook > header tab {
+  min-height: 27px;
+  padding: 5px 12px;
+  margin: 0 3px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 6px 6px 0 0;
+  background-color: transparent;
+  color: #5b677a;
+}
+.bp-app notebook > header tab:hover { background-color: #e5ebf4; }
+.bp-app notebook > header tab:checked { background-color: #ffffff; color: #174fbc; border-bottom-color: #2563eb; }
+.bp-app notebook > stack { background-color: #ffffff; border: none; }
+.bp-app treeview.view { background-color: #ffffff; color: #243247; }
+.bp-app treeview.view:selected { background-color: #e7efff; color: #153e84; }
+.bp-app treeview.view header button {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid #dce3ee;
+  background-color: #f6f8fb;
+  color: #56647a;
+  font-weight: 600;
+  padding: 7px 8px;
+  min-height: 22px;
+}
+.bp-app entry, .bp-app spinbutton, .bp-app combobox button {
+  min-height: 28px;
+  border: 1px solid #d4ddeb;
+  border-radius: 5px;
+  background-color: #ffffff;
+  color: #243247;
+  padding: 3px 7px;
+}
+.bp-app checkbutton { min-height: 24px; padding: 2px 4px; }
+.bp-app checkbutton check { min-width: 15px; min-height: 15px; border-radius: 4px; }
+.bp-app separator { background-color: #e2e7ef; min-width: 1px; min-height: 1px; }
+.bp-app paned > separator { background-color: #e2e7ef; min-width: 5px; min-height: 5px; }
+.bp-app paned > separator:hover { background-color: #adbfdf; }
+.bp-app scrolledwindow { border: none; }
+.bp-app scrollbar slider { min-width: 7px; min-height: 7px; border-radius: 8px; background-color: #bac5d5; }
+.bp-app tooltip { background-color: #243247; color: #ffffff; border-radius: 5px; }
+.bp-app .bp-competition-summary { background-color: #ffffff; padding: 3px 8px; border-radius: 5px; }
+
+/* Structure inspirée de la maquette fournie : navigation, bandeau et cartes. */
+.bp-app { color: #183461; background-color: #f1f5fc; }
+.bp-app .bp-brandbar {
+  background-image: linear-gradient(to right, #f4f7ff, #e9eef8);
+  padding: 7px 16px;
+  border-bottom: 1px solid #dce5f4;
+}
+.bp-app .bp-brandbar button { background-color: transparent; border-color: transparent; }
+.bp-app .bp-brandbar button:hover { background-color: #e0eafe; }
+.bp-app .bp-brand-title { color: #102957; font-size: 21px; font-weight: 700; margin-right: 12px; }
+.bp-app .bp-muted { color: #7386a9; font-size: 12px; }
+.bp-app .bp-sidebar {
+  background-image: linear-gradient(to bottom, #f6f9ff, #eaf0f9);
+  border-right: 1px solid #dce6f5;
+  padding: 14px 10px 16px;
+}
+.bp-app .bp-nav-caption { color: #5b77a7; font-size: 10px; font-weight: 600; letter-spacing: 1px; padding: 7px 10px; }
+.bp-app .bp-nav-item {
+  background-color: transparent;
+  border: 1px solid transparent;
+  padding: 8px 10px;
+  border-radius: 8px;
+  min-height: 25px;
+  color: #203c70;
+}
+.bp-app .bp-nav-item:hover { background-color: #e4edff; border-color: #d7e4fb; }
+.bp-app .bp-nav-item.bp-nav-active {
+  background-image: linear-gradient(to right, #dae8ff, #e5edff);
+  border-color: #cdddff;
+  color: #1352e0;
+  font-weight: 600;
+}
+.bp-app .bp-nav-item:disabled { background-color: transparent; border-color: transparent; color: #9aa9c0; }
+.bp-app .bp-sidebar-brand { color: #173460; font-size: 17px; font-weight: 700; padding: 7px 0 3px; }
+.bp-app .bp-competition-page { margin: 12px 16px; }
+.bp-app .bp-organisation-page { margin: 12px 16px; }
+.bp-app .bp-hero {
+  background-color: #ffffff;
+  border: 1px solid #dce5f4;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 3px 12px alpha(#233d72, 0.04);
+}
+.bp-app .bp-emblem { padding: 14px; background-color: #eaf1ff; border-radius: 50px; }
+.bp-app .bp-hero-title { color: #102b65; font-size: 19px; font-weight: 700; }
+.bp-app .bp-hero-subtitle { color: #385d9e; font-size: 15px; }
+.bp-app .bp-phase-pill {
+  background-color: #e5f7ed;
+  border: 1px solid #ceeedd;
+  color: #168456;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.bp-app .bp-competition-page > .bp-command-bar { padding: 2px 4px; border: none; background-color: transparent; }
+.bp-app .bp-competition-page > .bp-command-bar button { min-height: 20px; padding: 3px 8px; }
+.bp-app .bp-checkin-summary.bp-command-bar { padding: 0; background-color: transparent; border: none; }
+.bp-app .bp-attendance-cards { padding: 6px 0; }
+.bp-app .bp-attendance-cards > flowboxchild { padding: 0; border: none; }
+.bp-app .bp-presence-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e8f6;
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px alpha(#2c487e, 0.03);
+}
+.bp-app .bp-count-present, .bp-app .bp-count-absent {
+  background-color: transparent;
+  font-size: 27px;
+  font-weight: 700;
+  padding: 0;
+}
+.bp-app .bp-count-present { color: #0d9a68; }
+.bp-app .bp-count-absent { color: #e8425b; }
+.bp-app .bp-card-caption { font-weight: 600; color: #193968; }
+.bp-app .bp-command-bar .bp-presence-icon, .bp-app .bp-command-bar .bp-absence-icon {
+  min-width: 18px;
+  min-height: 18px;
+  padding: 7px;
+  border-radius: 25px;
+  color: #ffffff;
+}
+.bp-app .bp-command-bar .bp-presence-icon { background-image: linear-gradient(to bottom, #5bc4a0, #21a574); }
+.bp-app .bp-command-bar .bp-absence-icon { background-image: linear-gradient(to bottom, #ff798a, #ee435e); }
+.bp-app .bp-command-bar .bp-segmented button { border-radius: 5px; padding: 5px 7px; font-size: 11px; }
+.bp-app .bp-segmented { padding: 4px; border-radius: 8px; background-color: #edf3ff; }
+.bp-app searchentry { border-radius: 7px; border: 1px solid #dbe4f4; background-color: #f8faff; padding: 6px 9px; min-height: 23px; }
+.bp-app .bp-checkin .toolbar { border: 1px solid #dfe7f6; border-radius: 9px; margin: 2px 0 8px; }
+.bp-app .bp-command-bar button.suggested-action {
+  color: #ffffff;
+  border-color: #1763f1;
+  background-image: linear-gradient(to bottom, #2d7cff, #0860f1);
+  box-shadow: 0 2px 5px alpha(#1763f1, 0.16);
+}
+.bp-app .bp-data-table { border: 1px solid #dde6f5; border-radius: 10px 10px 0 0; }
+.bp-app .bp-table-footer {
+  padding: 10px 14px;
+  color: #58749e;
+  font-size: 12px;
+  background-color: #ffffff;
+  border: 1px solid #dde6f5;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+}
+.bp-app .bp-welcome { padding: 24px; }
+.bp-app .bp-recent-title { color: #5b77a7; font-size: 12px; font-weight: 600; letter-spacing: 1px; }
+.bp-app .bp-recent-card {
+  background-color: #ffffff;
+  border: 1px solid #dce5f4;
+  border-radius: 10px;
+  padding: 10px 12px 10px 8px;
+  box-shadow: 0 2px 8px alpha(#233d72, 0.05);
+}
+.bp-app .bp-recent-card:hover { border-color: #9dbcf5; background-color: #f7faff; }
+.bp-app .bp-recent-stripe { background-color: #3d6fd8; border-radius: 3px; }
+.bp-app .bp-recent-name { color: #102b65; font-weight: 700; }
+.bp-app .bp-recent-details { color: #385d9e; }
+.bp-app .bp-welcome-title { color: #15356c; font-size: 25px; font-weight: 700; }
+.bp-app .bp-welcome .bp-muted { font-size: 14px; }
+.bp-app treeview.view header button { color: #4c699c; background-color: #f5f8ff; font-size: 12px; }
+.bp-app treeview.view { color: #203c70; }
+.bp-app notebook > stack { background-color: #f2f6fd; }

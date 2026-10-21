@@ -19,6 +19,8 @@ pub type RefereeRef = u32;
 pub struct Slot {
     /// Piste (absente pour les créneaux libres d'un arbitre).
     pub piste: Option<PisteKey>,
+    /// Pistes supplémentaires réservées au même horaire pour une poule.
+    pub additional_pistes: Vec<PisteKey>,
     pub start: Time,
     /// Fin : pour un créneau réservé `start + duration` ; pour un créneau libre
     /// la limite imposée par le créneau réservé suivant (ou aucune).
@@ -31,7 +33,11 @@ pub struct Slot {
 
 impl Slot {
     pub fn new(piste: Option<PisteKey>, start: Time, end: Option<Time>, duration: Span) -> Self {
-        Slot { piste, start, end, duration, jobs: Vec::new(), referees: Vec::new() }
+        Slot { piste, additional_pistes: Vec::new(), start, end, duration, jobs: Vec::new(), referees: Vec::new() }
+    }
+
+    pub fn pistes(&self) -> Vec<PisteKey> {
+        self.piste.into_iter().chain(self.additional_pistes.iter().copied()).collect()
     }
 
     /// `TimeIsInside`.
