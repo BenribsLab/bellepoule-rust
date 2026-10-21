@@ -4,6 +4,9 @@
 //! la fenêtre principale, puis quitte au bout d'une seconde (vérification
 //! automatique).
 
+// Pas de console en version publiée (comme le C++ sous Windows).
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 #![allow(deprecated)]
 
 mod app;
