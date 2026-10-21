@@ -77,7 +77,7 @@ propriétés, calendrier, enregistrement automatique 5 s, fermeture), calendrier
 suivant, barrage, erreurs). Lancement vérifié par capture d'écran.
 Écran d'appel (liste des tireurs avec icônes et cases de présence, tri, ajout/modification par le formulaire,
 suppression, import FFF/CSV, import de classement, colonnes à afficher, présents/absents, équipes) ✅.
-**Reste** : menu des langues, validation des phases (étape 6), impression de l'appel.
+**Fait** : menu des langues, impression de l'appel, impression de la formule. **Reste** : validation interactive des phases (étape 6).
 
 ### Étape 6 — Écrans des phases (vague 2) ← EN COURS
 🟡 Composition des poules branchée : formules, séparation, déplacements, filtres, liste,

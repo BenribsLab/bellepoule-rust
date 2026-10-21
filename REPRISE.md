@@ -34,8 +34,11 @@ Fenêtre principale, menus, onglets, nouvelle compétition, propriétés, ouvert
 Tous les types de phases ont maintenant leur écran : appel, composition/supervision des poules,
 tableaux, barrage, scission et classement général. Les derniers ajouts compilent.
 **Aucune validation interactive de ces nouveaux écrans n'a encore été faite.**
-Le prochain chantier de code est le menu des langues puis l'impression de l'appel ; arbitres/planning
-et intégration réseau restent à terminer. Ne pas confondre compilation et fidélité vérifiée.
+Menu des langues, impression de l'appel et impression de la formule (bouton « Print » du calendrier
+des phases) sont faits (compilés, non vérifiés). Les crochets de débogage ont été retirés.
+Le prochain chantier est la liaison réseau du superviseur (menu Publication, `ScoreCollector`,
+aiguillage des messages) puis le Marshaller. NB : en v5.7 la liste des arbitres n'a pas d'écran dans
+le superviseur (elle est alimentée par le réseau) ; l'interface des arbitres est celle du Marshaller. Ne pas confondre compilation et fidélité vérifiée.
 
 ### Composition des poules
 - `stages/allocator.rs` : branché dans `stages/mod.rs`, rafraîchissement via `Weak<Self>` ; formules,
@@ -140,10 +143,10 @@ stabilité du classement après recalcul avec export d'un éliminé). Compilés,
    aiguillage réseau encore à faire.
 2. Vérifier barrage, scission et classement général selon les scénarios ci-dessous.
    Tous les types de phases sont branchés ; leur fidélité visuelle reste à valider.
-3. Menu des langues, impression de l'appel, arbitres/planning, publication/réseau.
+3. Publication/réseau (menus désactivés), `ScoreCollector`, `Contest::OnMessage/ManageReferee`.
    AskFred est branché et son magasin d'arbitres corrigé ; contrôler les exports réels.
 4. Marshaller (interface/logique ~30 %), intégration LivePoule, routage des messages.
-5. Retirer `BP_DEBUG_SHOW_FORM`, `BP_DEBUG_TOGGLE` et `PlayersListView::debug_toggle`.
+5. (fait) crochets de débogage retirés.
 6. Tenir `AVANCEMENT.md` à jour ; ne pas annoncer un clone terminé sans validation des fonctions
    restantes et comparaison à la référence.
 
