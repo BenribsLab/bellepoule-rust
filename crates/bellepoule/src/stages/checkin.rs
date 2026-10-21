@@ -21,6 +21,7 @@ use gtk::prelude::*;
 use super::StageScreen;
 use crate::contest_page::ContestPage;
 use crate::widgets::filter_dialog;
+use crate::widgets::list_document::{self, ListDocument};
 use crate::widgets::form::{FormEvent, PlayerForm};
 use crate::widgets::players_list::{Cell as ListCell, ColumnSpec, PlayersListView, RowData};
 use crate::widgets::render;
@@ -78,18 +79,6 @@ impl CheckinScreen {
         });
         screen.connect();
         screen.refresh();
-        // Aide à la vérification visuelle : ouvre le formulaire dès l'affichage.
-        if std::env::var_os("BP_DEBUG_SHOW_FORM").is_some() {
-            screen.on_add();
-        }
-        if std::env::var_os("BP_DEBUG_TOGGLE").is_some() {
-            let s2 = screen.clone();
-            gtk::glib::timeout_add_local_once(std::time::Duration::from_millis(800), move || {
-                s2.list.debug_toggle(0);
-                s2.refresh();
-                eprintln!("DBG présents={}", s2.glade.get::<gtk::Label>("attending_label").text());
-            });
-        }
         screen
     }
 
@@ -453,12 +442,26 @@ impl CheckinScreen {
         self.refresh();
     }
 
+    /// `Checkin::OnPrintClicked` : liste des tireurs (ou des équipes) avec leur présence.
     fn on_print(self: &Rc<Self>) {
-        dialogs::info(
-            self.page().and_then(|p| p.window()).as_ref(),
-            &tr("Print"),
-            Some(&tr("Printing is not available yet in this version.")),
-        );
+        let Some(page) = self.page() else { return };
+        let document = page
+            .with_contest(|c| {
+                let team_event = c.settings.team_event;
+                let name = c.name.clone();
+                let checkin = c.schedule.checkin()?;
+                let owner: Owner = checkin.base().owner();
+                let specs = render::column_specs(checkin.filter.layout(), false);
+                let refs = if team_event { checkin.teams(&c.players) } else { checkin.fencers(&c.players) };
+                let rows = list_document::rows_for(&c.players, &refs, &specs, owner);
+                Some(ListDocument { title: name, subtitle: tr("Check-in"), specs, rows, classification_borders: false })
+            })
+            .flatten();
+        let Some(document) = document else { return };
+        let window = page.window();
+        if let Err(e) = document.print(window.as_ref()) {
+            dialogs::error(window.as_ref(), &e.to_string());
+        }
     }
 
     /// `OnConfigChanged` : taille minimale des équipes et classement par défaut.

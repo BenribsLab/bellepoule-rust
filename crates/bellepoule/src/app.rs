@@ -124,6 +124,15 @@ impl App {
         on!("on_about_menuitem_activate", on_about);
         on!("on_user_manual_activate", on_user_manual);
 
+        {
+            let w = self.weak();
+            let current = language::current(&self.tournament.borrow().config);
+            language::populate_menu(&self.glade, &current, move |code| {
+                if let Some(a) = w.upgrade() {
+                    language::remember(&mut a.tournament.borrow_mut().config, code);
+                }
+            });
+        }
         let open_web = |url: String| move |_: &Signal| dialogs::show_uri(&url);
         self.glade.connect_simple("on_translate_menuitem_activate", open_web(format!("{WEB_SITE}en/translate")));
         let download = if language::current(&self.tournament.borrow().config) == "fr" {

@@ -66,3 +66,32 @@ pub fn activate(code: &str) {
 pub fn remember(config: &mut UserConfig, code: &str) {
     config.set_string("Tournament", "interface_language", code);
 }
+
+/// Remplit le menu des langues (`Language::Populate`) : une entrée à choix
+/// exclusif par langue, la langue courante en titre du menu. `on_choose`
+/// mémorise le choix ; il ne prend effet qu'au redémarrage.
+pub fn populate_menu(glade: &bp_gtk::glade::Glade, current: &str, on_choose: impl Fn(&str) + 'static) {
+    use gtk4::{gio, glib, prelude::*};
+
+    let Some((parent, pos)) = glade.find_menu_item("locale_menuitem") else { return };
+    let Some(submenu) = parent.item_link(pos, "submenu").and_then(|m| m.downcast::<gio::Menu>().ok()) else { return };
+
+    let section = gio::Menu::new();
+    for language in available() {
+        let item = gio::MenuItem::new(Some(&language.name), None);
+        item.set_action_and_target_value(Some("tournament.locale"), Some(&language.code.to_variant()));
+        section.append_item(&item);
+    }
+    submenu.insert_section(0, None, &section);
+
+    let action = gio::SimpleAction::new_stateful("locale", Some(glib::VariantTy::STRING), &current.to_variant());
+    action.connect_activate(move |action, parameter| {
+        if let Some(code) = parameter.and_then(|p| p.get::<String>()) {
+            action.set_state(&code.to_variant());
+            on_choose(&code);
+        }
+    });
+    glade.actions().add_action(&action);
+
+    glade.set_menu_item_label("locale_menuitem", current);
+}

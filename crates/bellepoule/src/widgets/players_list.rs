@@ -184,15 +184,6 @@ impl PlayersListView {
         });
     }
 
-    /// Simule un clic sur la case de la ligne `row` (mise au point).
-    pub fn debug_toggle(&self, row: u32) {
-        let renderer = self.inner.toggles.borrow().first().cloned();
-        eprintln!("DBG toggle: {} case(s), editable={:?}", self.inner.toggles.borrow().len(), renderer.as_ref().map(|r| r.is_activatable()));
-        if let Some(r) = renderer {
-            r.emit_by_name::<()>("toggled", &[&row.to_string()]);
-        }
-    }
-
     pub fn expand_all(&self) {
         self.inner.tree.expand_all();
     }
