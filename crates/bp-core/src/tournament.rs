@@ -109,6 +109,19 @@ impl Tournament {
         Ok(self.manage(target))
     }
 
+    /// Entraînement des jeunes : crée une compétition par groupe.
+    pub fn create_youth_groups(&mut self, source: ContestId) -> Result<Vec<ContestId>> {
+        let at = self.contests.iter().position(|(id, _)| *id == source)
+            .ok_or_else(|| Error::Format("compétition source introuvable".into()))?;
+        let source = &self.contests[at].1;
+        let index = source.schedule.current_index();
+        if source.schedule.current().is_none_or(|s| s.base().locked) {
+            return Err(Error::Format("l'entraînement des jeunes n'est pas modifiable".into()));
+        }
+        let groups = source.duplicate_youth_groups(index, Some(&mut self.config))?;
+        Ok(groups.into_iter().map(|c| self.manage(c)).collect())
+    }
+
     /// `OnContestDeleted`.
     pub fn close(&mut self, id: ContestId) -> Option<Contest> {
         let i = self.contests.iter().position(|(c, _)| *c == id)?;

@@ -6,6 +6,7 @@ pub mod pool;
 pub mod table;
 pub mod barrage;
 pub mod splitting;
+pub mod youth;
 
 use crate::stage::{Stage, StageKind};
 
@@ -18,5 +19,6 @@ pub fn create_stage(kind: StageKind, id: u32) -> Box<dyn Stage> {
         StageKind::Barrage => barrage::new_stage(kind, id),
         StageKind::Splitting => splitting::new_stage(kind, id),
         StageKind::GeneralClassification => classification::new_stage(kind, id),
+        StageKind::YouthTraining => youth::new_stage(kind, id),
     }
 }

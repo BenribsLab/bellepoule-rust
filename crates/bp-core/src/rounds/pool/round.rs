@@ -135,6 +135,13 @@ pub struct PoolRound {
     pub(crate) quota_exceedance: u32,
     /// Les références ont été renumérotées : la composition est à re-vérifier.
     pub(crate) distribution_dirty: bool,
+    /// Sortie croisée (entraînement des jeunes) : qualifiés rangés par place
+    /// dans la poule puis par numéro de poule, pour que le tableau oppose le
+    /// 1er de la poule 1 au dernier de la poule 2, etc.
+    pub cross_output: bool,
+    /// Nombre de poules imposé (entraînement des jeunes) au lieu de la
+    /// meilleure formule.
+    pub forced_nb_pools: Option<u32>,
 }
 
 /// Attributs exclus des listes d'affichage (`CreateExcludingList`).
@@ -283,6 +290,8 @@ impl PoolRound {
             output: None,
             quota_exceedance: 0,
             distribution_dirty: false,
+            cross_output: false,
+            forced_nb_pools: None,
         }
     }
 
@@ -591,7 +600,8 @@ impl PoolRound {
     pub fn garnish(&mut self, players: &mut PlayerStore) {
         if self.pools.is_empty() {
             self.setup(players);
-            if let Some(best) = self.best_config {
+            let forced = self.forced_nb_pools.and_then(|n| self.configs.iter().position(|c| c.nb_pool == n));
+            if let Some(best) = forced.or(self.best_config) {
                 self.selected_config = Some(best);
                 self.create_pools(players);
             }
@@ -1023,6 +1033,7 @@ impl PoolRound {
         let ranks: HashMap<PlayerRef, u32> = result.iter().map(|p| (*p, get_uint(players, *p, "rank", so).unwrap_or(0))).collect();
         let view = players.clone();
         let (output, exceedance) = self.output_short_list(&mut Some(players), &view, &result, &ranks);
+        let output = self.cross_order(output);
         self.result = Some(result);
         self.output = Some(output);
         self.quota_exceedance = exceedance;
@@ -1049,7 +1060,26 @@ impl PoolRound {
         let (_, combined) = self.compute_classification(players);
         let ranks: HashMap<PlayerRef, u32> = combined.iter().copied().collect();
         let result: Vec<PlayerRef> = combined.iter().map(|(p, _)| *p).collect();
-        self.output_short_list(&mut None, players, &result, &ranks).0
+        self.cross_order(self.output_short_list(&mut None, players, &result, &ranks).0)
+    }
+
+    /// Sortie croisée : par place dans la poule, puis par numéro de poule
+    /// (l'ordre du classement départage les ex æquo).
+    fn cross_order(&self, list: Vec<PlayerRef>) -> Vec<PlayerRef> {
+        if !self.cross_output {
+            return list;
+        }
+        let mut keyed: Vec<(u32, usize, usize, PlayerRef)> = list
+            .iter()
+            .enumerate()
+            .map(|(i, p)| {
+                let pool = self.pool_of(*p).unwrap_or(usize::MAX);
+                let place = self.pools.get(pool).map(|pl| pl.result(*p).rank).filter(|r| *r > 0).unwrap_or(u32::MAX);
+                (place, pool, i, *p)
+            })
+            .collect();
+        keyed.sort();
+        keyed.into_iter().map(|(_, _, _, p)| p).collect()
     }
 
     /// `GiveEliminatedAFinalRank` : place finale des éliminés.
@@ -1120,6 +1150,12 @@ impl PoolRound {
         w.attr("AffichageClassement", &filter_image(&self.classification_filter));
         w.attr("AffichageListe", &filter_image(&self.list_filter));
         w.attr_fmt("RepartitionEquilibre", self.seeding_balanced as u32);
+        if self.cross_output {
+            w.attr("SortieCroisee", "1");
+        }
+        if let Some(n) = self.forced_nb_pools {
+            w.attr_fmt("NbPoulesImpose", n);
+        }
         if let Some(s) = &self.swapping {
             w.attr("Decalage", s);
         }
@@ -1191,6 +1227,8 @@ impl PoolRound {
         if let Some(v) = node.attribute("RepartitionEquilibre") {
             self.seeding_balanced = attribute::parse_leading_int(v) == 1;
         }
+        self.cross_output = node.attribute("SortieCroisee") == Some("1");
+        self.forced_nb_pools = node.attribute("NbPoulesImpose").map(|v| attribute::parse_leading_int(v).max(1) as u32);
         self.swapping = node.attribute("Decalage").map(str::to_string);
         self.parse_swapping();
     }

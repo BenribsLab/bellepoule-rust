@@ -663,6 +663,10 @@ impl Contest {
     /// `Duplicate` : nouvelle compétition de mêmes propriétés, sans tireurs
     /// ni tour de poules, pour y reporter les tableaux d'une autre catégorie.
     pub fn duplicate(&self, label: Option<&str>, config: Option<&mut UserConfig>) -> Contest {
+        self.duplicate_with(label, config, true)
+    }
+
+    fn duplicate_with(&self, label: Option<&str>, config: Option<&mut UserConfig>, without_pools: bool) -> Contest {
         let mut c = Contest::new(config, true);
         c.derived = true;
         if let Some(l) = label {
@@ -689,8 +693,59 @@ impl Contest {
         c.start_time = self.start_time;
         c.sync_settings();
         c.referees.set_weapon(c.weapon);
-        c.create_default_schedule(true);
+        c.create_default_schedule(without_pools);
         c
+    }
+
+    /// Entraînement des jeunes : une compétition par groupe, avec ses tireurs
+    /// (classement d'entrée = place dans le groupe, tous présents), des poules
+    /// au nombre imposé, une sortie croisée vers un tableau où toutes les
+    /// places sont tirées.
+    pub fn duplicate_youth_groups(&self, index: usize, mut config: Option<&mut UserConfig>) -> Result<Vec<Contest>> {
+        use crate::player::AttrId;
+        use crate::rounds::youth::{PoolMode, YouthTraining};
+        let youth = self
+            .schedule
+            .stage(index)
+            .and_then(|s| s.as_any().downcast_ref::<YouthTraining>())
+            .ok_or_else(|| Error::Format("la phase choisie n'est pas un entraînement des jeunes".into()))?;
+        let settings = youth.settings;
+        let groups = youth.groups();
+        if groups.is_empty() {
+            return Err(Error::Format("aucun tireur à répartir".into()));
+        }
+        let mut contests = Vec::new();
+        for (g, group) in groups.iter().enumerate() {
+            let label = format!("{} {}", crate::i18n::tr("Group"), g + 1);
+            let mut target = self.duplicate_with(Some(&label), config.as_deref_mut(), false);
+            for (rank, reference) in group.players.iter().enumerate() {
+                let Some(player) = self.players.get(*reference) else { continue };
+                let mut copy = split_player(player);
+                copy.set_uint(&AttrId::global("ranking"), rank as u32 + 1);
+                copy.set(&AttrId::global("attending"), crate::attribute::Value::Bool(true));
+                copy.set_str(&AttrId::global("global_status"), "Q");
+                target.add_fencer(copy).ok_or_else(|| Error::Format("impossible d'ajouter un tireur au groupe".into()))?;
+            }
+            target.with_schedule(|schedule, ctx| {
+                if let Some(checkin) = schedule.checkin_mut() {
+                    checkin.on_list_changed(ctx);
+                }
+                for i in 0..schedule.len() {
+                    let Some(stage) = schedule.stage_mut(i) else { continue };
+                    if let Some(pools) = stage.as_any().downcast_ref::<crate::rounds::pool::PoolSupervisorStage>() {
+                        let mut round = pools.round();
+                        round.forced_nb_pools = Some(group.pool_sizes.len() as u32);
+                        round.cross_output = true;
+                        round.set_seeding_balanced(ctx.players, settings.pool_mode == PoolMode::Snake);
+                    } else if let Some(table) = stage.as_any_mut().downcast_mut::<crate::rounds::table::supervisor::TableSupervisor>() {
+                        table.fenced_places = crate::rounds::table::supervisor::FencedPlaces::AllPlaces.value();
+                    }
+                }
+            });
+            target.dirty = true;
+            contests.push(target);
+        }
+        Ok(contests)
     }
 
     /// `Splitting::OnLocked` : copie des seuls participants cochés, avec les
