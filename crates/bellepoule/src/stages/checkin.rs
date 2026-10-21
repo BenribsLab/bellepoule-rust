@@ -220,7 +220,7 @@ impl CheckinScreen {
         self.glade.get::<gtk::CheckButton>("manual_radiobutton").set_active(s.manual_classification);
         self.glade.get::<gtk::CheckButton>("derived_radiobutton").set_active(!s.manual_classification);
         let worst: gtk::Entry = self.glade.get("worst_entry");
-        if worst.text().as_str() != s.default_classification.to_string() && !worst.has_focus() {
+        if worst.text().as_str() != s.default_classification.to_string() && !crate::widgets::entry_has_focus(&worst) {
             worst.set_text(&s.default_classification.to_string());
         }
         for id in [

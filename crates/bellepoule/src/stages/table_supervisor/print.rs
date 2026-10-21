@@ -1,6 +1,5 @@
 //! Pagination du modèle, aperçu et impressions natives des tableaux.
 
-use std::cell::RefCell;
 use std::rc::Rc;
 
 use bp_core::i18n::tr;
@@ -110,77 +109,30 @@ fn draw_page(
     let _ = cr.restore();
 }
 
-pub(super) fn tables(parent: Option<&gtk::Window>, snapshot: &Snapshot) -> Result<(), glib::Error> {
-    let chooser = Glade::new("table.ui").expect("table.ui");
-    let dialog: gtk::MessageDialog = chooser.get("preview_dialog");
-    dialog.set_transient_for(parent);
-    let area = gtk::DrawingArea::new();
-    area.set_content_width(300);
-    area.set_content_height(420);
-    chooser
-        .get::<gtk::ScrolledWindow>("preview_scrolledwindow")
-        .set_child(Some(&area));
-    let four: gtk::CheckButton = chooser.get("4_radiobutton");
-    let eight: gtk::CheckButton = chooser.get("8_radiobutton");
-    let sixteen: gtk::CheckButton = chooser.get("16_radiobutton");
-    let rows = Rc::new(std::cell::Cell::new(32_u32));
-    for (button, value) in [(&four, 8), (&eight, 16), (&sixteen, 32)] {
-        let rows = rows.clone();
-        let area = area.clone();
-        button.connect_toggled(move |b| {
-            if b.is_active() {
-                rows.set(value);
-                area.queue_draw();
-            }
-        });
+/// Les tableaux affichés, paginés.
+pub(super) struct TablesDoc {
+    snapshot: Snapshot,
+    rows: u32,
+    pages: Option<Pages>,
+}
+
+impl TablesDoc {
+    pub(super) fn new(snapshot: Snapshot, rows: u32) -> Self {
+        TablesDoc { snapshot, rows, pages: None }
     }
-    sixteen.set_active(true);
-    let source = snapshot.clone();
-    let choice = rows.clone();
-    area.set_draw_func(move |_, cr, w, h| {
-        cr.set_source_rgb(1.0, 1.0, 1.0);
-        let _ = cr.paint();
-        if let Some(pages) = prepare(&source, choice.get(), 550.0, 780.0) {
-            let factor = (w as f64 / 550.0).min(h as f64 / 780.0);
-            let _ = cr.save();
-            cr.scale(factor, factor);
-            draw_page(&pages, &source, cr, 0, 550.0, 780.0);
-            let _ = cr.restore();
+}
+
+impl bp_gtk::print::PageSource for TablesDoc {
+    fn begin(&mut self, width: f64, height: f64) -> usize {
+        self.pages = prepare(&self.snapshot, self.rows, width, height);
+        self.pages.as_ref().map(|p| p.session.nb_pages()).unwrap_or(1).max(1)
+    }
+
+    fn draw(&mut self, page: usize, cr: &cairo::Context, width: f64, height: f64) {
+        if let Some(pages) = self.pages.as_ref() {
+            draw_page(pages, &self.snapshot, cr, page, width, height);
         }
-    });
-    let accepted = dialogs::run_dialog(&dialog) == gtk::ResponseType::Other(1);
-    dialog.destroy();
-    if !accepted {
-        return Ok(());
     }
-    let pages = Rc::new(RefCell::new(None::<Pages>));
-    let operation = gtk::PrintOperation::new();
-    operation.set_unit(gtk::Unit::Points);
-    operation.set_job_name(&format!("{} — {}", snapshot.title, tr("Table")));
-    {
-        let pages = pages.clone();
-        let snapshot = snapshot.clone();
-        operation.connect_begin_print(move |operation, ctx| {
-            let p = prepare(&snapshot, rows.get(), ctx.width(), ctx.height());
-            operation.set_n_pages(p.as_ref().map(|p| p.session.nb_pages()).unwrap_or(1) as i32);
-            *pages.borrow_mut() = p;
-        });
-    }
-    let snapshot = snapshot.clone();
-    operation.connect_draw_page(move |_, ctx, page| {
-        if let Some(pages) = pages.borrow().as_ref() {
-            draw_page(
-                pages,
-                &snapshot,
-                &ctx.cairo_context(),
-                page as usize,
-                ctx.width(),
-                ctx.height(),
-            );
-        }
-    });
-    operation.run(gtk::PrintOperationAction::PrintDialog, parent)?;
-    Ok(())
 }
 
 fn score_sheet(snapshot: &Snapshot, node: NodeId) -> Option<Canvas> {
@@ -294,76 +246,72 @@ pub(super) fn score_sheets(
     if nodes.is_empty() {
         return Ok(Vec::new());
     }
-    let mut compositor = SheetCompositor::new();
-    for node in &nodes {
-        compositor.add_match(set, *node);
+    let doc_nodes = nodes.clone();
+    let doc_snapshot = snapshot.clone();
+    let job = format!("{} — {}", snapshot.title, tr("Score sheets"));
+    let printed = bp_gtk::print::run_document(parent, &job, move || {
+        Box::new(ScoreSheetsDoc { snapshot: doc_snapshot.clone(), nodes: doc_nodes.clone(), pages: Vec::new() })
+    })?;
+    Ok(if printed { nodes } else { Vec::new() })
+}
+
+/// Feuilles de match (4 par page en portrait, 2 en paysage).
+pub(super) struct ScoreSheetsDoc {
+    pub(super) snapshot: Snapshot,
+    pub(super) nodes: Vec<NodeId>,
+    pages: Vec<Vec<NodeId>>,
+}
+
+impl ScoreSheetsDoc {
+    pub(super) fn new(snapshot: Snapshot, nodes: Vec<NodeId>) -> Self {
+        ScoreSheetsDoc { snapshot, nodes, pages: Vec::new() }
     }
-    compositor.compose(false);
-    let pages = Rc::new(RefCell::new(Vec::<Vec<NodeId>>::new()));
-    let operation = gtk::PrintOperation::new();
-    operation.set_job_name(&format!("{} — {}", snapshot.title, tr("Score sheets")));
-    operation.set_unit(gtk::Unit::Points);
-    {
-        let pages = pages.clone();
-        operation.connect_begin_print(move |operation, ctx| {
-            let per_page = if ctx.width() > ctx.height() { 2 } else { 4 };
-            let mut pages = pages.borrow_mut();
-            pages.clear();
-            // Le compositeur historique groupe quatre feuilles. En paysage,
-            // scinder chaque groupe évite de perdre les troisième et quatrième.
-            for page in compositor.pages() {
-                let matches: Vec<_> = page.matches().collect();
-                pages.extend(matches.chunks(per_page).map(|chunk| chunk.to_vec()));
-            }
-            operation.set_n_pages(pages.len().max(1) as i32);
-        });
+}
+
+impl bp_gtk::print::PageSource for ScoreSheetsDoc {
+    fn begin(&mut self, width: f64, height: f64) -> usize {
+        self.pages.clear();
+        let Some(set) = self.snapshot.set.as_ref() else { return 1 };
+        let mut compositor = SheetCompositor::new();
+        for node in &self.nodes {
+            compositor.add_match(set, *node);
+        }
+        compositor.compose(false);
+        let per_page = if width > height { 2 } else { 4 };
+        // Le compositeur historique groupe quatre feuilles. En paysage,
+        // scinder chaque groupe évite de perdre les troisième et quatrième.
+        for page in compositor.pages() {
+            let matches: Vec<_> = page.matches().collect();
+            self.pages.extend(matches.chunks(per_page).map(|chunk| chunk.to_vec()));
+        }
+        self.pages.len().max(1)
     }
-    let snapshot = snapshot.clone();
-    operation.connect_draw_page(move |_, ctx, page| {
-        let cr = ctx.cairo_context();
-        let pages = pages.borrow();
-        let Some(nodes) = pages.get(page as usize) else {
-            return;
-        };
-        heading(
-            &cr,
-            &snapshot.title,
-            page as usize,
-            pages.len(),
-            ctx.width(),
-            ctx.height(),
-        );
-        let count = if ctx.width() > ctx.height() { 2 } else { 4 };
-        let height = (ctx.height() - 55.0) / count as f64;
+
+    fn draw(&mut self, page: usize, cr: &cairo::Context, width: f64, height: f64) {
+        let Some(nodes) = self.pages.get(page) else { return };
+        heading(cr, &self.snapshot.title, page, self.pages.len(), width, height);
+        let count = if width > height { 2 } else { 4 };
+        let sheet_height = (height - 55.0) / count as f64;
         for (i, node) in nodes.iter().enumerate() {
-            let Some(canvas) = score_sheet(&snapshot, *node) else {
-                continue;
-            };
+            let Some(canvas) = score_sheet(&self.snapshot, *node) else { continue };
             let bounds = canvas.scene_bounds();
-            let factor = (ctx.width() / bounds.width().max(1.0))
-                .min((height - 10.0) / bounds.height().max(1.0));
+            let factor = (width / bounds.width().max(1.0)).min((sheet_height - 10.0) / bounds.height().max(1.0));
             let _ = cr.save();
-            cr.translate(0.0, 35.0 + i as f64 * height);
+            cr.translate(0.0, 35.0 + i as f64 * sheet_height);
             cr.scale(factor, factor);
-            canvas.render(&cr, None, 1.0);
+            canvas.render(cr, None, 1.0);
             let _ = cr.restore();
             if i + 1 < nodes.len() {
                 cr.set_source_rgb(0.5, 0.5, 0.5);
                 cr.set_line_width(0.5);
                 cr.set_dash(&[3.0, 3.0], 0.0);
-                cr.move_to(0.0, 35.0 + (i + 1) as f64 * height - 5.0);
-                cr.line_to(ctx.width(), 35.0 + (i + 1) as f64 * height - 5.0);
+                cr.move_to(0.0, 35.0 + (i + 1) as f64 * sheet_height - 5.0);
+                cr.line_to(width, 35.0 + (i + 1) as f64 * sheet_height - 5.0);
                 let _ = cr.stroke();
                 cr.set_dash(&[], 0.0);
             }
         }
-    });
-    let result = operation.run(gtk::PrintOperationAction::PrintDialog, parent)?;
-    Ok(if result == gtk::PrintOperationResult::Apply {
-        nodes
-    } else {
-        Vec::new()
-    })
+    }
 }
 
 pub(super) fn classification(
@@ -411,4 +359,112 @@ pub(super) fn classification(
         1,
         1,
     )
+}
+
+/// Bouton « Imprimer » : au choix le tableau, les feuilles de match, ou les
+/// deux. Renvoie les matchs dont la feuille a été imprimée.
+pub(super) fn choose_and_print(
+    parent: Option<&gtk::Window>,
+    snapshot: &Snapshot,
+) -> Result<Vec<NodeId>, glib::Error> {
+    let Some(set) = snapshot.set.as_ref() else {
+        return Ok(Vec::new());
+    };
+    let dialog = gtk::Dialog::new();
+    dialog.set_title(Some(&tr("Print")));
+    dialog.set_transient_for(parent);
+    dialog.set_resizable(false);
+    let content = dialog.content_area();
+    content.set_spacing(6);
+    content.set_margin_top(12);
+    content.set_margin_bottom(12);
+    content.set_margin_start(12);
+    content.set_margin_end(12);
+
+    let table_check = gtk::CheckButton::with_label(&tr("The table"));
+    table_check.set_active(true);
+    content.append(&table_check);
+    let table_options = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    table_options.set_margin_start(24);
+    table_options.append(&gtk::Label::new(Some(&tr("Matches per page"))));
+    let rows = Rc::new(std::cell::Cell::new(32_u32));
+    let mut group: Option<gtk::CheckButton> = None;
+    for (label, value) in [("4", 8_u32), ("8", 16), ("16", 32)] {
+        let radio = gtk::CheckButton::with_label(label);
+        if let Some(first) = group.as_ref() {
+            radio.set_group(Some(first));
+        } else {
+            group = Some(radio.clone());
+        }
+        radio.set_active(value == 32);
+        let rows = rows.clone();
+        radio.connect_toggled(move |b| {
+            if b.is_active() {
+                rows.set(value);
+            }
+        });
+        table_options.append(&radio);
+    }
+    content.append(&table_options);
+
+    let sheets_check = gtk::CheckButton::with_label(&tr("The score sheets"));
+    content.append(&sheets_check);
+    let sheet_options = gtk::Box::new(gtk::Orientation::Vertical, 2);
+    sheet_options.set_margin_start(24);
+    let all_radio = gtk::CheckButton::with_label(&tr("All the score sheets"));
+    let pending_radio = gtk::CheckButton::with_label(&tr("The pending score sheets"));
+    pending_radio.set_group(Some(&all_radio));
+    pending_radio.set_active(true);
+    sheet_options.append(&all_radio);
+    sheet_options.append(&pending_radio);
+    sheet_options.set_sensitive(false);
+    content.append(&sheet_options);
+    {
+        let table_options = table_options.clone();
+        table_check.connect_toggled(move |b| table_options.set_sensitive(b.is_active()));
+        let sheet_options = sheet_options.clone();
+        sheets_check.connect_toggled(move |b| sheet_options.set_sensitive(b.is_active()));
+    }
+    dialog.add_button(&tr("_Cancel"), gtk::ResponseType::Cancel);
+    let ok = dialog.add_button(&tr("_OK"), gtk::ResponseType::Ok);
+    ok.add_css_class("suggested-action");
+    let update_ok: Rc<dyn Fn()> = {
+        let ok = ok.clone();
+        let table_check = table_check.clone();
+        let sheets_check = sheets_check.clone();
+        Rc::new(move || ok.set_sensitive(table_check.is_active() || sheets_check.is_active()))
+    };
+    {
+        let f = update_ok.clone();
+        table_check.connect_toggled(move |_| f());
+        let f = update_ok.clone();
+        sheets_check.connect_toggled(move |_| f());
+    }
+    let accepted = dialogs::run_dialog(&dialog) == gtk::ResponseType::Ok;
+    let want_table = table_check.is_active();
+    let want_sheets = sheets_check.is_active();
+    let all = all_radio.is_active();
+    dialog.destroy();
+    if !accepted || !(want_table || want_sheets) {
+        return Ok(Vec::new());
+    }
+
+    let nodes = if want_sheets { set.matches_to_print(None, all) } else { Vec::new() };
+    if !want_table && nodes.is_empty() {
+        return Ok(Vec::new());
+    }
+    let job = format!("{} — {}", snapshot.title, snapshot.base.name);
+    let snapshot = snapshot.clone();
+    let factory_nodes = nodes.clone();
+    let printed = bp_gtk::print::run_document(parent, &job, move || {
+        let mut parts: Vec<Box<dyn bp_gtk::print::PageSource>> = Vec::new();
+        if want_table {
+            parts.push(Box::new(TablesDoc::new(snapshot.clone(), rows.get())));
+        }
+        if !factory_nodes.is_empty() {
+            parts.push(Box::new(ScoreSheetsDoc::new(snapshot.clone(), factory_nodes.clone())));
+        }
+        Box::new(bp_gtk::print::Concat::new(parts))
+    })?;
+    Ok(if printed { nodes } else { Vec::new() })
 }

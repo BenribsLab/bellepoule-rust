@@ -58,6 +58,7 @@ pub struct SupervisorScreen {
 
 impl SupervisorScreen {
     pub fn new(page: &Rc<ContestPage>, index: usize) -> Rc<Self> {
+        crate::widgets::install_sheet_css();
         let glade = Glade::new("pool_supervisor.ui").expect("pool_supervisor.ui");
         let root: gtk::Widget = glade.get("root");
         let configuration: gtk::Widget = glade.get("stage_configuration");
@@ -202,12 +203,7 @@ impl SupervisorScreen {
                     if !focus.advance {
                         entry.set_text(&focus.text);
                     }
-                    entry.grab_focus();
-                    if focus.advance {
-                        entry.select_region(0, -1);
-                    } else {
-                        entry.set_position(focus.cursor);
-                    }
+                    crate::widgets::focus_entry_when_ready(entry, focus.advance, focus.cursor);
                     s.updating.set(false);
                 }
             }
@@ -272,7 +268,7 @@ impl SupervisorScreen {
                     complete
                 })
                 .unwrap_or(false);
-            if entry.has_focus() {
+            if crate::widgets::entry_has_focus(entry) {
                 *s.focus.borrow_mut() = Some(Focus {
                     pool,
                     key,
@@ -297,6 +293,18 @@ impl SupervisorScreen {
             }
         });
         entry
+    }
+
+    /// Cellule de la feuille avec son contour ; `head` : en-tête de colonne.
+    fn bordered(grid: &gtk::Grid, text: &str, col: usize, row: usize, head: bool) {
+        let label = gtk::Label::new(Some(text));
+        label.set_xalign(if head { 0.5 } else { 0.0 });
+        label.set_hexpand(false);
+        label.add_css_class("bp-cell");
+        if head {
+            label.add_css_class("bp-head");
+        }
+        grid.attach(&label, col as i32, row as i32, 1, 1);
     }
 
     fn label(grid: &gtk::Grid, text: &str, col: usize, row: usize) {
@@ -338,44 +346,42 @@ impl SupervisorScreen {
         roadmap.set_xalign(0.0);
         content.append(&roadmap);
         let grid = gtk::Grid::new();
-        grid.set_row_spacing(3);
-        grid.set_column_spacing(3);
+        grid.set_row_spacing(0);
+        grid.set_column_spacing(0);
+        grid.add_css_class("bp-sheet");
         let identity_columns = identities.iter().map(Vec::len).max().unwrap_or(1);
         let score_start = identity_columns + 1;
         let dashboard_start = score_start + sheet.rows.len();
         for i in 0..sheet.rows.len() {
-            Self::label(&grid, &(i + 1).to_string(), score_start + i, 0);
+            Self::bordered(&grid, &(i + 1).to_string(), score_start + i, 0, true);
         }
         for (i, heading) in sheet.headers.iter().enumerate() {
-            Self::label(&grid, heading, dashboard_start + i, 0);
+            Self::bordered(&grid, heading, dashboard_start + i, 0, true);
         }
         for (i, row) in sheet.rows.iter().enumerate() {
-            Self::label(&grid, &row.position.to_string(), 0, i + 1);
+            Self::bordered(&grid, &row.position.to_string(), 0, i + 1, false);
             if let Some(identity) = identities.get(i) {
                 for (j, text) in identity.iter().enumerate() {
-                    Self::label(&grid, text, j + 1, i + 1);
+                    Self::bordered(&grid, text, j + 1, i + 1, false);
                 }
             }
             for (j, cell) in row.cells.iter().enumerate() {
                 if let Some(mi) = cell.match_index.filter(|_| !cell.grey) {
-                    grid.attach(
-                        &self.score_entry(
-                            mi,
-                            row.player,
-                            &cell.text,
-                            false,
-                            locked,
-                            errors.contains(&mi),
-                        ),
-                        (score_start + j) as i32,
-                        (i + 1) as i32,
-                        1,
-                        1,
-                    );
+                    let frame = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+                    frame.add_css_class("bp-cell");
+                    frame.append(&self.score_entry(
+                        mi,
+                        row.player,
+                        &cell.text,
+                        false,
+                        locked,
+                        errors.contains(&mi),
+                    ));
+                    grid.attach(&frame, (score_start + j) as i32, (i + 1) as i32, 1, 1);
                 } else {
                     let blank = gtk::Label::new(Some("     "));
-                    blank.add_css_class("dim-label");
-                    blank.add_css_class("view");
+                    blank.add_css_class("bp-cell");
+                    blank.add_css_class("bp-grey");
                     grid.attach(&blank, (score_start + j) as i32, (i + 1) as i32, 1, 1);
                 }
             }
@@ -408,7 +414,10 @@ impl SupervisorScreen {
                         s.queue_refresh();
                     }
                 });
-                grid.attach(&status, dashboard_start as i32, (i + 1) as i32, 1, 1);
+                let frame = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+                frame.add_css_class("bp-cell");
+                frame.append(&status);
+                grid.attach(&frame, dashboard_start as i32, (i + 1) as i32, 1, 1);
                 for (j, value) in [
                     &d.victories,
                     &d.victories_ratio,
@@ -420,7 +429,7 @@ impl SupervisorScreen {
                 .iter()
                 .enumerate()
                 {
-                    Self::label(&grid, value, dashboard_start + j + 1, i + 1);
+                    Self::bordered(&grid, value, dashboard_start + j + 1, i + 1, false);
                 }
             }
         }

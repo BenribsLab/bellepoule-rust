@@ -401,12 +401,7 @@ impl TableScreen {
                     if !f.advance {
                         entry.set_text(&f.text);
                     }
-                    entry.grab_focus();
-                    if f.advance {
-                        entry.select_region(0, -1);
-                    } else {
-                        entry.set_position(f.cursor);
-                    }
+                    crate::widgets::focus_entry_when_ready(entry, f.advance, f.cursor);
                     s.updating.set(false);
                 }
             }
@@ -491,7 +486,7 @@ impl TableScreen {
             if result.is_none() {
                 return;
             }
-            if entry.has_focus() {
+            if crate::widgets::entry_has_focus(entry) {
                 *s.focus.borrow_mut() = Some(Focus {
                     key,
                     text,
@@ -1049,13 +1044,38 @@ impl TableScreen {
             .glade
             .get::<gtk::ToggleButton>("table_classification_toggletoolbutton")
             .is_active();
-        let result = if classification {
-            print::classification(parent.as_ref(), &snapshot)
-        } else {
-            print::tables(parent.as_ref(), &snapshot)
-        };
-        if let Err(e) = result {
-            dialogs::error(parent.as_ref(), &e.to_string());
+        if classification {
+            if let Err(e) = print::classification(parent.as_ref(), &snapshot) {
+                dialogs::error(parent.as_ref(), &e.to_string());
+            }
+            return;
+        }
+        self.finish_printing(&snapshot, parent.as_ref(), print::choose_and_print(parent.as_ref(), &snapshot));
+    }
+    /// Marque les feuilles imprimées (seulement après une impression confirmée).
+    fn finish_printing(
+        &self,
+        snapshot: &Snapshot,
+        parent: Option<&gtk::Window>,
+        result: Result<Vec<NodeId>, glib::Error>,
+    ) {
+        match result {
+            Ok(printed) if !printed.is_empty() => {
+                self.access(false, |s, _| {
+                    if let Some(i) = snapshot.displayed {
+                        if let Some(set) = s.table_sets().get(i).filter(|set| {
+                            snapshot.set.as_ref().is_some_and(|old| old.id() == set.id())
+                        }) {
+                            let _ = set;
+                            for node in printed {
+                                s.table_set_mut(i).mark_printed(node);
+                            }
+                        }
+                    }
+                });
+            }
+            Err(e) => dialogs::error(parent, &e.to_string()),
+            _ => {}
         }
     }
     fn on_print_sheets(&self) {
