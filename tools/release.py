@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """Fabrique les archives d'une version de ManageComp.
 
-    python tools/release.py v5.7.0-alpha.4              Windows, Linux PC et Linux ARM
+    python tools/release.py v5.7.0-alpha.4              Windows, Linux PC, ARM 64 et ARM 32 bits
     python tools/release.py v5.7.0-alpha.4 --windows    Windows (options cumulables)
     python tools/release.py v5.7.0-alpha.4 --linux      Linux PC (x86-64)
     python tools/release.py v5.7.0-alpha.4 --arm        Linux ARM 64 bits (Raspberry Pi 4 et 5)
+    python tools/release.py v5.7.0-alpha.4 --armhf      Linux ARM 32 bits (Raspberry Pi OS 32 bits)
 
 Windows : dist/ManageComp-<version>-windows-x64.zip, qui contient
 
@@ -20,9 +21,9 @@ Windows : dist/ManageComp-<version>-windows-x64.zip, qui contient
 
 GTK est pris dans GTK4_DIR (C:\\Users\\ben\\gtk4 par défaut).
 
-Linux : dist/ManageComp-<version>-linux-x64.tar.gz (PC) et -linux-arm64.tar.gz
-(Raspberry Pi…), compilés dans Docker (tools/linux/Dockerfile, Dockerfile.arm64 :
-Ubuntu 24.04) ; GTK 4.12 ou plus récent est pris sur le système de l'utilisateur.
+Linux : dist/ManageComp-<version>-linux-x64.tar.gz (PC), -linux-arm64.tar.gz et
+-linux-armhf.tar.gz (Raspberry Pi 64 et 32 bits), compilés dans Docker
+(tools/linux/Dockerfile, Dockerfile.arm64, Dockerfile.armhf : Ubuntu 24.04) ; GTK 4.12 ou plus récent est pris sur le système de l'utilisateur.
 À la racine : `installer.sh` (vérifie et propose d'installer les bibliothèques,
 ajoute les raccourcis avec le logo) et les lanceurs `ManageComp`,
 `ManageComp-Organisation`, `ManageComp-Live` (tools/linux/launcher.sh).
@@ -138,7 +139,7 @@ de les installer s'il en manque, puis ajoute ManageComp au menu des
 applications (et sur le bureau si vous le souhaitez), avec son logo.
 
 Systèmes : Ubuntu 24.04 et suivantes, Debian 13, Fedora 39 et suivantes,
-Raspberry Pi OS « Trixie » (version ARM, Raspberry Pi 4 ou 5).
+Raspberry Pi OS « Trixie » (archive ARM 64 bits ou 32 bits selon le système).
 
 Démarrer ensuite depuis le menu des applications, ou :
   - ./ManageComp                 le logiciel ;
@@ -156,6 +157,27 @@ LINUX_TARGETS = {
     "x64": ("managecomp-linux-build", "Dockerfile", None, []),
     # Raspberry Pi : GPIO de ManageComp Live (sans effet sans carte).
     "arm64": ("managecomp-linux-arm64-build", "Dockerfile.arm64", "aarch64-unknown-linux-gnu", ["--features", "livepoule/raspberry"]),
+    "armhf": ("managecomp-linux-armhf-build", "Dockerfile.armhf", "armv7-unknown-linux-gnueabihf", ["--features", "livepoule/raspberry"]),
+}
+
+
+# Textes des scripts Linux quand le système n'a pas la bonne architecture.
+ARCH_TEXTS = {
+    "x64": {
+        "@ARCH@": "amd64",
+        "@ARCHLABEL@": "les PC Linux 64 bits (x86-64)",
+        "@ARCHHINT@": "Téléchargez l'archive qui correspond à votre système : https://github.com/BenribsLab/managecomp-rust/releases (linux-arm64 ou linux-armhf pour un Raspberry Pi).",
+    },
+    "arm64": {
+        "@ARCH@": "arm64",
+        "@ARCHLABEL@": "les systèmes ARM 64 bits (Raspberry Pi OS 64 bits, Ubuntu pour Raspberry Pi)",
+        "@ARCHHINT@": "Pour un système 32 bits (armhf), prenez l'archive linux-armhf : https://github.com/BenribsLab/managecomp-rust/releases",
+    },
+    "armhf": {
+        "@ARCH@": "armhf",
+        "@ARCHLABEL@": "les systèmes ARM 32 bits (Raspberry Pi OS 32 bits)",
+        "@ARCHHINT@": "Pour un système 64 bits, prenez l'archive linux-arm64 (Raspberry Pi) ou linux-x64 (PC) : https://github.com/BenribsLab/managecomp-rust/releases",
+    },
 }
 
 
@@ -196,7 +218,10 @@ def build_linux(version, arch):
 
     def script(file):
         with open(os.path.join(linux, file), encoding="utf-8") as fh:
-            return fh.read().replace("\r\n", "\n")
+            text = fh.read().replace("\r\n", "\n")
+        for key, value in ARCH_TEXTS[arch].items():
+            text = text.replace(key, value)
+        return text
 
     with tarfile.open(archive, "w:gz", compresslevel=9) as tar:
         for p in programs:
@@ -218,7 +243,7 @@ def build_linux(version, arch):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     flags = {a for a in sys.argv[1:] if a.startswith("--")}
-    if len(args) != 1 or not flags <= {"--windows", "--linux", "--arm"}:
+    if len(args) != 1 or not flags <= {"--windows", "--linux", "--arm", "--armhf"}:
         sys.exit(__doc__)
     version = args[0]
     every = not flags
@@ -228,6 +253,8 @@ def main():
         build_linux(version, "x64")
     if every or "--arm" in flags:
         build_linux(version, "arm64")
+    if every or "--armhf" in flags:
+        build_linux(version, "armhf")
 
 
 def build_windows(version):

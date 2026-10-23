@@ -27,6 +27,26 @@ fi
 echo "=== Installation de ManageComp ==="
 echo
 
+# --- Architecture --------------------------------------------------------
+# Celle des programmes du système, pas seulement du noyau (un Raspberry Pi
+# OS 32 bits tourne souvent sur un noyau 64 bits).
+arch="$(dpkg --print-architecture 2>/dev/null)"
+if [ -z "$arch" ]; then
+    case "$(uname -m)-$(getconf LONG_BIT 2>/dev/null)" in
+        x86_64-64) arch=amd64 ;;
+        aarch64-64 | arm64-64) arch=arm64 ;;
+        armv7l-32 | armv8l-32 | armv6l-32) arch=armhf ;;
+        *) arch="$(uname -m) $(getconf LONG_BIT 2>/dev/null) bits" ;;
+    esac
+fi
+if [ "$arch" != "@ARCH@" ]; then
+    echo "Cette version de ManageComp est faite pour @ARCHLABEL@,"
+    echo "mais ce système est « $arch »."
+    echo
+    echo "@ARCHHINT@"
+    exit 1
+fi
+
 # --- Bibliothèques -------------------------------------------------------
 missing() { ldd "$here/bin/managecomp" 2>/dev/null | awk '/not found/ { print $1 }'; }
 
