@@ -48,7 +48,7 @@ cbc = { version = "0.1", features = ["alloc"] }
 base64 = "0.22"
 sha2 = "0.10"
 hmac = "0.12"
-socket2 = "0.5"
+socket2 = { version = "0.5", features = ["all"] }
 if-addrs = "0.15"
 qrcode = { version = "0.14", default-features = false }
 png = "0.17"
