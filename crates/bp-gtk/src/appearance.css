@@ -216,3 +216,10 @@
 .bp-app treeview.view header button { color: #4c699c; background-color: #f5f8ff; font-size: 12px; }
 .bp-app treeview.view { color: #203c70; }
 .bp-app notebook > stack { background-color: #f2f6fd; }
+
+/* Ouverture d'une compétition : application floutée, fenêtre d'attente */
+window.bp-busy > * { filter: blur(3px) grayscale(0.3); opacity: 0.55; }
+window.bp-loading { background: #ffffff; border-radius: 16px; border: 1px solid #d8e2ef; box-shadow: 0 24px 60px rgba(12, 23, 36, 0.35); }
+window.bp-loading .bp-loading-title { font-size: 17px; font-weight: 700; color: #1b2b3c; }
+window.bp-loading progressbar > trough { min-height: 10px; border-radius: 6px; background: #e8eef7; }
+window.bp-loading progressbar > trough > progress { min-height: 10px; border-radius: 6px; background: linear-gradient(90deg, #3b8cf0, #0866cd); }

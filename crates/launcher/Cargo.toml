@@ -1,0 +1,13 @@
+[package]
+name = "launcher"
+description = "Lanceur ManageComp placé à la racine de l'archive Windows"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "managecomp-launcher"
+path = "src/main.rs"
+
+[build-dependencies]
+winresource = "0.1"

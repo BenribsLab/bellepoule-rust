@@ -8,6 +8,7 @@ members = [
     "crates/marshaller",
     "crates/livepoule",
     "crates/bp-usb-backend",
+    "crates/launcher",
 ]
 
 [workspace.package]

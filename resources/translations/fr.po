@@ -1840,3 +1840,15 @@ msgstr "_Quitter"
 
 msgid "Export"
 msgstr "Exporter"
+
+msgid "Add another criterion"
+msgstr "Ajouter un autre critère"
+
+msgid "Remove this criterion"
+msgstr "Retirer ce critère"
+
+msgid "Opening the competition…"
+msgstr "Ouverture de la compétition…"
+
+msgid "Reading the file…"
+msgstr "Lecture du fichier…"

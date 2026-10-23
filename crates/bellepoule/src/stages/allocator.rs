@@ -78,6 +78,10 @@ pub struct AllocatorScreen {
     list: PlayersListView,
     regular: RefCell<Vec<(String, gtk::CheckButton)>>,
     extra_codes: Vec<String>,
+    /// Critères supplémentaires ajoutés après le premier (liste et ligne).
+    more_extras: RefCell<Vec<(gtk::DropDown, gtk::Box)>>,
+    more_extras_box: gtk::Box,
+    add_extra: gtk::Button,
     updating: Cell<bool>,
 }
 
@@ -132,6 +136,14 @@ impl AllocatorScreen {
         }
         let extra_combo: gtk::ComboBox = glade.get("extra_combobox");
         extra_combo.set_active(Some(0));
+        // Autres critères supplémentaires, ajoutés à la demande.
+        let extra_line: gtk::Box = glade.get("hbox3");
+        let more_extras_box = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        extra_line.append(&more_extras_box);
+        let add_extra = gtk::Button::from_icon_name("list-add-symbolic");
+        add_extra.set_tooltip_text(Some(&tr("Add another criterion")));
+        add_extra.set_valign(gtk::Align::Center);
+        extra_line.append(&add_extra);
 
         let screen = Rc::new_cyclic(|weak_self| AllocatorScreen {
             weak_self: weak_self.clone(),
@@ -143,6 +155,9 @@ impl AllocatorScreen {
             list,
             regular: RefCell::new(regular),
             extra_codes,
+            more_extras: RefCell::new(Vec::new()),
+            more_extras_box,
+            add_extra,
             updating: Cell::new(false),
         });
         screen.connect();
@@ -199,6 +214,71 @@ impl AllocatorScreen {
                 }
             });
         }
+        {
+            let w = Rc::downgrade(self);
+            self.add_extra.connect_clicked(move |_| {
+                let Some(s) = w.upgrade() else { return };
+                let extra_toggle: gtk::CheckButton = s.glade.get("extra_toggle");
+                if !extra_toggle.is_active() {
+                    // Le premier critère d'abord (son changement relance le calcul).
+                    extra_toggle.set_active(true);
+                    return;
+                }
+                let used = s.extras();
+                let next = s.extra_codes.iter().position(|c| !used.contains(c)).unwrap_or(0);
+                s.add_extra_row(next);
+                s.on_swapping_changed();
+            });
+        }
+    }
+
+    /// Ligne d'un critère supplémentaire de plus : liste et bouton de retrait.
+    fn add_extra_row(self: &Rc<Self>, selected: usize) {
+        let labels: Vec<String> = self.extra_codes.iter().map(|c| tr(attribute::desc(c).user_name)).collect();
+        let labels: Vec<&str> = labels.iter().map(String::as_str).collect();
+        let list = gtk::DropDown::from_strings(&labels);
+        list.set_selected(selected as u32);
+        bp_gtk::util::scroll_passes_through(&list);
+        let remove = gtk::Button::from_icon_name("list-remove-symbolic");
+        remove.set_tooltip_text(Some(&tr("Remove this criterion")));
+        remove.add_css_class("flat");
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 2);
+        row.append(&list);
+        row.append(&remove);
+        self.more_extras_box.append(&row);
+        let w = Rc::downgrade(self);
+        list.connect_selected_notify(move |_| {
+            if let Some(s) = w.upgrade() {
+                s.on_swapping_changed();
+            }
+        });
+        let w = Rc::downgrade(self);
+        let gone = row.clone();
+        remove.connect_clicked(move |_| {
+            let Some(s) = w.upgrade() else { return };
+            s.more_extras.borrow_mut().retain(|(_, r)| r != &gone);
+            s.more_extras_box.remove(&gone);
+            s.on_swapping_changed();
+        });
+        self.more_extras.borrow_mut().push((list, row));
+    }
+
+    /// Critères supplémentaires choisis, dans l'ordre (le premier, puis les autres).
+    fn extras(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        let extra_toggle: gtk::CheckButton = self.glade.get("extra_toggle");
+        let extra_combo: gtk::ComboBox = self.glade.get("extra_combobox");
+        if extra_toggle.is_active() {
+            if let Some(code) = extra_combo.active().and_then(|i| self.extra_codes.get(i as usize)) {
+                out.push(code.clone());
+            }
+            for (list, _) in self.more_extras.borrow().iter() {
+                if let Some(code) = self.extra_codes.get(list.selected() as usize) {
+                    out.push(code.clone());
+                }
+            }
+        }
+        out
     }
 
     // ----------------------------------------------------------------------
@@ -341,6 +421,8 @@ impl AllocatorScreen {
         for id in ["extra_toggle", "extra_combobox", "regular_swapping_hbox"] {
             self.glade.get::<gtk::Widget>(id).set_sensitive(!s.locked);
         }
+        self.more_extras_box.set_sensitive(!s.locked);
+        self.add_extra.set_sensitive(!s.locked);
         for id in ["latecomer_toolbutton", "absent_toolbutton"] {
             self.glade.get::<gtk::Widget>(id).set_visible(s.adjustable);
             self.glade.get::<gtk::Widget>(id).set_sensitive(!s.locked);
@@ -353,10 +435,23 @@ impl AllocatorScreen {
         {
             let extra_toggle: gtk::CheckButton = self.glade.get("extra_toggle");
             let extra_combo: gtk::ComboBox = self.glade.get("extra_combobox");
-            let extra = s.criteria.iter().find(|c| self.extra_codes.contains(c));
-            extra_toggle.set_active(extra.is_some());
-            if let Some(i) = extra.and_then(|c| self.extra_codes.iter().position(|e| e == c)) {
-                extra_combo.set_active(Some(i as u32));
+            let extras: Vec<usize> = s.criteria.iter().filter_map(|c| self.extra_codes.iter().position(|e| e == c)).collect();
+            extra_toggle.set_active(!extras.is_empty());
+            if let Some(i) = extras.first() {
+                extra_combo.set_active(Some(*i as u32));
+            }
+            // Les autres critères : lignes refaites si elles ont changé.
+            let shown: Vec<usize> = self.more_extras.borrow().iter().map(|(l, _)| l.selected() as usize).collect();
+            let wanted: Vec<usize> = extras.iter().skip(1).copied().collect();
+            if shown != wanted {
+                for (_, row) in self.more_extras.borrow_mut().drain(..) {
+                    self.more_extras_box.remove(&row);
+                }
+                if let Some(me) = self.weak_self.upgrade() {
+                    for i in wanted {
+                        me.add_extra_row(i);
+                    }
+                }
             }
         }
         let tooltip = format!("{} {}", s.swap_errors, tr("error(s)"));
@@ -597,18 +692,11 @@ impl AllocatorScreen {
             .filter(|(_, check)| check.is_active())
             .map(|(code, _)| code.clone())
             .collect();
-        let extra_toggle: gtk::CheckButton = self.glade.get("extra_toggle");
-        let extra_combo: gtk::ComboBox = self.glade.get("extra_combobox");
-        let extra: Option<String> = if extra_toggle.is_active() {
-            extra_combo
-                .active()
-                .and_then(|i| self.extra_codes.get(i as usize).cloned())
-        } else {
-            None
-        };
+        let extras = self.extras();
         self.edit(|round, players| {
             let regular: Vec<&str> = regular.iter().map(|s| s.as_str()).collect();
-            round.set_swapping_criteria(players, &regular, extra.as_deref());
+            let extras: Vec<&str> = extras.iter().map(|s| s.as_str()).collect();
+            round.set_swapping_criteria(players, &regular, &extras);
         });
         self.after_edit();
     }

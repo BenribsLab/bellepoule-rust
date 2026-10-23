@@ -396,11 +396,25 @@ impl App {
         }
     }
 
+    /// Ouvre un fichier ; une fenêtre d'attente montre l'avancement
+    /// (lecture du fichier, puis construction des écrans de chaque phase).
     pub fn open_path(self: &Rc<Self>, path: &Path) {
+        let name = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        crate::loading::begin(&self.window, &name);
         let result = self.tournament.borrow_mut().open(path);
         match result {
-            Ok(opened) => self.after_open(opened, path),
-            Err(e) => dialogs::error(Some(&self.window), &format!("{}: {e}", path.display())),
+            Ok(opened) => {
+                let steps: usize = {
+                    let t = self.tournament.borrow();
+                    opened.contests.iter().filter_map(|id| t.contest(*id)).map(|c| c.schedule.current_index() + 1).sum()
+                };
+                crate::loading::set_steps(steps);
+                self.after_open(opened, path);
+            }
+            Err(e) => {
+                crate::loading::end();
+                dialogs::error(Some(&self.window), &format!("{}: {e}", path.display()));
+            }
         }
     }
 
@@ -411,6 +425,7 @@ impl App {
                 pages.push(p);
             }
         }
+        crate::loading::end();
         if opened.askfred {
             dialogs::info(
                 Some(&self.window),

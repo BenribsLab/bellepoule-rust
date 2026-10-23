@@ -261,7 +261,9 @@ impl ScheduleView {
         self.updating.set(false);
         self.select_index(selected.filter(|i| *i < stages.len()).unwrap_or(current));
 
-        // Onglets : les phases jusqu'à la phase courante
+        // Onglets : les phases jusqu'à la phase courante. Aucun emprunt de
+        // la liste n'est gardé pendant la construction d'un écran (la fenêtre
+        // d'attente laisse tourner la boucle d'événements entre deux écrans).
         {
             let mut screens = self.screens.borrow_mut();
             for (_, screen) in screens.iter().skip(stages.len()).flatten() {
@@ -270,51 +272,56 @@ impl ScheduleView {
                 }
             }
             screens.resize_with(stages.len(), || None);
-            for (i, (kind, purpose, name, _)) in stages.iter().enumerate() {
-                // L'absence de balise XML n'enlève pas l'écran : l'allocateur
-                // et le superviseur ont deux onglets, comme Schedule::PlugStage.
-                if screens[i]
-                    .as_ref()
-                    .is_some_and(|(old_kind, _)| old_kind != kind)
-                {
+        }
+        for (i, (kind, purpose, name, _)) in stages.iter().enumerate() {
+            // L'absence de balise XML n'enlève pas l'écran : l'allocateur
+            // et le superviseur ont deux onglets, comme Schedule::PlugStage.
+            let existing = {
+                let mut screens = self.screens.borrow_mut();
+                if screens[i].as_ref().is_some_and(|(old_kind, _)| old_kind != kind) {
                     if let Some((_, screen)) = screens[i].take() {
                         if let Some(n) = self.notebook.page_num(&screen.widget()) {
                             self.notebook.remove_page(Some(n));
                         }
                     }
                 }
-                let shown = i <= current;
-                match (shown, screens[i].clone()) {
-                    (true, None) => {
-                        let screen = stages::build(&page, i);
-                        let label = gtk::Label::new(Some(&format!("{purpose}\n{name}")));
-                        label.set_justify(gtk::Justification::Center);
-                        self.notebook.append_page(&screen.widget(), Some(&label));
-                        screens[i] = Some((*kind, screen));
-                    }
-                    (true, Some((_, screen))) => {
-                        if self.notebook.page_num(&screen.widget()).is_none() {
-                            let label = gtk::Label::new(Some(&format!("{purpose}\n{name}")));
-                            self.notebook.append_page(&screen.widget(), Some(&label));
-                        }
-                        if let Some(l) = self
-                            .notebook
-                            .tab_label(&screen.widget())
-                            .and_then(|l| l.downcast::<gtk::Label>().ok())
-                        {
-                            l.set_text(&format!("{purpose}\n{name}"));
-                        }
-                        screen.refresh();
-                    }
-                    (false, Some((_, screen))) => {
-                        if let Some(n) = self.notebook.page_num(&screen.widget()) {
-                            self.notebook.remove_page(Some(n));
-                        }
-                        // Garder les paramètres d'une phase future disponibles.
-                    }
-                    (false, None) => {}
+                screens[i].clone()
+            };
+            let shown = i <= current;
+            match (shown, existing) {
+                (true, None) => {
+                    let screen = stages::build(&page, i);
+                    let label = gtk::Label::new(Some(&format!("{purpose}\n{name}")));
+                    label.set_justify(gtk::Justification::Center);
+                    self.notebook.append_page(&screen.widget(), Some(&label));
+                    self.screens.borrow_mut()[i] = Some((*kind, screen));
+                    crate::loading::step(purpose);
                 }
+                (true, Some((_, screen))) => {
+                    if self.notebook.page_num(&screen.widget()).is_none() {
+                        let label = gtk::Label::new(Some(&format!("{purpose}\n{name}")));
+                        self.notebook.append_page(&screen.widget(), Some(&label));
+                    }
+                    if let Some(l) = self
+                        .notebook
+                        .tab_label(&screen.widget())
+                        .and_then(|l| l.downcast::<gtk::Label>().ok())
+                    {
+                        l.set_text(&format!("{purpose}\n{name}"));
+                    }
+                    screen.refresh();
+                }
+                (false, Some((_, screen))) => {
+                    if let Some(n) = self.notebook.page_num(&screen.widget()) {
+                        self.notebook.remove_page(Some(n));
+                    }
+                    // Garder les paramètres d'une phase future disponibles.
+                }
+                (false, None) => {}
             }
+        }
+        {
+            let screens = self.screens.borrow();
             for (i, (_, screen)) in screens.iter().flatten().enumerate() {
                 if self.notebook.page_num(&screen.widget()).is_some() {
                     self.notebook

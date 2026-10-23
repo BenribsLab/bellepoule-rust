@@ -13,6 +13,7 @@ mod app;
 mod capture;
 mod contest_page;
 mod language;
+mod loading;
 mod network;
 mod management;
 mod publication;
