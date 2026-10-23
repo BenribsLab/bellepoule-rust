@@ -152,3 +152,21 @@ fn finished_competition_is_saved_and_reopened() {
     assert!(again.schedule.is_over());
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn points_follow_the_final_ranking_and_are_saved() {
+    let mut c = finished_competition(12);
+    assert!(c.final_points().is_empty(), "points désactivés par défaut");
+    c.points.enabled = true;
+    c.points.weight = 2.0;
+    c.points.place_bonus = vec![bp_core::points::PlaceBonus { place: 1, points: 5.0 }];
+    let points = c.final_points();
+    assert_eq!(points.len(), 12);
+    let first = points.iter().find(|(_, place, _)| *place == 1).unwrap();
+    assert_eq!(first.2, (12.0 - 1.0 + 1.0 + 5.0) * 2.0);
+    let last = points.iter().max_by_key(|(_, place, _)| *place).unwrap();
+    assert_eq!(last.2, 2.0);
+    let mut again = bp_core::contest::Contest::new(None, false);
+    again.load_xml_str(&c.to_xml()).unwrap();
+    assert_eq!(again.points, c.points);
+}

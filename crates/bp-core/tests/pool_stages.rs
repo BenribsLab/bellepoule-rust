@@ -500,3 +500,47 @@ fn splitting_removes_exported_fencers() {
     let tables_attendees = c.schedule.stage(4).unwrap().base().attendees.len();
     assert_eq!(tables_attendees, n as usize - 2, "les exportés ne passent pas aux tableaux");
 }
+
+#[test]
+fn double_defeat_ends_a_pool_bout_without_a_victory() {
+    let mut c = Contest::new_with_default_stages(None);
+    for i in 0..5u32 {
+        let mut p = new_player(PlayerClass::Fencer);
+        p.set_str(&AttrId::global("name"), &format!("TIREUR{i:02}"));
+        p.set_uint(&AttrId::global("ranking"), i + 1);
+        let r = c.add_fencer(p).unwrap();
+        c.with_schedule(|s, ctx| s.checkin_mut().unwrap().set_attending(ctx, r, true));
+    }
+    for _ in 0..2 {
+        c.with_schedule(|s, ctx| {
+            s.lock_current(ctx);
+            s.enter_next(ctx);
+        });
+    }
+    // Tous les matchs joués au hasard, puis le premier en double défaite 2-2.
+    let (a, b) = c.with_schedule(|s, ctx| {
+        let sup = s.stage_mut(2).unwrap().as_any_mut().downcast_mut::<PoolSupervisorStage>().unwrap();
+        sup.stuff(ctx);
+        let mut round = sup.round();
+        let pool = &mut round.pools_mut()[0];
+        let bout = &pool.matches()[0].bout;
+        let (a, b) = (bout.opponent(0).unwrap(), bout.opponent(1).unwrap());
+        pool.set_score_str(ctx.players, 0, a, "2");
+        pool.set_score_str(ctx.players, 0, b, "2");
+        (a, b)
+    });
+    let check = |c: &Contest| {
+        let sup = c.schedule.stage(2).unwrap().as_any().downcast_ref::<PoolSupervisorStage>().unwrap();
+        let round = sup.round();
+        let bout = &round.pools()[0].matches()[0].bout;
+        assert!(bout.is_double_defeat() && bout.is_over());
+        assert_eq!(bout.winner(), None);
+        assert_eq!((bout.opponent(0), bout.opponent(1)), (Some(a), Some(b)));
+    };
+    check(&c);
+    let over = c.with_schedule(|s, ctx| s.sensitivity(ctx).next);
+    assert!(over, "une double défaite termine le match : la poule est finie");
+    let mut again = Contest::new(None, false);
+    again.load_xml_str(&c.to_xml()).unwrap();
+    check(&again);
+}

@@ -1852,3 +1852,309 @@ msgstr "Ouverture de la compétition…"
 
 msgid "Reading the file…"
 msgstr "Lecture du fichier…"
+
+msgid "Divisions"
+msgstr "Divisions"
+
+msgid "Fill in"
+msgstr "Remplissage"
+
+msgid "by hand"
+msgstr "à la main"
+
+msgid "by ranking"
+msgstr "au classement"
+
+msgid "by criteria"
+msgstr "par critères"
+
+msgid "Kept in this competition: the first"
+msgstr "Gardés dans cette compétition : les"
+
+msgid "places"
+msgstr "places"
+
+msgid "Add a division"
+msgstr "Ajouter une division"
+
+msgid "Move the selection to"
+msgstr "Placer la sélection dans"
+
+msgid "Stays here"
+msgstr "Reste ici"
+
+msgid "Division name"
+msgstr "Nom de la division"
+
+msgid "the rest"
+msgstr "le reste"
+
+msgid "Categories"
+msgstr "Catégories"
+
+msgid "Birth years"
+msgstr "Années de naissance"
+
+msgid "Born in or before"
+msgstr "Nés en … ou avant"
+
+msgid "Born in or after"
+msgstr "Nés en … ou après"
+
+msgid "Remove this division"
+msgstr "Retirer cette division"
+
+msgid "e.g. M13, M15"
+msgstr "ex. : M13, M15"
+
+msgid "e.g. 2014, 2015"
+msgstr "ex. : 2014, 2015"
+
+msgid "year"
+msgstr "année"
+
+msgid "Division"
+msgstr "Division"
+
+msgid "General category"
+msgstr "Catégorie générale"
+
+msgid "The general category of each fencer is computed from the birth date. Settings common to every competition."
+msgstr "La catégorie générale de chaque tireur est calculée d'après sa date de naissance. Réglage commun à toutes les compétitions."
+
+msgid "Model"
+msgstr "Modèle"
+
+msgid "Delete this model"
+msgstr "Supprimer ce modèle"
+
+msgid "Season changes on"
+msgstr "Bascule de la saison le"
+
+msgid "January"
+msgstr "janvier"
+
+msgid "February"
+msgstr "février"
+
+msgid "March"
+msgstr "mars"
+
+msgid "April"
+msgstr "avril"
+
+msgid "May"
+msgstr "mai"
+
+msgid "June"
+msgstr "juin"
+
+msgid "July"
+msgstr "juillet"
+
+msgid "August"
+msgstr "août"
+
+msgid "September"
+msgstr "septembre"
+
+msgid "October"
+msgstr "octobre"
+
+msgid "November"
+msgstr "novembre"
+
+msgid "December"
+msgstr "décembre"
+
+msgid "Born from"
+msgstr "Nés de"
+
+msgid "Add a category"
+msgstr "Ajouter une catégorie"
+
+msgid "Model name"
+msgstr "Nom du modèle"
+
+msgid "Save the model"
+msgstr "Enregistrer le modèle"
+
+msgid "New category"
+msgstr "Nouvelle catégorie"
+
+msgid "and before"
+msgstr "et avant"
+
+msgid "Remove this category"
+msgstr "Retirer cette catégorie"
+
+msgid "Current season:"
+msgstr "Saison en cours :"
+
+msgid "(not saved)"
+msgstr "(non enregistré)"
+
+msgid "Give the model a name."
+msgstr "Donnez un nom au modèle."
+
+msgid "The FFE model is provided: save your changes under another name."
+msgstr "Le modèle FFE est fourni : enregistrez vos modifications sous un autre nom."
+
+msgid "The FFE model is provided and cannot be deleted."
+msgstr "Le modèle FFE est fourni et ne peut pas être supprimé."
+
+msgid "Delete the model"
+msgstr "Supprimer le modèle"
+
+msgid "Division pools"
+msgstr "Poules de division"
+
+msgid "Pools per division"
+msgstr "Poules par division"
+
+msgid "Promoted after each round"
+msgstr "Montées après chaque tour"
+
+msgid "Relegated after each round"
+msgstr "Descentes après chaque tour"
+
+msgid "First distribution"
+msgstr "Répartition de départ"
+
+msgid "by ranking (best in D1)"
+msgstr "au classement (les meilleurs en D1)"
+
+msgid "at random"
+msgstr "au hasard"
+
+msgid "Add another \"Division pools\" phase for each new round: promotions and relegations are then proposed from the previous round."
+msgstr "Pour un nouveau tour, ajoutez une autre phase « Poules de division » : les montées et descentes y sont proposées d'après le tour précédent."
+
+msgid "Movement"
+msgstr "Mouvement"
+
+msgid "from"
+msgstr "depuis"
+
+msgid "Award points for this competition (season ranking)"
+msgstr "Attribuer des points pour cette compétition (classement de saison)"
+
+msgid "By default, out of N participants the 1st gets N points and the last 1 point."
+msgstr "Par défaut, sur N participants, le 1er gagne N points et le dernier 1 point."
+
+msgid "Weight of the competition"
+msgstr "Poids de la compétition"
+
+msgid "Bonus by place"
+msgstr "Bonus par place"
+
+msgid "Add a place bonus"
+msgstr "Ajouter un bonus de place"
+
+msgid "Bonus for finishing in the top"
+msgstr "Bonus pour finir dans les premiers"
+
+msgid "Add a top bonus"
+msgstr "Ajouter un bonus « dans les X »"
+
+msgid "Default formula"
+msgstr "Formule par défaut"
+
+msgid "Variables: participants, place, bonus (place and top bonuses), poids (weight). Operations: + - * / ( )."
+msgstr "Variables : participants, place, bonus (bonus de place et « dans les X »), poids. Opérations : + - * / ( )."
+
+msgid "In the top"
+msgstr "Dans les"
+
+msgid "points:"
+msgstr "points :"
+
+msgid "Example with 10 participants:"
+msgstr "Exemple sur 10 participants :"
+
+msgid "Season ranking"
+msgstr "Classement de saison"
+
+msgid "Season folder:"
+msgstr "Dossier de la saison :"
+
+msgid "Choose…"
+msgstr "Choisir…"
+
+msgid "Reload"
+msgstr "Actualiser"
+
+msgid "Group the selection"
+msgstr "Regrouper la sélection"
+
+msgid "The selected lines are one and the same fencer"
+msgstr "Les lignes sélectionnées sont un seul et même tireur"
+
+msgid "Separate this first name"
+msgstr "Séparer ce prénom"
+
+msgid "Fencers with this first name are told apart by last name and category"
+msgstr "Les tireurs de ce prénom sont distingués par leur nom et leur catégorie"
+
+msgid "Undo the corrections"
+msgstr "Annuler les corrections"
+
+msgid "Export (CSV)"
+msgstr "Exporter (CSV)"
+
+msgid "Undo every manual correction?"
+msgstr "Annuler toutes les corrections faites à la main ?"
+
+msgid "Season folder"
+msgstr "Dossier de la saison"
+
+msgid "(choose the folder holding the season's competitions)"
+msgstr "(choisissez le dossier qui contient les compétitions de la saison)"
+
+msgid "Rank"
+msgstr "Rang"
+
+msgid "Competitions"
+msgstr "Compétitions"
+
+msgid "Total"
+msgstr "Total"
+
+msgid "competition(s) with points"
+msgstr "compétition(s) avec points"
+
+msgid "fencer(s)"
+msgstr "tireur(s)"
+
+msgid "manual correction(s)"
+msgstr "correction(s) à la main"
+
+msgid "Select at least two lines (Ctrl + click)."
+msgstr "Sélectionnez au moins deux lignes (Ctrl + clic)."
+
+msgid "season-ranking"
+msgstr "classement-saison"
+
+msgid "Weight of the competition (C)"
+msgstr "Poids de la compétition (C)"
+
+msgid "Saved formulas"
+msgstr "Formules enregistrées"
+
+msgid "Delete"
+msgstr "Supprimer"
+
+msgid "Save this formula as"
+msgstr "Enregistrer cette formule sous le nom"
+
+msgid "How to write a formula?"
+msgstr "Comment écrire une formule ?"
+
+msgid "Only the formulas you saved can be deleted."
+msgstr "Seules les formules que vous avez enregistrées peuvent être supprimées."
+
+msgid "no."
+msgstr "n°"
+
+msgid "Number of the match to show in the displayed table: type 3 to go to match 1-16.3"
+msgstr "Numéro du match à afficher dans le tableau : tapez 3 pour aller au match 1-16.3"

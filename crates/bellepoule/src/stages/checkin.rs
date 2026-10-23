@@ -235,15 +235,35 @@ impl CheckinScreen {
         let checkin = c.schedule.checkin()?;
         let store = &c.players;
         let owner: Owner = checkin.base().owner();
-        let specs = render::column_specs(checkin.filter.layout(), !checkin.base().locked);
+        let mut specs = render::column_specs(checkin.filter.layout(), !checkin.base().locked);
         let tally = checkin.tally(store, team_event);
+        // Catégorie générale calculée, avec le garde-fou (catégorie de la compétition).
+        let contest_category = c.category.xml_image();
+        specs.push(crate::widgets::players_list::ColumnSpec {
+            code: "general_category".into(),
+            title: tr("General category"),
+            look: bp_core::attribute::Look::LongText,
+            kind: crate::widgets::players_list::CellKind::Text,
+            editable: false,
+        });
+        let attribute_columns = specs.len() - 1;
 
         let row = |r: PlayerRef, children: Vec<RowData>| -> Option<RowData> {
             let p = store.get(r)?;
+            let mut cells: Vec<ListCell> = specs[..attribute_columns].iter().map(|s| render::cell_for(p, s, owner)).collect();
+            let mut sort = render::sort_values(p, &specs[..attribute_columns], owner);
+            let birth = p.str_attr("birth_date");
+            let label = if p.class == bp_core::player::PlayerClass::Team {
+                String::new()
+            } else {
+                bp_core::categories::general_category_label(birth, &contest_category)
+            };
+            sort.push(bp_core::categories::birth_year(birth).map(|y| bp_core::attribute::Value::Int(-y)));
+            cells.push(ListCell::Text(label));
             Some(RowData {
                 player: r,
-                cells: specs.iter().map(|s| render::cell_for(p, s, owner)).collect(),
-                sort: render::sort_values(p, &specs, owner),
+                cells,
+                sort,
                 children,
                 dimmed: !p.attending(),
             })

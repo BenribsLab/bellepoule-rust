@@ -529,7 +529,8 @@ To activate/deactivate this button, go to the properties of the competition.</pr
                                           <object class="GtkEntry" id="search_entry">
                                             <property name="max-length">3</property>
                                             <property name="width-chars">3</property>
-                                            <property name="text">133</property>
+                                            <property name="placeholder-text" translatable="yes">no.</property>
+                                            <property name="tooltip-text" translatable="yes">Number of the match to show in the displayed table: type 3 to go to match 1-16.3</property>
                                             <signal name="changed" handler="on_search_entry_changed" swapped="no" />
                                           </object>
                                         </child>

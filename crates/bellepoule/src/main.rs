@@ -11,6 +11,9 @@
 
 mod app;
 mod capture;
+mod categories_tab;
+mod points_tab;
+mod season_window;
 mod contest_page;
 mod language;
 mod loading;

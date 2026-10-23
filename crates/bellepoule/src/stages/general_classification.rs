@@ -99,13 +99,29 @@ impl ClassificationScreen {
                     .stage(self.index)?
                     .as_any()
                     .downcast_ref::<GeneralClassificationStage>()?;
-                let specs = render::column_specs(stage.filter.layout(), false);
-                let rows = list_document::rows_for(
+                let mut specs = render::column_specs(stage.filter.layout(), false);
+                let mut rows = list_document::rows_for(
                     &c.players,
                     stage.result(),
                     &specs,
                     stage.base().owner(),
                 );
+                // Points de la compétition (préférences « Points »).
+                if c.points.enabled {
+                    let points = c.final_points();
+                    specs.push(crate::widgets::players_list::ColumnSpec {
+                        code: "points".into(),
+                        title: tr("Points"),
+                        look: bp_core::attribute::Look::LongText,
+                        kind: crate::widgets::players_list::CellKind::Text,
+                        editable: false,
+                    });
+                    for row in rows.iter_mut() {
+                        let p = points.iter().find(|(r, _, _)| *r == row.player).map(|(_, _, p)| *p);
+                        row.cells.push(crate::widgets::players_list::Cell::Text(p.map(bp_core::points::image).unwrap_or_default()));
+                        row.sort.push(p.map(|v| bp_core::attribute::Value::Int(-(v * 100.0) as i32)));
+                    }
+                }
                 Some(ListDocument {
                     title: c.name.clone(),
                     subtitle: tr("General classification"),

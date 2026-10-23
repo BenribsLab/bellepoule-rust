@@ -60,6 +60,7 @@ impl Shell {
                     StageKind::PoolSupervisor,
                     StageKind::PoolAllocator,
                     StageKind::YouthTraining,
+                    StageKind::DivisionRound,
                 ],
             ),
             ("bracket", "Table", vec![StageKind::TableSupervisor]),
@@ -266,6 +267,14 @@ impl Shell {
             }
         });
         actions.append(&open);
+        let season = gtk::Button::with_label(&tr("Season ranking"));
+        let weak = Rc::downgrade(app);
+        season.connect_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                crate::season_window::open(&app);
+            }
+        });
+        actions.append(&season);
         page.append(&actions);
         let resume = gtk::Button::with_label(&tr("Resume competition"));
         resume.set_halign(gtk::Align::Center);

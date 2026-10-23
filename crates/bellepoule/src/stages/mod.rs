@@ -12,6 +12,7 @@ use gtk4 as gtk;
 pub mod allocator;
 pub mod barrage;
 pub mod checkin;
+pub mod divisions;
 pub mod general_classification;
 pub(crate) mod group_print;
 pub(crate) mod relay_print;
@@ -47,6 +48,7 @@ pub fn build(page: &Rc<ContestPage>, index: usize) -> Rc<dyn StageScreen> {
         Some(StageKind::Splitting) => splitting::SplittingScreen::new(page, index),
         Some(StageKind::GeneralClassification) => general_classification::ClassificationScreen::new(page, index),
         Some(StageKind::YouthTraining) => youth::YouthScreen::new(page, index),
+        Some(StageKind::DivisionRound) => divisions::DivisionScreen::new(page, index),
         _ => Rc::new(Pending::new(page, index)),
     }
 }

@@ -20,7 +20,7 @@ pub fn is_youth(page: &ContestPage, index: usize) -> bool {
         } else {
             stage.as_any().downcast_ref::<bp_core::rounds::pool::PoolSupervisorStage>()?.shared_round()
         };
-        let youth = round.lock().map(|r| r.youth_groups.is_some()).unwrap_or(false);
+        let youth = round.lock().map(|r| r.is_youth()).unwrap_or(false);
         Some(youth)
     })
     .flatten()

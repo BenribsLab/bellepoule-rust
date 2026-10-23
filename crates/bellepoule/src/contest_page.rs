@@ -78,6 +78,8 @@ impl ContestPage {
             hero,
         });
         page.populate_combos();
+        crate::points_tab::install(&page);
+        crate::categories_tab::install(&page);
         page.connect_handlers();
         page.fill_in_properties();
         page.display_properties();

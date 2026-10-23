@@ -538,14 +538,14 @@ impl ScheduleView {
         // Une scission crée une compétition autonome avant le verrouillage,
         // pour pouvoir rester dans cette phase si la duplication échoue.
         let splitting = page.with_contest(|c| c.schedule.current().map(|s| s.kind() == StageKind::Splitting)).flatten().unwrap_or(false);
-        let split_contest = if splitting {
+        let split_contests = if splitting {
             let Some(app) = page.app.upgrade() else { return };
             let result = app.tournament.borrow_mut().split_current_contest(page.id);
             match result {
-                Ok(id) => Some(id),
+                Ok(ids) => ids,
                 Err(e) => { dialogs::error(page.window().as_ref(), &e.to_string()); return; }
             }
-        } else { None };
+        } else { Vec::new() };
         let exceedance = page
             .with_contest(|c| c.with_schedule(|s, ctx| s.lock_current(ctx)))
             .unwrap_or(0);
@@ -565,8 +565,11 @@ impl ScheduleView {
         page.with_contest(|c| c.with_schedule(|s, ctx| s.enter_next(ctx)));
         page.mark_dirty();
         self.refresh();
-        if let (Some(id), Some(app)) = (split_contest, page.app.upgrade()) {
-            if let Some(derived) = app.show_managed_contest(id) { derived.mark_dirty(); }
+        // Une compétition par division créée.
+        if let Some(app) = page.app.upgrade() {
+            for id in split_contests {
+                if let Some(derived) = app.show_managed_contest(id) { derived.mark_dirty(); }
+            }
         }
 
     }

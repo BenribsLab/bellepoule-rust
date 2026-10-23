@@ -60,6 +60,8 @@ impl App {
         let share = resources::share_dir();
         tournament.examples_dir = [share.join("Exemples"), share.join("tests-data")].into_iter().find(|d| d.is_dir());
         language::activate(&language::current(&tournament.config));
+        // Modèle de catégories générales (préférences, onglet « Catégories »).
+        crate::categories_tab::init();
 
         let glade = match Glade::new("tournament.ui") {
             Ok(g) => g,

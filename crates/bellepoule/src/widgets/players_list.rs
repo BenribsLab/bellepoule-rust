@@ -293,9 +293,29 @@ impl PlayersListView {
             }
             for cell in column.cells() {
                 let attendance_badge = spec.code == "attending" && cell.is::<gtk::CellRendererText>();
+                let category_badge = spec.code == "general_category" && cell.is::<gtk::CellRendererText>();
                 column.set_cell_data_func(&cell, move |_, cell, model, iter| {
                     let odd = model.path(iter).indices().first().is_some_and(|index| index % 2 != 0);
                     cell.set_cell_background(Some(if odd { "#f5f8ff" } else { "#ffffff" }));
+                    // Garde-fou des catégories : ▲ surclassé, ▲▲ double surclassement, ⚠ à vérifier.
+                    if category_badge {
+                        if let Some(text) = cell.downcast_ref::<gtk::CellRendererText>() {
+                            let label = model.get::<Option<String>>(iter, col as i32).unwrap_or_default();
+                            let colors = if label.contains('⚠') {
+                                Some(("#fdecec", "#b42318"))
+                            } else if label.contains("▲▲") {
+                                Some(("#f1e8ff", "#6b35c9"))
+                            } else if label.contains('▲') {
+                                Some(("#fff3d6", "#9a5b00"))
+                            } else {
+                                None
+                            };
+                            text.set_foreground(colors.map(|(_, fg)| fg));
+                            if let Some((bg, _)) = colors {
+                                cell.set_cell_background(Some(bg));
+                            }
+                        }
+                    }
                     if attendance_badge && model.get::<u32>(iter, 0) != 0 {
                         let attending = model.get::<bool>(iter, col as i32);
                         if let Some(text) = cell.downcast_ref::<gtk::CellRendererText>() {
