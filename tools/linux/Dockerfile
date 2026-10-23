@@ -1,4 +1,4 @@
-# Compilation de ManageComp pour Linux (x86-64), lancée par tools/release.py.
+# Compilation de ManageComp pour Linux x86-64 (PC), lancée par tools/release.py.
 # Ubuntu 24.04 : GTK 4.14 (le logiciel demande GTK 4.12 ou plus récent).
 FROM ubuntu:24.04
 RUN apt-get update \
