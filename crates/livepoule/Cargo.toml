@@ -1,6 +1,6 @@
 [package]
 name = "livepoule"
-description = "LivePoule : boîtier de score et d'affichage de piste (Raspberry Pi)"
+description = "ManageComp Live : boîtier de score et d'affichage de piste (Raspberry Pi)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -16,7 +16,7 @@ name = "livepoule"
 path = "src/lib.rs"
 
 [[bin]]
-name = "livepoule"
+name = "managecomp-live"
 path = "src/main.rs"
 
 [dependencies]
@@ -30,8 +30,13 @@ aes = { workspace = true }
 cbc = { workspace = true }
 base64 = { workspace = true }
 qrcode = { workspace = true }
-get_if_addrs = { workspace = true }
+if-addrs = { workspace = true }
 socket2 = { workspace = true }
+ureq = { workspace = true }
+serde_json = { workspace = true }
 
 [target.'cfg(all(target_os = "linux", any(target_arch = "arm", target_arch = "aarch64")))'.dependencies]
 rppal = { workspace = true, optional = true }
+
+[build-dependencies]
+winresource = "0.1"

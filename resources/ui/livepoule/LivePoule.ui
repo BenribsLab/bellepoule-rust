@@ -16,7 +16,7 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <object class="GtkWindow" id="root">
-    <property name="title">LivePoule</property>
+    <property name="title">ManageComp Live</property>
     <child>
       <object class="GtkBox" id="box1">
         <property name="orientation">vertical</property>

@@ -94,12 +94,13 @@ pub fn organisation(glade: &Glade) {
     split.set_wide_handle(true);
     split.set_shrink_start_child(false);
     split.set_shrink_end_child(false);
+    // La liste des matchs à placer garde une vraie place sous la salle.
     split.set_resize_start_child(true);
-    split.set_resize_end_child(false);
-    split.set_position(350);
+    split.set_resize_end_child(true);
+    split.set_position(300);
     split.set_start_child(Some(&hall));
     let scroll = gtk::ScrolledWindow::new();
-    scroll.set_min_content_height(110);
+    scroll.set_min_content_height(240);
     scroll.set_min_content_width(240);
     scroll.set_child(Some(&matches));
     split.set_end_child(Some(&scroll));

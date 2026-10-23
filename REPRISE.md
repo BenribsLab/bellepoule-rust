@@ -1,9 +1,49 @@
-# Reprise du travail — point d'arrêt (21/10/2026)
+# Reprise du travail — point d'arrêt (22/10/2026)
 
 Document écrit pour qu'une autre IA (ou une autre personne) reprenne le portage sans perdre le fil.
 À lire avec `ARCHITECTURE.md` (plan général) et `AVANCEMENT.md` (état par chantier).
 
 ## Transmission prioritaire à la prochaine IA
+
+**Android 1.3 / versionCode 4 (22/10)** : un bouton de carton arrête le chrono et affiche
+un écran entièrement jaune, rouge ou noir, sans bandeau ni barres système permanentes.
+Toucher cet écran ouvre la confirmation existante ; seul « Enregistrer » inscrit le carton
+sur le match. Retour ferme l'écran sans enregistrer. APK : `smartpoule-android/SmartPoule-1.3.apk`.
+Compilation de livraison uniquement, sans lancement ni test interactif.
+
+**Android 1.2 / versionCode 3 (22/10)** : correction du bandeau bleu recouvrant le chrono.
+L'écran de match utilise un thème sans ActionBar automatique et une Toolbar dans le même
+agencement vertical que le contenu défilant, avec prise en compte des barres système et encoches.
+APK de livraison : `smartpoule-android/SmartPoule-1.2.apk`. Aucun lancement ni test interactif.
+
+**Dernière livraison Android (22/10)** : après réinstallation sans changement, l'APK disponible
+était toujours la version 1.0. Reconstruction de livraison effectuée avec `gradlew assembleDebug`
+(sans lancement ni test interactif), erreur d'accolade corrigée dans `BoutActivity.refresh`,
+construction réussie de la version **1.1 / versionCode 2**. Fichier explicite à installer :
+`smartpoule-android/SmartPoule-1.1.apk` ; sortie Gradle : `app/build/outputs/apk/debug/app-debug.apk`.
+Le chrono est sur l'écran d'un match, pas sur l'accueil. L'API et le bureau n'ont pas été reconstruits
+par l'agent lors de cette livraison ; les mentions antérieures « APK non reconstruit » sont historiques.
+
+**Correctif du gel à l'ouverture d'une compétition (22/10)** : `smartpoule_sheet`, branche poule,
+gardait le verrou `a.round()` puis appelait `stage.bout_timing()`, qui reprend le même Mutex.
+La construction de l'instantané SmartPoule, exécutée dans le fil GTK, pouvait donc figer toute
+l'interface. Lecture remplacée par `round.bout_timing`, sans deuxième verrouillage, dans le cœur
+PC et sa copie web. Défaut introduit par l'ajout du chrono. Correction écrite, sans compilation,
+test ni lancement conformément à la consigne utilisateur. Fermer l'ancienne instance bloquée
+puis relancer `lancer.bat` ; reconstruire aussi l'API web avant de la réutiliser avec ce cœur.
+
+**Dernier chantier : chrono et cartons SmartPoule Android, web/API et bureau (22/10).**
+Lire d'abord `CHRONO_CARTONS.md` et `smartpoule-android/README.md` pour le contrat et les fichiers.
+Défauts utilisateur : poules 5 touches, 1 × 3 min ; tableaux 15 touches, 3 × 3 min. Paramètres
+modifiables dans la formule des deux applications et transmis avec la feuille au téléphone.
+Grand chrono Android, manches, scores, journal des cartons jaune/rouge/noir, annulation conservée,
+persistance sur le match et indications sur les feuilles imprimables. Premier nom de la feuille
+vert par défaut ; bouton d'inversion des côtés sans échanger les tireurs dans les données.
+Copie du cœur synchronisée vers `../Bellepoule Web/bellepoule-web-api/bp-core/src` ; API et client
+web modifiés aussi. Version Android source 1.1, mais **APK non reconstruit et services non redémarrés**.
+**Aucune compilation ni aucun test de ce chantier**, à la demande de l'utilisateur ; ne pas en lancer
+sans nouvelle instruction. Les sanctions de score/exclusion ne sont pas appliquées automatiquement
+par les boutons de cartons : ils consignent le journal, le score reste sous contrôle de l'arbitre.
 
 Cette section décrit la direction actuelle et prime sur les anciens passages décrivant encore
 deux programmes obligatoires, une copie visuelle exacte de GTK2 ou un démarrage sur Organisation.

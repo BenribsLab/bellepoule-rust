@@ -21,8 +21,10 @@
             </intent-filter>
         </activity>
         <activity android:name=".SheetActivity" android:exported="false" />
+        <activity android:name=".TeamBoutActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity
             android:name=".BoutActivity"
+            android:theme="@style/Theme.SmartPoule.Match"
             android:exported="false"
             android:screenOrientation="unspecified" />
         <!-- Lecteur de QR codes : orientation libre -->

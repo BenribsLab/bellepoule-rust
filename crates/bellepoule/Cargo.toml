@@ -1,9 +1,13 @@
 [package]
 name = "bellepoule"
-description = "BellePoule : logiciel de gestion de compétitions d'escrime (superviseur)"
+description = "ManageComp : logiciel libre de gestion de compétitions d'escrime, dérivé de BellePoule"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+
+[[bin]]
+name = "managecomp"
+path = "src/main.rs"
 
 [dependencies]
 bp-core = { workspace = true }
@@ -23,3 +27,6 @@ rand = { workspace = true }
 ureq = { workspace = true }
 serde_json = { workspace = true }
 pangocairo = { workspace = true }
+
+[build-dependencies]
+winresource = "0.1"

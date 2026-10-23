@@ -402,6 +402,7 @@ impl SupervisorScreen {
                     status.append(Some(code), &tr(text));
                 }
                 status.set_active_id(Some(&d.status.to_string()));
+                bp_gtk::util::scroll_passes_through(&status);
                 status.set_sensitive(!locked);
                 let weak = self.weak_self.clone();
                 let player = row.player;
@@ -672,6 +673,16 @@ impl SupervisorScreen {
                     dialogs::error(page.window().as_ref(), &e.to_string());
                 }
             }
+            return;
+        }
+        // Rencontres par équipes : feuilles de match en relais.
+        if super::relay_print::is_team(&page) {
+            super::relay_print::print(&page, self.index, None, false);
+            return;
+        }
+        // Entraînement des jeunes : on imprime toujours le groupe complet.
+        if super::group_print::is_youth(&page, self.index) {
+            super::group_print::print(&page, self.index, Some(self.selected.get()));
             return;
         }
         let dialog: gtk::MessageDialog = self.glade.get("print_pool_dialog");

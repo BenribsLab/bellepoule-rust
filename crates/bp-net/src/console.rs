@@ -38,7 +38,7 @@ const LOGO: &str = concat!(
     "                              \n",
 );
 
-const PROMPT: &str = "BellePoule> ";
+const PROMPT: &str = "ManageComp> ";
 
 /// Variables exposées : nom → valeur (ordre d'insertion conservé).
 static VARIABLES: Mutex<Option<Vec<(String, u32)>>> = Mutex::new(None);

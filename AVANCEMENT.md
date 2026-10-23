@@ -1,6 +1,33 @@
-# État d'avancement du portage — mise à jour du 21/10/2026
+# État d'avancement du portage — mise à jour du 22/10/2026
 
 **→ Pour reprendre le travail : lire `REPRISE.md` (point d’arrêt exact et suite).**
+
+**22/10 — Cartons Android 1.3 (versionCode 4)** : bouton jaune/rouge/noir → couleur en
+plein écran, chrono en pause → appui sur l'écran → confirmation → enregistrement sur le match.
+Retour ou annulation n'ajoutent aucun carton. APK : `smartpoule-android/SmartPoule-1.3.apk`.
+Compilation de livraison, sans test interactif.
+
+**22/10 — Disposition Android 1.2** : bandeau du match placé dans un agencement vertical
+avec le contenu, thème sans ActionBar automatique et marges système/encoches explicites.
+Le chrono reste sous la barre au lieu de passer derrière. Livraison `SmartPoule-1.2.apk`
+(versionCode 3), sans lancement de l'application ni test interactif.
+
+**22/10 — APK SmartPoule livré** : l'ancien fichier d'installation était encore en 1.0. Construction
+réussie de la **1.1 (versionCode 2)** après correction d'une accolade dans le compteur de cartons.
+Installer `smartpoule-android/SmartPoule-1.1.apk`, puis ouvrir un match pour voir le chrono.
+Pas de test interactif ; cette livraison Android ne reconstruit ni le serveur web/API ni le bureau.
+
+**22/10 — Gel PC / SmartPoule corrigé dans les sources** : la feuille d'une poule reprenait le
+même verrou pour lire sa durée alors que le tour était déjà verrouillé. Cela bloquait l'instantané
+SmartPoule dans le fil GTK. Lecture directe de `round.bout_timing` désormais utilisée, côté PC
+et dans la copie web. Non compilé/non testé ; ancienne instance à fermer avant relance.
+
+**22/10 — Chrono et cartons SmartPoule** : paramètres de formule partagés web/bureau (poules
+5 touches, 1 × 3 min ; tableaux 15 touches, 3 × 3 min), transmission à Android, décompte monotone,
+manches, inversion rouge/vert (premier nom vert par défaut), cartons par tireur avec journal et annulations.
+État enregistré sur le match, API/relais et impressions adaptés ; copie du cœur web synchronisée.
+Voir `CHRONO_CARTONS.md`. **Code écrit, non compilé/non testé à la demande de l'utilisateur ;
+APK non reconstruit, aucun service redémarré.** Les cartons sont consignés, sans sanction automatique.
 
 ## Synthèse actuelle pour une autre IA
 

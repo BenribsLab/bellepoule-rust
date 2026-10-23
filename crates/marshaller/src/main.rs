@@ -27,6 +27,7 @@ fn main() -> glib::ExitCode {
         .application_id("org.bellepoule.Marshaller")
         .flags(gio::ApplicationFlags::NON_UNIQUE)
         .build();
+    application.connect_startup(|_| bp_gtk::resources::install_app_icon());
     application.connect_activate(marshaller::ui::Ui::start);
     application.run_with_args::<&str>(&[])
 }

@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE CompetitionIndividuelle>
+<!--
+           By ManageComp (V5.7), derived from BellePoule
+
+   https://managecomp.org
+-->
+<CompetitionIndividuelle Couleur="#EED680" NetID="220ad4f4" Annee="2026" Arme="F" Sexe="X" Organisateur="Cercle d'escrime de Yerres" Categorie="M11" Niveau="L" Date="18.10.2026" Appel="12:00" Scratch="12:00" Debut="12:00" TitreLong="Entraînement des jeunes d'octobre" URLorganisateur="" ScoreAleatoire="0" TailleMinimaleEquipe="3" ClassementDefautEquipe="9999" ClassementManuel="0" Lieu="Gymnase Léo Lagrange, Yerres" Label="">
+ <Tireurs>
+  <Tireur ID="8" Nom="MARTIN" Prenom="Lina" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="1" Exporte="0" Statut="Q" Groupe="1"/>
+  <Tireur ID="1" Nom="BERNARD" Prenom="Hugo" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="2" Exporte="0" Statut="Q" Groupe="1"/>
+  <Tireur ID="16" Nom="THOMAS" Prenom="Emma" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="BRUNOY AE" Ranking="3" Exporte="0" Statut="Q" Groupe="1"/>
+  <Tireur ID="11" Nom="PETIT" Prenom="Nathan" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MONTGERON ESC" Ranking="4" Exporte="0" Statut="Q" Groupe="1"/>
+  <Tireur ID="13" Nom="ROBERT" Prenom="Jade" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="VIGNEUX CS" Ranking="5" Exporte="0" Statut="Q" Groupe="1"/>
+  <Tireur ID="12" Nom="RICHARD" Prenom="Louis" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="CRETEIL US" Ranking="6" Exporte="0" Statut="Q" Groupe="1"/>
+  <Tireur ID="4" Nom="DURAND" Prenom="Chloé" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="7" Exporte="0" Statut="Q" Groupe="1"/>
+  <Tireur ID="3" Nom="DUBOIS" Prenom="Gabriel" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="8" Exporte="0" Statut="Q" Groupe="1"/>
+  <Tireur ID="10" Nom="MOREAU" Prenom="Léa" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="BRUNOY AE" Ranking="9" Exporte="0" Statut="Q" Groupe="2"/>
+  <Tireur ID="5" Nom="LAURENT" Prenom="Arthur" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MONTGERON ESC" Ranking="10" Exporte="0" Statut="Q" Groupe="2"/>
+  <Tireur ID="15" Nom="SIMON" Prenom="Alice" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="VIGNEUX CS" Ranking="11" Exporte="0" Statut="Q" Groupe="2"/>
+  <Tireur ID="9" Nom="MICHEL" Prenom="Jules" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="CRETEIL US" Ranking="12" Exporte="0" Statut="Q" Groupe="2"/>
+  <Tireur ID="6" Nom="LEFEBVRE" Prenom="Rose" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="13" Exporte="0" Statut="Q" Groupe="2"/>
+  <Tireur ID="7" Nom="LEROY" Prenom="Lucas" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="14" Exporte="0" Statut="Q" Groupe="2"/>
+  <Tireur ID="14" Nom="ROUX" Prenom="Anna" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="BRUNOY AE" Ranking="15" Exporte="0" Statut="Q" Groupe="2"/>
+  <Tireur ID="2" Nom="DAVID" Prenom="Adam" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MONTGERON ESC" Ranking="16" Exporte="0" Statut="Q" Groupe="2"/>
+ </Tireurs>
+ <Equipes/>
+ <Arbitres/>
+ <Phases PhaseEnCours="3">
+  <Pointage/>
+  <EntrainementJeunes PhaseID="1" ID="" NbQualifiesParIndice="16" Affichage="RangDeDepart,Nom,Prenom,Club,Ranking" TailleGroupe="8" PoulesParGroupe="2" Groupes="Division" Poules="Serpentin" Decalage="/club/" PlacesTirees="99" Points="Identiques:10"/>
+  <TourDePoules DureeManche="180" NbManches="1" TypeRelais="croise" PointsRelais="5" PhaseID="3" ID="Round #1" NetID="79e65d26" ScoreMax="5" Affichage="RangDeDepart,Nom,Prenom,Club" AffichageScores="Nom,Prenom" AffichageClassement="rank,Statut,Nom,Prenom,Club,PoolID,RatioVictoires,Indice,TD" AffichageListe="Nom,Prenom,Club,PoolID,Piste,Heure" RepartitionEquilibre="1" SortieCroisee="1" GroupesJeunes="2,2" Decalage="/club/" NbDePoules="4" PhaseSuivanteDesQualifies="4">
+   <Tireur REF="8" RangInitial="1" RangFinal="2" Statut="Q"/>
+   <Tireur REF="1" RangInitial="2" RangFinal="3" Statut="Q"/>
+   <Tireur REF="16" RangInitial="3" RangFinal="3" Statut="Q"/>
+   <Tireur REF="11" RangInitial="4" RangFinal="14" Statut="Q"/>
+   <Tireur REF="13" RangInitial="5" RangFinal="6" Statut="Q"/>
+   <Tireur REF="12" RangInitial="6" RangFinal="15" Statut="Q"/>
+   <Tireur REF="4" RangInitial="7" RangFinal="13" Statut="Q"/>
+   <Tireur REF="3" RangInitial="8" RangFinal="12" Statut="Q"/>
+   <Tireur REF="10" RangInitial="9" RangFinal="11" Statut="Q"/>
+   <Tireur REF="5" RangInitial="10" RangFinal="7" Statut="Q"/>
+   <Tireur REF="15" RangInitial="11" RangFinal="1" Statut="Q"/>
+   <Tireur REF="9" RangInitial="12" RangFinal="10" Statut="Q"/>
+   <Tireur REF="6" RangInitial="13" RangFinal="5" Statut="Q"/>
+   <Tireur REF="7" RangInitial="14" RangFinal="7" Statut="Q"/>
+   <Tireur REF="14" RangInitial="15" RangFinal="16" Statut="Q"/>
+   <Tireur REF="2" RangInitial="16" RangFinal="7" Statut="Q"/>
+   <Poule ID="1" NetID="fa79ecbb">
+    <Tireur REF="11" NoDansLaPoule="1" NbVictoires="0" NbMatches="3" TD="4" TR="10" RangPoule="4"/>
+    <Tireur REF="3" NoDansLaPoule="2" NbVictoires="1" NbMatches="3" TD="6" TR="9" RangPoule="3"/>
+    <Tireur REF="13" NoDansLaPoule="3" NbVictoires="1" NbMatches="3" TD="9" TR="8" RangPoule="2"/>
+    <Tireur REF="8" NoDansLaPoule="4" NbVictoires="2" NbMatches="3" TD="10" TR="2" RangPoule="1"/>
+    <Match ID="1">
+     <Tireur REF="11" Score="1" Statut="D"/>
+     <Tireur REF="8" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="2">
+     <Tireur REF="3" Score="5" Statut="V"/>
+     <Tireur REF="13" Score="4" Statut="D"/>
+    </Match>
+    <Match ID="3">
+     <Tireur REF="11" Score="3" Statut="D"/>
+     <Tireur REF="13" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="4">
+     <Tireur REF="3" Score="1" Statut="D"/>
+     <Tireur REF="8" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="5">
+     <Tireur REF="13"/>
+     <Tireur REF="8"/>
+    </Match>
+    <Match ID="6">
+     <Tireur REF="11"/>
+     <Tireur REF="3"/>
+    </Match>
+   </Poule>
+   <Poule ID="2" NetID="1bb86434">
+    <Tireur REF="4" NoDansLaPoule="1" NbVictoires="0" NbMatches="3" TD="5" TR="10" RangPoule="3"/>
+    <Tireur REF="12" NoDansLaPoule="2" NbVictoires="0" NbMatches="3" TD="3" TR="10" RangPoule="4"/>
+    <Tireur REF="1" NoDansLaPoule="3" NbVictoires="2" NbMatches="3" TD="10" TR="4" RangPoule="1"/>
+    <Tireur REF="16" NoDansLaPoule="4" NbVictoires="2" NbMatches="3" TD="10" TR="4" RangPoule="1"/>
+    <Match ID="1">
+     <Tireur REF="4" Score="4" Statut="D"/>
+     <Tireur REF="16" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="2">
+     <Tireur REF="12" Score="3" Statut="D"/>
+     <Tireur REF="1" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="3">
+     <Tireur REF="4" Score="1" Statut="D"/>
+     <Tireur REF="1" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="4">
+     <Tireur REF="12" Score="0" Statut="D"/>
+     <Tireur REF="16" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="5">
+     <Tireur REF="1"/>
+     <Tireur REF="16"/>
+    </Match>
+    <Match ID="6">
+     <Tireur REF="4"/>
+     <Tireur REF="12"/>
+    </Match>
+   </Poule>
+   <Poule ID="3" NetID="1266f183">
+    <Tireur REF="10" NoDansLaPoule="1" NbVictoires="1" NbMatches="3" TD="5" TR="6" RangPoule="4"/>
+    <Tireur REF="6" NoDansLaPoule="2" NbVictoires="1" NbMatches="3" TD="7" TR="5" RangPoule="1"/>
+    <Tireur REF="9" NoDansLaPoule="3" NbVictoires="1" NbMatches="3" TD="6" TR="7" RangPoule="3"/>
+    <Tireur REF="2" NoDansLaPoule="4" NbVictoires="1" NbMatches="3" TD="5" TR="5" RangPoule="2"/>
+    <Match ID="1">
+     <Tireur REF="10" Score="0" Statut="D"/>
+     <Tireur REF="2" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="2">
+     <Tireur REF="6" Score="2" Statut="D"/>
+     <Tireur REF="9" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="3">
+     <Tireur REF="10" Score="5" Statut="V"/>
+     <Tireur REF="9" Score="1" Statut="D"/>
+    </Match>
+    <Match ID="4">
+     <Tireur REF="6" Score="5" Statut="V"/>
+     <Tireur REF="2" Score="0" Statut="D"/>
+    </Match>
+    <Match ID="5">
+     <Tireur REF="9"/>
+     <Tireur REF="2"/>
+    </Match>
+    <Match ID="6">
+     <Tireur REF="10"/>
+     <Tireur REF="6"/>
+    </Match>
+   </Poule>
+   <Poule ID="4" NetID="69bd6b6e">
+    <Tireur REF="15" NoDansLaPoule="1" NbVictoires="2" NbMatches="3" TD="10" TR="1" RangPoule="1"/>
+    <Tireur REF="7" NoDansLaPoule="2" NbVictoires="1" NbMatches="3" TD="5" TR="5" RangPoule="2"/>
+    <Tireur REF="14" NoDansLaPoule="3" NbVictoires="0" NbMatches="3" TD="1" TR="10" RangPoule="4"/>
+    <Tireur REF="5" NoDansLaPoule="4" NbVictoires="1" NbMatches="3" TD="5" TR="5" RangPoule="2"/>
+    <Match ID="1">
+     <Tireur REF="15" Score="5" Statut="V"/>
+     <Tireur REF="5" Score="0" Statut="D"/>
+    </Match>
+    <Match ID="2">
+     <Tireur REF="7" Score="5" Statut="V"/>
+     <Tireur REF="14" Score="0" Statut="D"/>
+    </Match>
+    <Match ID="3">
+     <Tireur REF="15" Score="5" Statut="V"/>
+     <Tireur REF="14" Score="1" Statut="D"/>
+    </Match>
+    <Match ID="4">
+     <Tireur REF="7" Score="0" Statut="D"/>
+     <Tireur REF="5" Score="5" Statut="V"/>
+    </Match>
+    <Match ID="5">
+     <Tireur REF="14"/>
+     <Tireur REF="5"/>
+    </Match>
+    <Match ID="6">
+     <Tireur REF="15"/>
+     <Tireur REF="7"/>
+    </Match>
+   </Poule>
+  </TourDePoules>
+  <PhaseDeTableaux PhaseID="4" ID="" NetID="df9c69cd" ScoreMax="15" Affichage="RangDeDepart,Nom,Prenom,Club" AffichageClassement="rank,Statut,Nom,Prenom,Club" PlacesTirees="0"/>
+  <ClassementGeneral PhaseID="5" ID="" Affichage="Classement,Nom,Prenom,Club,Ligue,Region,Nation" AffichageClassement="Classement,Nom,Prenom,Club,Ligue,Region,Nation"/>
+ </Phases>
+</CompetitionIndividuelle>

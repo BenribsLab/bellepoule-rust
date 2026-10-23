@@ -493,6 +493,7 @@ impl YouthScreen {
         line.append(&size);
         line.append(&left(&tr("Pools")));
         let combo = gtk::ComboBoxText::new();
+        bp_gtk::util::scroll_passes_through(&combo);
         let best = youth::best_pools(layout.size, settings);
         let choices = youth::pool_choices(layout.size);
         for c in &choices {

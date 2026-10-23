@@ -1,0 +1,67 @@
+{
+  "pistes": [
+    {
+      "blocked": 0,
+      "id": 1,
+      "rotation": 0,
+      "x": 15,
+      "y": 15
+    },
+    {
+      "blocked": 0,
+      "id": 2,
+      "rotation": 0,
+      "x": 15,
+      "y": 60
+    },
+    {
+      "blocked": 0,
+      "id": 3,
+      "rotation": 0,
+      "x": 285,
+      "y": 15
+    },
+    {
+      "blocked": 0,
+      "id": 4,
+      "rotation": 0,
+      "x": 285,
+      "y": 60
+    },
+    {
+      "blocked": 0,
+      "id": 5,
+      "rotation": 0,
+      "x": 150,
+      "y": 135
+    },
+    {
+      "blocked": 0,
+      "id": 6,
+      "rotation": 0,
+      "x": 15,
+      "y": 195
+    },
+    {
+      "blocked": 0,
+      "id": 7,
+      "rotation": 0,
+      "x": 15,
+      "y": 240
+    },
+    {
+      "blocked": 0,
+      "id": 8,
+      "rotation": 0,
+      "x": 285,
+      "y": 195
+    },
+    {
+      "blocked": 0,
+      "id": 9,
+      "rotation": 0,
+      "x": 285,
+      "y": 240
+    }
+  ]
+}

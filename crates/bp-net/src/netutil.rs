@@ -29,9 +29,9 @@ pub struct Ipv4Guess {
 /// n'est pas la boucle locale. Sans interface, on se replie sur 127.0.0.1
 /// (adresse unicast et adresse de diffusion confondues, comme le C++).
 pub fn guess_ipv4() -> Ipv4Guess {
-    if let Ok(ifaces) = get_if_addrs::get_if_addrs() {
+    if let Ok(ifaces) = if_addrs::get_if_addrs() {
         for iface in ifaces {
-            if let get_if_addrs::IfAddr::V4(v4) = &iface.addr {
+            if let if_addrs::IfAddr::V4(v4) = &iface.addr {
                 if v4.ip.is_loopback() || v4.ip.is_unspecified() {
                     continue;
                 }

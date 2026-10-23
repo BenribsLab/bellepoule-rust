@@ -10,6 +10,7 @@
 #![allow(deprecated)]
 
 mod app;
+mod capture;
 mod contest_page;
 mod language;
 mod network;
@@ -34,19 +35,29 @@ fn main() -> glib::ExitCode {
 
     let mut file: Option<PathBuf> = None;
     let mut smoke_test = false;
-    for arg in std::env::args().skip(1) {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    // Captures de la documentation (`--doc-capture`).
+    let capture = capture::Shot::from_args(&args);
+    let mut skip = false;
+    for arg in &args {
+        if skip {
+            skip = false;
+            continue;
+        }
         match arg.as_str() {
             "--smoke-test" => smoke_test = true,
+            a if capture::Shot::takes_value(a) => skip = true,
             a if !a.starts_with('-') => file = Some(PathBuf::from(a)),
             _ => {}
         }
     }
 
     let application = gtk::Application::builder()
-        .application_id("org.bellepoule.BellePoule")
+        .application_id("org.managecomp.ManageComp")
         .flags(gio::ApplicationFlags::NON_UNIQUE)
         .build();
-    application.connect_activate(move |a| app::App::start(a, file.clone(), smoke_test));
+    application.connect_startup(|_| bp_gtk::resources::install_app_icon());
+    application.connect_activate(move |a| app::App::start(a, file.clone(), smoke_test, capture.clone()));
     application.run_with_args::<&str>(&[])
 }
 
@@ -65,10 +76,10 @@ fn install_panic_log() {
             if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
                 let timestamp = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
-                let _ = writeln!(file, "\n--- BellePoule PID {} / Unix {} ---\n{}\n{}",
+                let _ = writeln!(file, "\n--- ManageComp PID {} / Unix {} ---\n{}\n{}",
                     std::process::id(), timestamp, info, std::backtrace::Backtrace::force_capture());
                 let _ = file.flush();
-                eprintln!("BellePoule : rapport d'erreur dans {}", path.display());
+                eprintln!("ManageComp : rapport d'erreur dans {}", path.display());
             }
         }
         previous(info);

@@ -233,7 +233,7 @@ fn draw_sheet(canvas: &Canvas, sheet: &PoolSheet, data: &SheetsData, watermark: 
     }
 
     // Liste des matchs (feuilles d'arbitres)
-    if (sheet.for_referees || sheet.matches.iter().any(|m| m.resource.is_some())) && !sheet.matches.is_empty() {
+    if (sheet.for_referees || sheet.matches.iter().any(|m| m.resource.is_some() || !m.officiating.is_empty())) && !sheet.matches.is_empty() {
         let mut top = grid_top + n as f64 * CELL + CELL / 2.0;
         let line_h = 20.0 * s;
         let has_resources = sheet.matches.iter().any(|m| m.resource.is_some());
@@ -283,8 +283,13 @@ fn draw_sheet(canvas: &Canvas, sheet: &PoolSheet, data: &SheetsData, watermark: 
                 let label = canvas.text(block, resource, 0.0, 2.0 * line_h + 2.0, -1.0, Anchor::NW);
                 canvas.set(label, [Prop::Font(bold(12.0)), Prop::FillColor("black".into())]);
             }
+            if !m.officiating.is_empty() {
+                let label = canvas.text(block, &format!("Cartons (T1/T2)\n{}", m.officiating), 0.0, 2.0 * line_h + if m.resource.is_some() { 40.0 * s } else { 4.0 * s }, -1.0, Anchor::NW);
+                canvas.set(label, [Prop::Font(px(12.0)), Prop::FillColor("black".into())]);
+            }
             blocks.push(block);
         }
+        let block_h = block_h.max(blocks.iter().map(|b| canvas.bounds(*b).height() + 10.0 * s).fold(0.0_f64, f64::max));
         let block_w = blocks.iter().map(|b| canvas.bounds(*b).width()).fold(1.0_f64, f64::max) + CELL / 4.0;
         let available = grid_x + n as f64 * CELL;
         // Comme le C++ : on ajoute une colonne tant que la liste est moins

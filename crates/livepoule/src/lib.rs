@@ -7,7 +7,8 @@
 //! - [`gpio`], [`button`], [`light`], [`scoring_machine`] : matériel ;
 //! - [`wpa`] : configuration Wi-Fi ;
 //! - [`wifi_code`] : QR code de connexion de l'arbitre ;
-//! - [`network`] : trait [`network::Network`] et serveur HTTP de réception.
+//! - [`network`] : trait [`network::Network`] et serveur HTTP de réception ;
+//! - [`web_link`] : scores en direct relus sur le serveur BellePoule Web.
 
 pub mod button;
 pub mod gpio;
@@ -17,6 +18,7 @@ pub mod network;
 pub mod scoring_machine;
 pub mod screen;
 pub mod timer;
+pub mod web_link;
 pub mod wifi_code;
 pub mod wpa;
 

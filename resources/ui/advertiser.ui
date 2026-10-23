@@ -8,7 +8,7 @@
     <property name="destroy-with-parent">True</property>
     <property name="message-type">other</property>
     <property name="buttons">ok-cancel</property>
-    <property name="text" translatable="yes">BellePoule needs your agreement
+    <property name="text" translatable="yes">ManageComp needs your agreement
 to tweet on your behalf</property>
     <property name="secondary-text" translatable="yes">Click on the link to open a web browser:</property>
     <child internal-child="content_area">
@@ -141,7 +141,7 @@ to tweet on your behalf</property>
     <property name="modal">True</property>
     <property name="destroy-with-parent">True</property>
     <property name="buttons">cancel</property>
-    <property name="text" translatable="yes">BellePoule needs your agreement to post announces on your behalf</property>
+    <property name="text" translatable="yes">ManageComp needs your agreement to post announces on your behalf</property>
     <property name="secondary-text">  Follow the instructions given by Twitter:</property>
     <child internal-child="content_area">
       <object class="GtkBox" id="dialog-vbox">

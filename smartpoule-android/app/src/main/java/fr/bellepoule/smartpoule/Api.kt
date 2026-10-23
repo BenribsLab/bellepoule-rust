@@ -116,7 +116,7 @@ class Api(private val pairing: Pairing) {
         run({ JSONObject(request("GET", "/api/smartpoule/phone/sheet?${identity()}&token=${enc(token)}", null)) }, done)
 
     /** Envoie le score d'un match : `{ status: ok|pending, id }`. */
-    fun score(token: String, bout: Int, a: String, b: String, done: (Result<JSONObject>) -> Unit) {
+    fun score(token: String, bout: Int, a: String, b: String, officiating: JSONObject? = null, done: (Result<JSONObject>) -> Unit) {
         val body = JSONObject()
             .put("c", pairing.club)
             .put("r", pairing.referee)
@@ -124,8 +124,29 @@ class Api(private val pairing: Pairing) {
             .put("token", token)
             .put("bout", bout)
             .put("values", JSONArray().put(a).put(b))
+            .put("officiating", officiating)
             .toString()
         run({ JSONObject(request("POST", "/api/smartpoule/phone/score", body)) }, done)
+    }
+
+    fun officiating(token: String, bout: Int, state: JSONObject, done: (Result<JSONObject>) -> Unit) {
+        val body = JSONObject().put("c", pairing.club).put("r", pairing.referee).put("k", pairing.key)
+            .put("token", token).put("bout", bout).put("officiating", state).toString()
+        run({ JSONObject(request("POST", "/api/smartpoule/phone/score", body)) }, done)
+    }
+
+    /** Rencontre par équipes : journal des relais, et le score final quand la rencontre est finie. */
+    fun relay(token: String, bout: Int, log: JSONObject, values: List<String>?, done: (Result<JSONObject>) -> Unit) {
+        val body = JSONObject().put("c", pairing.club).put("r", pairing.referee).put("k", pairing.key)
+            .put("token", token).put("bout", bout).put("relay", log)
+        values?.let { body.put("values", JSONArray(it)) }
+        run({ JSONObject(request("POST", "/api/smartpoule/phone/score", body.toString())) }, done)
+    }
+
+    /** État en direct du match (score, chrono) pour l'écran LivePoule de la piste. */
+    fun live(state: JSONObject, done: (Result<JSONObject>) -> Unit) {
+        state.put("c", pairing.club).put("r", pairing.referee).put("k", pairing.key)
+        run({ JSONObject(request("POST", "/api/smartpoule/phone/live", state.toString())) }, done)
     }
 
     /** Sort d'un score en attente : `{ status: pending|ok|error, error }`. */

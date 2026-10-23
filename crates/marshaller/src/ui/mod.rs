@@ -14,6 +14,7 @@ mod hall_view;
 mod referees_view;
 mod pool_resources;
 mod job_referees;
+mod group_dialog;
 mod embedded_layout;
 
 use std::cell::RefCell;
@@ -74,7 +75,7 @@ impl Ui {
         };
         let window: gtk::Window = glade.get("root");
         window.set_application(Some(app));
-        window.set_title(Some("BellePoule - Marshaller"));
+        window.set_title(Some("ManageComp - Organisation"));
         dialogs::set_main_window(&window);
         dialogs::keep_focus_in_app();
         glade.attach_actions(&window);
@@ -226,7 +227,7 @@ impl Ui {
         on!("on_payment_menuitem_activate", |ui: &Rc<Ui>| ui.print_referees(false));
         on!("on_access_code_activate", |ui: &Rc<Ui>| ui.show_access_code());
         on!("on_SmartPoule_button_clicked", |_: &Rc<Ui>| dialogs::show_uri(
-            "https://play.google.com/store/apps/details?id=betton.escrime.smartpoule"
+            "https://arbitre.managecomp.org"
         ));
         {
             let w = Rc::downgrade(self);
@@ -296,7 +297,7 @@ impl Ui {
             HandshakeResult::RoleRejected => {
                 dialogs::info(
                     Some(&self.window),
-                    &tr("<b><big>Another Marshaller is already running on the network!</big></b>"),
+                    &tr("<b><big>Another organisation is already running on the network!</big></b>"),
                     None,
                 );
             }

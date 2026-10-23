@@ -107,3 +107,56 @@ fn pistes_and_their_referees_survive_xml_and_printing_keeps_match_indices() {
         );
     }
 }
+
+#[test]
+fn several_referees_on_one_piste_alternate_bout_after_bout() {
+    let (mut pool, mut players) = pool(5);
+    pool.add_referee(200);
+    pool.add_referee(100);
+    pool.set_roadmap_pistes(&mut players, &[4], None);
+    let plan = pool.match_assignments();
+    let referees: Vec<_> = plan.iter().map(|a| a.referee.unwrap()).collect();
+    for pair in referees.windows(2) {
+        assert_ne!(pair[0], pair[1], "les arbitres alternent : {referees:?}");
+    }
+}
+
+#[test]
+fn extra_referees_are_shared_between_pistes() {
+    let (mut pool, mut players) = pool(6);
+    for r in [400, 300, 200, 100] {
+        pool.add_referee(r);
+    }
+    pool.set_roadmap_pistes(&mut players, &[1, 2], None);
+    let by_piste = pool.referees_by_piste();
+    assert_eq!(by_piste.len(), 2);
+    assert!(by_piste.iter().all(|(_, refs)| refs.len() == 2));
+    for a in pool.match_assignments() {
+        let (_, refs) = by_piste.iter().find(|(p, _)| *p == a.piste).unwrap();
+        assert!(refs.contains(&a.referee.unwrap()));
+    }
+}
+
+#[test]
+fn a_referee_avoids_fencers_of_his_club_when_another_is_free() {
+    let (mut pool, mut players) = pool(4);
+    // Le premier tireur est du club de l'arbitre 100.
+    let first = pool.matches()[0].bout.opponent(0).unwrap();
+    players.get_mut(first).unwrap().set_str(&AttrId::global("club"), "YERRES");
+    let mut referees = PlayerStore::new();
+    for (id, club) in [(100, "YERRES"), (200, "MELUN")] {
+        let mut player = new_player(PlayerClass::Referee);
+        player.set_ref(id);
+        player.set_str(&AttrId::global("club"), club);
+        referees.add(player);
+    }
+    pool.add_referee(200);
+    pool.add_referee(100);
+    pool.set_roadmap_pistes(&mut players, &[1], None);
+    for a in pool.match_assignments_with_clubs(&players, &referees) {
+        let m = &pool.matches()[a.match_index].bout;
+        if (0..2).any(|k| m.opponent(k) == Some(first)) {
+            assert_eq!(a.referee, Some(200));
+        }
+    }
+}

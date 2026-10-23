@@ -4,7 +4,6 @@ use bp_core::player::{AttrId, Owner, PlayerRef, PlayerStore};
 use bp_core::stage::RankEntry;
 use bp_gtk::canvas::{Canvas, ItemId, Prop};
 use gtk4 as gtk;
-use std::path::Path;
 
 use super::{
     players_list::{Cell, ColumnSpec, RowData},
@@ -72,10 +71,6 @@ pub fn ranked_rows(
 }
 
 impl ListDocument {
-    fn scene(&self) -> (Canvas, Vec<ItemId>) {
-        self.scene_chunked(25)
-    }
-
     /// Une table par page de `per_page` lignes, en-têtes répétés.
     fn scene_chunked(&self, per_page: usize) -> (Canvas, Vec<ItemId>) {
         let per_page = per_page.max(1);
@@ -207,11 +202,6 @@ impl ListDocument {
         rows(&mut html, &self.rows, self.specs.len(), &esc);
         html.push_str("</table>\n");
         html
-    }
-
-    /// PDF avec la même mise en page que l'impression.
-    pub fn export_pdf(&self, path: &Path) -> Result<(), String> {
-        bp_gtk::print::export_pdf(self.source().as_mut(), path)
     }
 }
 

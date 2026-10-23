@@ -105,3 +105,12 @@ mod tests {
         assert!(super::image_path("male.png").is_file());
     }
 }
+
+/// Icône ManageComp des fenêtres (`resources/branding/icons`, thème hicolor).
+/// À appeler au démarrage de l'application, une fois l'écran ouvert.
+pub fn install_app_icon() {
+    if let Some(display) = gtk4::gdk::Display::default() {
+        gtk4::IconTheme::for_display(&display).add_search_path(resources_dir().join("branding").join("icons"));
+    }
+    gtk4::Window::set_default_icon_name("managecomp");
+}

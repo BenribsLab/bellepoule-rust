@@ -126,3 +126,25 @@ impl<K: Eq + Hash> TreeModelIndex<K> {
         self.rows.clear();
     }
 }
+
+/// La molette ne change pas la valeur d'une liste déroulante : elle fait
+/// défiler la page qui la contient. On ne change la valeur qu'en cliquant.
+pub fn scroll_passes_through(widget: &impl IsA<gtk::Widget>) {
+    let scroll = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::BOTH_AXES);
+    scroll.set_propagation_phase(gtk::PropagationPhase::Capture);
+    let target = widget.as_ref().downgrade();
+    scroll.connect_scroll(move |_, dx, dy| {
+        if let Some(w) = target.upgrade() {
+            if let Some(sw) = w.ancestor(gtk::ScrolledWindow::static_type()).and_downcast::<gtk::ScrolledWindow>() {
+                for (adj, delta) in [(sw.vadjustment(), dy), (sw.hadjustment(), dx)] {
+                    if delta != 0.0 {
+                        let step = (adj.page_size() / 10.0).max(20.0);
+                        adj.set_value((adj.value() + delta * step).clamp(adj.lower(), adj.upper() - adj.page_size()));
+                    }
+                }
+            }
+        }
+        gtk::glib::Propagation::Stop
+    });
+    widget.as_ref().add_controller(scroll);
+}

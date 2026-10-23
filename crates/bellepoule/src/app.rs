@@ -24,7 +24,10 @@ const NEW_XML: u16 = b'X' as u16;
 const NEW_ZIP: u16 = b'Z' as u16;
 const NEW_ASKFRED: u16 = b'A' as u16;
 
-const WEB_SITE: &str = "http://betton.escrime.free.fr/fencing-tournament-software/";
+/// Site de ManageComp (documentation, téléchargement).
+const WEB_SITE: &str = "https://managecomp.org/";
+/// Sources de ManageComp.
+const SOURCE_SITE: &str = "https://github.com/BenribsLab";
 
 pub struct App {
     pub gtk_app: gtk::Application,
@@ -45,7 +48,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn start(gtk_app: &gtk::Application, file: Option<PathBuf>, smoke_test: bool) {
+    pub fn start(gtk_app: &gtk::Application, file: Option<PathBuf>, smoke_test: bool, capture: Option<crate::capture::Shot>) {
         bp_gtk::appearance::install();
         // Ressources et valeurs discrètes (pays, clubs, ligues…)
         let resources_dir = resources::resources_dir().to_path_buf();
@@ -61,7 +64,7 @@ impl App {
         let glade = match Glade::new("tournament.ui") {
             Ok(g) => g,
             Err(e) => {
-                eprintln!("BellePoule : impossible de charger l'interface : {}", e.0);
+                eprintln!("ManageComp : impossible de charger l'interface : {}", e.0);
                 gtk_app.quit();
                 return;
             }
@@ -96,7 +99,9 @@ impl App {
         app.update_visibility();
         if !smoke_test {
             *app.network.borrow_mut() = Some(crate::network::Network::start(&app));
-            *app.smartpoule.borrow_mut() = Some(crate::smartpoule::SmartPoule::start(&app));
+            if capture.is_none() {
+                *app.smartpoule.borrow_mut() = Some(crate::smartpoule::SmartPoule::start(&app));
+            }
         }
         let management = crate::management::Management::new(&app);
         *app.management.borrow_mut() = Some(management);
@@ -109,6 +114,9 @@ impl App {
 
         if let Some(f) = file {
             app.open_path(&f);
+        }
+        if let Some(shot) = capture {
+            crate::capture::run(&app, shot);
         }
 
         if smoke_test {
@@ -184,16 +192,16 @@ impl App {
             });
         }
         let open_web = |url: String| move |_: &Signal| dialogs::show_uri(&url);
-        self.glade.connect_simple("on_translate_menuitem_activate", open_web(format!("{WEB_SITE}en/translate")));
+        self.glade.connect_simple("on_translate_menuitem_activate", open_web(format!("{SOURCE_SITE}")));
         let download = if language::current(&self.tournament.borrow().config) == "fr" {
-            format!("{WEB_SITE}fr/telechargement-v{VERSION}")
+            format!("{WEB_SITE}telecharger/")
         } else {
-            format!("{WEB_SITE}en/download-v{VERSION}")
+            format!("{WEB_SITE}en/download/")
         };
         self.glade.connect_simple("on_new_version_menuitem_activate", open_web(download));
         self.glade.connect_simple(
             "on_release_notes_activate",
-            open_web(format!("https://git.launchpad.net/bellepoule/log/?h={VERSION}.0/master")),
+            open_web(format!("{SOURCE_SITE}/managecomp-rust/releases")),
         );
 
         {
@@ -281,6 +289,13 @@ impl App {
         let about: gtk::AboutDialog = self.glade.get("about_dialog");
         about.set_version(Some(&format!("V{VERSION}.{VERSION_REVISION}{VERSION_MATURITY}")));
         about.set_translator_credits(Some(TRANSLATORS));
+        // Logiciel libre dérivé de BellePoule : les mentions d'origine sont conservées.
+        about.set_program_name(Some("ManageComp"));
+        about.set_comments(Some("Logiciel libre de gestion de compétitions d'escrime.\n\nDérivé de BellePoule, de Yannick Le Roux."));
+        about.set_copyright(Some("© 2026 les contributeurs de ManageComp\nBellePoule © 2009-2017 Yannick Le Roux (亚尼可)"));
+        about.set_website(Some(WEB_SITE));
+        about.set_website_label("managecomp.org");
+        about.add_credit_section("BellePoule", &["Yannick Le Roux http://betton.escrime.free.fr"]);
         about.set_hide_on_close(true);
         if let Some(logo) = self.glade.object::<gtk::Picture>("about_logo") {
             let _ = logo;
@@ -464,7 +479,7 @@ impl App {
 
     /// Entraînement des jeunes (extension) : nouvelle compétition dont la
     /// formule répartit les tireurs en groupes.
-    fn on_new_youth(self: &Rc<Self>) {
+    pub fn on_new_youth(self: &Rc<Self>) {
         let id = self.tournament.borrow_mut().new_youth_training();
         if let Some(page) = self.add_page(id) {
             page.ask_for_settings();
@@ -492,7 +507,7 @@ impl App {
                 chooser.filters.push(dialogs::file_filter(Some(&tr("Competition files")), &["*.zip", "*.xml", "*.frd"]));
             }
             None => {
-                chooser.filters.push(dialogs::file_filter(Some(&tr("BellePoule files")), &["*.cotcot"]));
+                chooser.filters.push(dialogs::file_filter(Some(&tr("ManageComp files")), &["*.cotcot"]));
                 chooser.filters.push(dialogs::file_filter(Some(&tr("Competition files")), &["*.cotcot", "*.zip", "*.xml", "*.frd"]));
             }
         }
@@ -604,7 +619,7 @@ impl App {
         if pdf.is_file() {
             dialogs::show_uri(&pdf.to_string_lossy());
         } else {
-            let page = if code == "fr" { "fr/documentation" } else { "en/documentation" };
+            let page = if code == "fr" { "docs/" } else { "en/docs/" };
             dialogs::show_uri(&format!("{WEB_SITE}{page}"));
         }
     }
@@ -626,9 +641,9 @@ impl App {
         let ok = unsaved.is_empty()
             || dialogs::confirm(
                 Some(&self.window),
-                &tr("<b><big>Do you really want to quit BellePoule</big></b>"),
+                &tr("<b><big>Do you really want to quit ManageComp</big></b>"),
                 Some(&format!("{}\n{}", tr("These competitions are not saved:"), unsaved.join("\n"))),
-                Some(&tr("Quit BellePoule?")),
+                Some(&tr("Quit ManageComp?")),
             );
         if ok {
             self.quitting.set(true);

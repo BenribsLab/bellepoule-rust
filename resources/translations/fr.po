@@ -1,6 +1,6 @@
 # French translation for bellepoule
 # Copyright (c) 2010 Rosetta Contributors and Canonical Ltd 2010
-# This file is distributed under the same license as the BellePoule package.
+# This file is distributed under the same license as the ManageComp package.
 #
 msgid ""
 msgstr ""
@@ -46,8 +46,8 @@ msgstr "Suivez les instructions données par "
 msgid "Access denied!"
 msgstr "Accès refusé !"
 
-msgid "<b>Smartpoule</b> configuration code"
-msgstr "Code de configuration de <b>SmartPoule</b>"
+msgid "<b>ManageComp Arbitre</b> configuration code"
+msgstr "Code de configuration de <b>ManageComp Arbitre</b>"
 
 msgid ""
 "Uncheck this box to quicken the data input. The corresponding field will be "
@@ -161,8 +161,8 @@ msgstr "Fichiers d'exemples"
 msgid "Competition files"
 msgstr "Fichiers de compétition"
 
-msgid "BellePoule files"
-msgstr "Fichiers BellePoule"
+msgid "ManageComp files"
+msgstr "Fichiers ManageComp"
 
 msgid "Recently opened files"
 msgstr "Fichiers récemment ouverts"
@@ -217,8 +217,8 @@ msgstr ""
 "\n"
 "Réafficher la fiche pour le renseigner ?"
 
-msgid "BellePoule files (.cotcot)"
-msgstr "Les fichiers BellePoule (.cotcot)"
+msgid "ManageComp files (.cotcot)"
+msgstr "Les fichiers ManageComp (.cotcot)"
 
 msgid "Close without saving"
 msgstr "Fermer sans enregistrer"
@@ -256,11 +256,11 @@ msgstr ""
 msgid "Barrage"
 msgstr "Barrage"
 
-msgid "<b><big>Do you really want to quit BellePoule</big></b>"
-msgstr "<b><big>Voulez-vous vraiment quitter BellePoule ?</big></b>"
+msgid "<b><big>Do you really want to quit ManageComp</big></b>"
+msgstr "<b><big>Voulez-vous vraiment quitter ManageComp ?</big></b>"
 
-msgid "Quit BellePoule?"
-msgstr "Quitter BellePoule ?"
+msgid "Quit ManageComp?"
+msgstr "Quitter ManageComp ?"
 
 msgid "All the unsaved competions will be lost."
 msgstr "Toutes les compétitions non enregistrées seront perdues."
@@ -316,8 +316,8 @@ msgstr ""
 "<b>%s</b> est en retard.\n"
 "Voulez-vous décaler les matchs suivants ?\n"
 
-msgid "Restart BellePoule for this change to take effect"
-msgstr "Redémarrez BellePoule pour appliquer les changements"
+msgid "Restart ManageComp for this change to take effect"
+msgstr "Redémarrez ManageComp pour appliquer les changements"
 
 msgid "Educ"
 msgstr "Éduc"
@@ -829,8 +829,8 @@ msgstr "Promus"
 msgid "Eliminated"
 msgstr "Éliminés"
 
-msgid "BellePoule - Fencing tournament"
-msgstr "BellePoule - Tournoi d'escrime"
+msgid "ManageComp - Fencing tournament"
+msgstr "ManageComp - Tournoi d'escrime"
 
 msgid "File"
 msgstr "Fichier"
@@ -886,18 +886,18 @@ msgstr "Mot de passe"
 msgid ""
 "Enter your WIFI network settings here.\n"
 "They will be used to automatically configure\n"
-"the smarthphones running <b>SmartPoule</b>"
+"the smartphones running <b>ManageComp Arbitre</b>"
 msgstr ""
 "Copiez ici les paramètres du réseau WIFI.\n"
 "Ils seront automatiquement utilisés pour configurer\n"
-"les smartphones avec <b>SmartPoule</b>."
+"les smartphones avec <b>ManageComp Arbitre</b>."
 
 msgid ""
-"Scan this code with <b>SmartPoule</b>\n"
+"Scan this code with <b>ManageComp Arbitre</b>\n"
 "to make your smarphone\n"
 "a score sheet scanner."
 msgstr ""
-"Scannez ce code avec <b>SmartPoule</b>\n"
+"Scannez ce code avec <b>ManageComp Arbitre</b>\n"
 "pour transformer votre smartphone en\n"
 "scanner de feuilles de match."
 
@@ -907,11 +907,11 @@ msgstr "<b>Scanner de feuilles de match</b>"
 msgid "Connection rejected"
 msgstr "Connection rejetée"
 
-msgid "BellePoule2D is already operating on the network."
-msgstr "BellePoule2D est déjà présent sur le réseau"
+msgid "Organisation is already operating on the network."
+msgstr "Organisation est déjà présent sur le réseau"
 
-msgid "Connection to <b>BellePoule</b>"
-msgstr "Connexion à <b>BellePoule</b>"
+msgid "Connection to <b>ManageComp</b>"
+msgstr "Connexion à <b>ManageComp</b>"
 
 msgid "Plug an USB stick."
 msgstr "Insérez une clé USB."
@@ -921,20 +921,20 @@ msgstr "Retirez-la."
 
 msgid ""
 "Plug it now in a computer where\n"
-"<b>BellePoule</b> is running."
+"<b>ManageComp</b> is running."
 msgstr ""
 "Insérez-la maintenant dans l'ordinateur où\n"
-"tourne <b>BellePoule</b>."
+"tourne <b>ManageComp</b>."
 
 msgid "Scan this QRCode:"
 msgstr "Scannez ce QRCode :"
 
 msgid ""
 "Scan the other QRCode on the partner application\n"
-" (menu <b>BellePoule2D</b>)."
+" (menu <b>Organisation</b>)."
 msgstr ""
 "Scannez l'autre QRCode sur l'application partenaire\n"
-" (menu <b>BellePoule2D</b>)."
+" (menu <b>Organisation</b>)."
 
 msgid "Fenced places"
 msgstr "Places tirées"
@@ -1059,10 +1059,10 @@ msgstr ""
 "les compétitions issues de scission."
 
 msgid ""
-"BellePoule needs your agreement\n"
+"ManageComp needs your agreement\n"
 "to tweet on your behalf"
 msgstr ""
-"BellePoule a besoin de votre accord\n"
+"ManageComp a besoin de votre accord\n"
 "pour tweeter pour votre compte"
 
 msgid "Click on the link to open a web browser:"
@@ -1077,9 +1077,9 @@ msgstr "sur ce site web"
 msgid "Paste the authorization code here:"
 msgstr "Coller le code d'autorisation ici :"
 
-msgid "BellePoule needs your agreement to post announces on your behalf"
+msgid "ManageComp needs your agreement to post announces on your behalf"
 msgstr ""
-"BellePoule a besoin de votre accord pour poster des annonces pour votre "
+"ManageComp a besoin de votre accord pour poster des annonces pour votre "
 "compte"
 
 msgid "New competition"
@@ -1100,15 +1100,15 @@ msgstr "À partir d'un fichier zip de la FFE (extranet)"
 msgid "From AskFred (.frd)"
 msgstr "À partir d'AskFred (.frd)"
 
-msgid "Connection to <b>BellePoule2D</b>"
-msgstr "Connexion à <b>BellePoule2D</b>"
+msgid "Connection to <b>Organisation</b>"
+msgstr "Connexion à <b>Organisation</b>"
 
 msgid ""
 "Plug it now in a computer where\n"
-"<b>BellePoule2D</b> is running."
+"<b>Organisation</b> is running."
 msgstr ""
 "Insérez-la maintenant dans l'ordinateur où\n"
-"tourne <b>BellePoule2D</b>."
+"tourne <b>Organisation</b>."
 
 msgid "Recently opened"
 msgstr "Récemment ouvert"
@@ -1160,10 +1160,10 @@ msgstr "<b>Serveur vidéo</b>"
 
 msgid ""
 "Scan the other QRCode on the partner application\n"
-" (menu <b>BellePoule</b>)."
+" (menu <b>ManageComp</b>)."
 msgstr ""
 "Scanner l'autre QRCode sur l'application partenaire\n"
-" (menu <b>BellePoule</b>)."
+" (menu <b>ManageComp</b>)."
 
 msgid "Reload the imported fencers?"
 msgstr "Recharger les tireurs importés ?"
@@ -1610,8 +1610,8 @@ msgstr "Tous les fichiers d'arbitres (FFF, CSV)"
 msgid "<b><big>Authentication failed!</big></b>"
 msgstr "<b><big>Échec de l'authentification !</big></b>"
 
-msgid "<b><big>Another Marshaller is already running on the network!</big></b>"
-msgstr "<b><big>Un autre Marshaller est déjà présent sur le réseau !</big></b>"
+msgid "<b><big>Another organisation is already running on the network!</big></b>"
+msgstr "<b><big>Une autre organisation est déjà présente sur le réseau !</big></b>"
 
 msgid "Change piste number…"
 msgstr "Modifier le numéro…"
@@ -1756,3 +1756,87 @@ msgstr "Heure :"
 
 msgid "Enter the time as HH:MM."
 msgstr "Saisissez l'heure sous la forme HH:MM."
+
+msgid "Move up"
+msgstr "Monter"
+
+msgid "Move down"
+msgstr "Descendre"
+
+msgid "Assign at least one referee to each piste."
+msgstr "Affectez au moins un arbitre à chaque piste."
+
+msgid "Referee of the same club as a fencer"
+msgstr "Arbitre du même club qu'un tireur"
+
+msgid "Assign anyway?"
+msgstr "Affecter quand même ?"
+
+msgid "Place a group"
+msgstr "Placer un groupe"
+
+msgid "Place a group…"
+msgstr "Placer un groupe…"
+
+msgid "State"
+msgstr "État"
+
+msgid "Time"
+msgstr "Heure"
+
+msgid "To place"
+msgstr "À placer"
+
+msgid "Referees only"
+msgstr "Arbitres seuls"
+
+msgid "Placed"
+msgstr "Placé"
+
+msgid "to place"
+msgstr "à placer"
+
+msgid "placed"
+msgstr "placés"
+
+msgid "No pool in this group."
+msgstr "Aucune poule dans ce groupe."
+
+msgid "Youth training: place all the pools of a group on one or several pistes"
+msgstr "Entraînement des jeunes : placer toutes les poules d'un groupe sur une ou plusieurs pistes"
+
+msgid "One piste: the pools of the group follow one another. As many pistes as pools (or more): the pools are fenced at the same time. The referees are shared between the pistes; on a piste with several referees, they take turns bout after bout, avoiding fencers of their club."
+msgstr "Une piste : les poules du groupe s'enchaînent. Autant de pistes que de poules (ou plus) : les poules se tirent en même temps. Les arbitres sont répartis sur les pistes ; sur une piste à plusieurs arbitres, ils alternent match après match en évitant les tireurs de leur club."
+
+msgid "Select the pistes and the referees of this pool. With several referees, they are shared between the pistes and take turns bout after bout, avoiding fencers of their club. Matches are scheduled in waves without simultaneous bouts for a fencer."
+msgstr "Choisissez les pistes et les arbitres de la poule. Avec plusieurs arbitres, ils sont répartis sur les pistes et alternent match après match en évitant les tireurs de leur club. Les matchs sont organisés en vagues, sans qu'un tireur ait deux matchs en même temps."
+
+msgid "Piste screens (ManageComp Live)"
+msgstr "Écrans de piste (ManageComp Live)"
+
+msgid "Start each screen with: managecomp-live --live <this address> --piste <number>. The same address opened in a browser shows the live score of a piste."
+msgstr "Lancez chaque écran avec : managecomp-live --live <cette adresse> --piste <numéro>. La même adresse ouverte dans un navigateur affiche le score en direct d'une piste."
+
+msgid "Help"
+msgstr "Aide"
+
+msgid "Preferences"
+msgstr "Préférences"
+
+msgid "_About"
+msgstr "À _propos"
+
+msgid "_Help"
+msgstr "_Aide"
+
+msgid "_New"
+msgstr "_Nouveau"
+
+msgid "_Open"
+msgstr "_Ouvrir"
+
+msgid "_Quit"
+msgstr "_Quitter"
+
+msgid "Export"
+msgstr "Exporter"

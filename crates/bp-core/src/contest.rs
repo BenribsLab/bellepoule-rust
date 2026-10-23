@@ -149,6 +149,8 @@ impl Contest {
             gender: GENDER_XML_IMAGES[0].to_string(),
             team_event: false,
             minimum_team_size: 3,
+            team_size: 3,
+            substitutes: 1,
             default_classification: 9999,
             manual_classification: for_duplication,
             score_stuffing_allowed: false,
@@ -490,6 +492,8 @@ impl Contest {
         }
         self.settings.score_stuffing_allowed = xml::attr_bool(root, "ScoreAleatoire", false);
         self.settings.minimum_team_size = xml::attr_u32(root, "TailleMinimaleEquipe", self.settings.minimum_team_size);
+        self.settings.team_size = xml::attr_u32(root, "TireursParEquipe", self.settings.team_size).clamp(1, 20);
+        self.settings.substitutes = xml::attr_u32(root, "RemplacantsParEquipe", self.settings.substitutes).min(10);
         self.settings.default_classification = xml::attr_u32(root, "ClassementDefautEquipe", self.settings.default_classification);
         self.settings.manual_classification = xml::attr_bool(root, "ClassementManuel", self.settings.manual_classification);
     }
@@ -571,7 +575,7 @@ impl Contest {
         let root = if self.settings.team_event { "CompetitionParEquipes" } else { "CompetitionIndividuelle" };
         w.dtd(root);
         w.comment(&format!(
-            "\n           By BellePoule (V{VERSION}.{VERSION_REVISION}{VERSION_MATURITY})\n\n   http://betton.escrime.free.fr/index.php/bellepoule\n"
+            "\n           By ManageComp (V{VERSION}.{VERSION_REVISION}{VERSION_MATURITY}), derived from BellePoule\n\n   https://managecomp.org\n"
         ));
         w.start(root);
         w.attr("Couleur", &self.color);
@@ -599,6 +603,10 @@ impl Contest {
         w.attr("URLorganisateur", &self.web_site);
         w.attr_fmt("ScoreAleatoire", self.settings.score_stuffing_allowed as u32);
         w.attr_fmt("TailleMinimaleEquipe", self.settings.minimum_team_size);
+        if self.settings.team_event {
+            w.attr_fmt("TireursParEquipe", self.settings.team_size);
+            w.attr_fmt("RemplacantsParEquipe", self.settings.substitutes);
+        }
         w.attr_fmt("ClassementDefautEquipe", self.settings.default_classification);
         w.attr_fmt("ClassementManuel", self.settings.manual_classification as u32);
         w.attr("Lieu", &self.location);
@@ -688,6 +696,8 @@ impl Contest {
         c.year = self.year;
         c.settings.team_event = self.settings.team_event;
         c.settings.minimum_team_size = self.settings.minimum_team_size;
+        c.settings.team_size = self.settings.team_size;
+        c.settings.substitutes = self.settings.substitutes;
         c.checkin_time = self.checkin_time;
         c.scratch_time = self.scratch_time;
         c.start_time = self.start_time;
@@ -800,12 +810,21 @@ impl Contest {
     /// Export HTML ; `classification` remplace le contenu du classement
     /// général (entraînement des jeunes : classement de chaque groupe).
     pub fn dump_to_html_with(&mut self, classification: Option<String>) -> String {
+        self.dump_to_html_scope(classification, false)
+    }
+
+    /// Export HTML ; `final_only` : le classement final seul, sans les poules
+    /// ni les tableaux.
+    pub fn dump_to_html_scope(&mut self, classification: Option<String>, final_only: bool) -> String {
         let header = self.header();
         let current = self.schedule.current_index();
         let ctx = StageContext { players: &mut self.players, settings: &self.settings };
         let mut rounds = Vec::new();
         for (index, stage) in self.schedule.stages().enumerate() {
             if stage.is_input_provider() {
+                continue;
+            }
+            if final_only && stage.kind() != crate::stage::StageKind::GeneralClassification {
                 continue;
             }
             let mut html = String::new();

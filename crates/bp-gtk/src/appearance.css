@@ -104,7 +104,6 @@
 }
 .bp-app .bp-brandbar button { background-color: transparent; border-color: transparent; }
 .bp-app .bp-brandbar button:hover { background-color: #e0eafe; }
-.bp-app .bp-brand-title { color: #102957; font-size: 21px; font-weight: 700; margin-right: 12px; }
 .bp-app .bp-muted { color: #7386a9; font-size: 12px; }
 .bp-app .bp-sidebar {
   background-image: linear-gradient(to bottom, #f6f9ff, #eaf0f9);
@@ -128,7 +127,6 @@
   font-weight: 600;
 }
 .bp-app .bp-nav-item:disabled { background-color: transparent; border-color: transparent; color: #9aa9c0; }
-.bp-app .bp-sidebar-brand { color: #173460; font-size: 17px; font-weight: 700; padding: 7px 0 3px; }
 .bp-app .bp-competition-page { margin: 12px 16px; }
 .bp-app .bp-organisation-page { margin: 12px 16px; }
 .bp-app .bp-hero {

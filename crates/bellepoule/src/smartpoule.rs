@@ -62,8 +62,16 @@ impl Settings {
     }
 
     /// Texte du QR code d'un arbitre (`reference = 0` : administrateur).
+    /// Adresse du QR code d'un arbitre : la page ManageComp Arbitre
+    /// (`https://arbitre.<domaine>/` quand le serveur est `https://api.<domaine>`).
     pub fn qr_text(&self, reference: u32, key: &str) -> String {
-        format!("{}/smartpoule/?c={}&r={reference}&k={key}", self.base(), self.club)
+        let base = self.base();
+        match base.split_once("://") {
+            Some((scheme, host)) if host.starts_with("api.") && !host.contains('/') => {
+                format!("{scheme}://arbitre.{}/?c={}&r={reference}&k={key}", &host[4..], self.club)
+            }
+            _ => format!("{base}/smartpoule/?c={}&r={reference}&k={key}", self.club),
+        }
     }
 }
 
@@ -221,9 +229,23 @@ impl SmartPoule {
             let values: Vec<String> = s.get("values").and_then(Value::as_array).map(|v| v.iter().map(|x| x.as_str().unwrap_or("").to_string()).collect()).unwrap_or_default();
             let contest: u32 = token.split('~').nth(1).and_then(|c| c.parse().ok()).unwrap_or(0);
             let page = pages.iter().find(|p| p.with_contest(|c| c.net_id == contest).unwrap_or(false));
-            let outcome = match (page, values.len() == 2) {
-                (Some(page), true) => {
-                    let r = page.with_contest(|c| c.smartpoule_apply_score(&token, bout, [values[0].clone(), values[1].clone()])).unwrap_or(Err("compétition fermée".into()));
+            let officiating = s.get("officiating").filter(|v| !v.is_null()).cloned();
+            let relay = s.get("relay").filter(|v| !v.is_null()).cloned();
+            let outcome = match page {
+                Some(page) => {
+                    let r = page.with_contest(|c| -> Result<(), String> {
+                        if let Some(state) = officiating {
+                            let state = serde_json::from_value(state).map_err(|_| "journal d'arbitrage invalide")?;
+                            c.smartpoule_apply_officiating(&token, bout, state)?;
+                        }
+                        if let Some(log) = relay.clone() {
+                            let log = serde_json::from_value(log).map_err(|_| "journal des relais invalide")?;
+                            c.smartpoule_apply_relay(&token, bout, log)?;
+                        }
+                        if values.len() == 2 { c.smartpoule_apply_score(&token, bout, [values[0].clone(), values[1].clone()])?; }
+                        else if s.get("officiating").is_none_or(|v| v.is_null()) && relay.is_none() { return Err("saisie incomplète".into()); }
+                        Ok(())
+                    }).unwrap_or(Err("compétition fermée".into()));
                     if r.is_ok() {
                         page.mark_dirty();
                         if let Some(view) = page.schedule.borrow().clone() {
@@ -232,8 +254,7 @@ impl SmartPoule {
                     }
                     r
                 }
-                (None, _) => Err("compétition non ouverte dans BellePoule".into()),
-                _ => Err("score incomplet".into()),
+                None => Err("compétition non ouverte dans ManageComp".into()),
             };
             results.push(match outcome {
                 Ok(()) => json!({ "id": id, "ok": true }),
@@ -277,6 +298,16 @@ fn ensure_referee_keys(c: &mut bp_core::contest::Contest) {
 
 // ------------------------------------------------------------------ dialogue
 
+/// Adresse des écrans de piste : sous-domaine `live.` quand le serveur est
+/// `https://api.<domaine>` (https://live.managecomp.org/?c=…), sinon `/live/`.
+fn live_link(server: &str, club: &str) -> String {
+    let server = server.trim().trim_end_matches('/');
+    match server.split_once("://") {
+        Some((scheme, host)) if host.starts_with("api.") && !host.contains('/') => format!("{scheme}://live.{}/?c={club}", &host[4..]),
+        _ => format!("{server}/live/?c={club}"),
+    }
+}
+
 fn qr_texture(text: &str) -> Option<gtk::gdk::Texture> {
     let png = bp_net::flash_code::QrMatrix::encode(text)?.to_image(4).to_png();
     gtk::gdk::Texture::from_bytes(&glib::Bytes::from_owned(png)).ok()
@@ -287,7 +318,7 @@ fn qr_texture(text: &str) -> Option<gtk::gdk::Texture> {
 pub fn show_dialog(app: &Rc<App>) {
     let settings = Settings::load(app);
     let dialog = gtk::Dialog::with_buttons(
-        Some("SmartPoule"),
+        Some("Arbitres sur téléphone"),
         Some(&app.window),
         gtk::DialogFlags::MODAL,
         &[(&tr("_Close"), gtk::ResponseType::Close)],
@@ -298,7 +329,7 @@ pub fn show_dialog(app: &Rc<App>) {
     content.set_margin_end(14);
     content.set_margin_top(12);
     content.set_margin_bottom(12);
-    let intro = gtk::Label::new(Some(&tr("The referees' phones (SmartPoule app) exchange through your BellePoule Web server: no need to be on the same network.")));
+    let intro = gtk::Label::new(Some(&tr("The referees' phones (ManageComp Arbitre app) exchange through your ManageComp server: no need to be on the same network.")));
     intro.set_wrap(true);
     intro.set_xalign(0.0);
     content.append(&intro);
@@ -327,6 +358,31 @@ pub fn show_dialog(app: &Rc<App>) {
     let current = app.smartpoule.borrow().as_ref().map(|s| s.status.borrow().clone()).unwrap_or_default();
     status.set_text(&format!("{} : {current}", tr("Status")));
     content.append(&status);
+
+    // Écrans de piste : LivePoule relit les scores en direct sur le serveur.
+    if !settings.server.trim().is_empty() && !settings.club.is_empty() {
+        let link = live_link(&settings.server, &settings.club);
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        let label = gtk::Label::new(Some(&tr("Piste screens (ManageComp Live)")));
+        row.append(&label);
+        let entry = gtk::Entry::new();
+        entry.set_text(&link);
+        entry.set_editable(false);
+        entry.set_hexpand(true);
+        row.append(&entry);
+        let copy = gtk::Button::with_label(&tr("Copy"));
+        {
+            let link = link.clone();
+            copy.connect_clicked(move |b| b.clipboard().set_text(&link));
+        }
+        row.append(&copy);
+        content.append(&row);
+        let hint = gtk::Label::new(Some(&tr("Start each screen with: managecomp-live --live <this address> --piste <number>. The same address opened in a browser shows the live score of a piste.")));
+        hint.set_wrap(true);
+        hint.set_xalign(0.0);
+        hint.add_css_class("dim-label");
+        content.append(&hint);
+    }
 
     let codes = gtk::FlowBox::new();
     codes.set_selection_mode(gtk::SelectionMode::None);
@@ -441,7 +497,7 @@ pub fn show_dialog(app: &Rc<App>) {
             if list.is_empty() {
                 return;
             }
-            let result = bp_gtk::print::run_document(Some(&app.window), "SmartPoule", move || Box::new(QrPrint { cards: list.clone() }));
+            let result = bp_gtk::print::run_document(Some(&app.window), "QR codes des arbitres", move || Box::new(QrPrint { cards: list.clone() }));
             if let Err(e) = result {
                 dialogs::error(Some(&app.window), &e.to_string());
             }
@@ -463,7 +519,7 @@ impl bp_gtk::print::PageSource for QrPrint {
     }
 
     fn page_name(&self, _page: usize) -> String {
-        "SmartPoule".into()
+        "Arbitres sur téléphone".into()
     }
 
     fn draw(&mut self, page: usize, cr: &cairo::Context, width: f64, height: f64) {

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE CompetitionParEquipes>
+<!--
+           By ManageComp (V5.7), derived from BellePoule
+
+   https://managecomp.org
+-->
+<CompetitionParEquipes Couleur="#EED680" NetID="6d32747e" Annee="2026" Arme="E" Sexe="M" Organisateur="Comité départemental" Categorie="S" Niveau="L" Date="25.10.2026" Appel="12:00" Scratch="12:00" Debut="12:00" TitreLong="Coupe des clubs par équipes" URLorganisateur="" ScoreAleatoire="0" TailleMinimaleEquipe="3" TireursParEquipe="3" RemplacantsParEquipe="1" ClassementDefautEquipe="9999" ClassementManuel="0" Lieu="Halle des sports, Melun" Label="">
+ <Tireurs/>
+ <Equipes>
+  <Equipe ID="39" Nom="YERRES 1" Nation="FRA" Ligue="ILE-DE-FRANCE" Ranking="6" Exporte="0" Statut="Q">
+   <Tireur ID="21" Equipe="YERRES 1" Nom="MARTIN" Prenom="Lina" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="1" Exporte="0" Statut="Q"/>
+   <Tireur ID="2" Equipe="YERRES 1" Nom="BERNARD" Prenom="Hugo" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="2" Exporte="0" Statut="Q"/>
+   <Tireur ID="36" Equipe="YERRES 1" Nom="THOMAS" Prenom="Emma" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="BRUNOY AE" Ranking="3" Exporte="0" Statut="Q"/>
+   <Tireur ID="29" Equipe="YERRES 1" Nom="PETIT" Prenom="Nathan" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MONTGERON ESC" Ranking="4" Exporte="0" Statut="Q"/>
+  </Equipe>
+  <Equipe ID="40" Nom="YERRES 2" Nation="FRA" Ligue="ILE-DE-FRANCE" Ranking="18" Exporte="0" Statut="Q">
+   <Tireur ID="31" Equipe="YERRES 2" Nom="ROBERT" Prenom="Jade" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="VIGNEUX CS" Ranking="5" Exporte="0" Statut="Q"/>
+   <Tireur ID="30" Equipe="YERRES 2" Nom="RICHARD" Prenom="Louis" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="CRETEIL US" Ranking="6" Exporte="0" Statut="Q"/>
+   <Tireur ID="11" Equipe="YERRES 2" Nom="DURAND" Prenom="Chloé" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="7" Exporte="0" Statut="Q"/>
+   <Tireur ID="9" Equipe="YERRES 2" Nom="DUBOIS" Prenom="Gabriel" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="8" Exporte="0" Statut="Q"/>
+  </Equipe>
+  <Equipe ID="22" Nom="MELUN" Nation="FRA" Ligue="ILE-DE-FRANCE" Ranking="30" Exporte="0" Statut="Q">
+   <Tireur ID="26" Equipe="MELUN" Nom="MOREAU" Prenom="Léa" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="BRUNOY AE" Ranking="9" Exporte="0" Statut="Q"/>
+   <Tireur ID="17" Equipe="MELUN" Nom="LAURENT" Prenom="Arthur" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MONTGERON ESC" Ranking="10" Exporte="0" Statut="Q"/>
+   <Tireur ID="35" Equipe="MELUN" Nom="SIMON" Prenom="Alice" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="VIGNEUX CS" Ranking="11" Exporte="0" Statut="Q"/>
+   <Tireur ID="24" Equipe="MELUN" Nom="MICHEL" Prenom="Jules" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="CRETEIL US" Ranking="12" Exporte="0" Statut="Q"/>
+  </Equipe>
+  <Equipe ID="6" Nom="BRUNOY" Nation="FRA" Ligue="ILE-DE-FRANCE" Ranking="42" Exporte="0" Statut="Q">
+   <Tireur ID="18" Equipe="BRUNOY" Nom="LEFEBVRE" Prenom="Rose" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="13" Exporte="0" Statut="Q"/>
+   <Tireur ID="20" Equipe="BRUNOY" Nom="LEROY" Prenom="Lucas" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="14" Exporte="0" Statut="Q"/>
+   <Tireur ID="33" Equipe="BRUNOY" Nom="ROUX" Prenom="Anna" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="BRUNOY AE" Ranking="15" Exporte="0" Statut="Q"/>
+   <Tireur ID="8" Equipe="BRUNOY" Nom="DAVID" Prenom="Adam" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MONTGERON ESC" Ranking="16" Exporte="0" Statut="Q"/>
+  </Equipe>
+  <Equipe ID="25" Nom="MONTGERON" Nation="FRA" Ligue="ILE-DE-FRANCE" Ranking="54" Exporte="0" Statut="Q">
+   <Tireur ID="3" Equipe="MONTGERON" Nom="BERTRAND" Prenom="Inès" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="VIGNEUX CS" Ranking="17" Exporte="0" Statut="Q"/>
+   <Tireur ID="27" Equipe="MONTGERON" Nom="MOREL" Prenom="Raphaël" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="CRETEIL US" Ranking="18" Exporte="0" Statut="Q"/>
+   <Tireur ID="14" Equipe="MONTGERON" Nom="FOURNIER" Prenom="Zoé" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="19" Exporte="0" Statut="Q"/>
+   <Tireur ID="15" Equipe="MONTGERON" Nom="GIRARD" Prenom="Paul" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="20" Exporte="0" Statut="Q"/>
+  </Equipe>
+  <Equipe ID="37" Nom="VIGNEUX" Nation="FRA" Ligue="ILE-DE-FRANCE" Ranking="66" Exporte="0" Statut="Q">
+   <Tireur ID="5" Equipe="VIGNEUX" Nom="BONNET" Prenom="Camille" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="BRUNOY AE" Ranking="21" Exporte="0" Statut="Q"/>
+   <Tireur ID="10" Equipe="VIGNEUX" Nom="DUPONT" Prenom="Noé" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MONTGERON ESC" Ranking="22" Exporte="0" Statut="Q"/>
+   <Tireur ID="16" Equipe="VIGNEUX" Nom="LAMBERT" Prenom="Mila" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="VIGNEUX CS" Ranking="23" Exporte="0" Statut="Q"/>
+   <Tireur ID="13" Equipe="VIGNEUX" Nom="FONTAINE" Prenom="Sacha" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="CRETEIL US" Ranking="24" Exporte="0" Statut="Q"/>
+  </Equipe>
+  <Equipe ID="7" Nom="CRETEIL" Nation="FRA" Ligue="ILE-DE-FRANCE" Ranking="78" Exporte="0" Statut="Q">
+   <Tireur ID="32" Equipe="CRETEIL" Nom="ROUSSEAU" Prenom="Lou" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="25" Exporte="0" Statut="Q"/>
+   <Tireur ID="38" Equipe="CRETEIL" Nom="VINCENT" Prenom="Tom" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="26" Exporte="0" Statut="Q"/>
+   <Tireur ID="28" Equipe="CRETEIL" Nom="MULLER" Prenom="Léna" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="BRUNOY AE" Ranking="27" Exporte="0" Statut="Q"/>
+   <Tireur ID="19" Equipe="CRETEIL" Nom="LEFEVRE" Prenom="Ethan" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MONTGERON ESC" Ranking="28" Exporte="0" Statut="Q"/>
+  </Equipe>
+  <Equipe ID="34" Nom="SAVIGNY" Nation="FRA" Ligue="ILE-DE-FRANCE" Ranking="90" Exporte="0" Statut="Q">
+   <Tireur ID="12" Equipe="SAVIGNY" Nom="FAURE" Prenom="Nina" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="VIGNEUX CS" Ranking="29" Exporte="0" Statut="Q"/>
+   <Tireur ID="1" Equipe="SAVIGNY" Nom="ANDRE" Prenom="Théo" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="CRETEIL US" Ranking="30" Exporte="0" Statut="Q"/>
+   <Tireur ID="23" Equipe="SAVIGNY" Nom="MERCIER" Prenom="Manon" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="YERRES CE" Ranking="31" Exporte="0" Statut="Q"/>
+   <Tireur ID="4" Equipe="SAVIGNY" Nom="BLANC" Prenom="Marius" Nation="FRA" Ligue="ILE-DE-FRANCE" Club="MELUN AE" Ranking="32" Exporte="0" Statut="Q"/>
+  </Equipe>
+ </Equipes>
+ <Arbitres/>
+ <Phases PhaseEnCours="1">
+  <Pointage/>
+  <PhaseDeTableaux PhaseID="1" ID="" NetID="d2a1abc9" ScoreMax="15" NbQualifiesParIndice="8" Affichage="RangDeDepart,Nom,Prenom,Club" AffichageClassement="rank,Statut,Nom,Prenom,Club" PlacesTirees="0">
+   <Equipe REF="39" RangInitial="1" Statut="Q"/>
+   <Equipe REF="40" RangInitial="2" Statut="Q"/>
+   <Equipe REF="22" RangInitial="3" Statut="Q"/>
+   <Equipe REF="6" RangInitial="4" Statut="Q"/>
+   <Equipe REF="25" RangInitial="5" Statut="Q"/>
+   <Equipe REF="37" RangInitial="6" Statut="Q"/>
+   <Equipe REF="7" RangInitial="7" Statut="Q"/>
+   <Equipe REF="34" RangInitial="8" Statut="Q"/>
+   <SuiteDeTableaux ID="0" Titre="Place #1" NbDeTableaux="3">
+    <Tableau ID="A8" NetID="c4fe8363" Titre="Table of 8" Taille="8">
+     <Match Relais="{&quot;revision&quot;:1,&quot;format&quot;:{&quot;kind&quot;:&quot;each_vs_each&quot;,&quot;team_size&quot;:3,&quot;points&quot;:5,&quot;substitutes&quot;:1},&quot;top&quot;:0,&quot;lineup&quot;:[&quot;ANDRE Théo&quot;,&quot;BERNARD Hugo&quot;,&quot;BERTRAND Inès&quot;,&quot;BONNET Camille&quot;,&quot;DAVID Adam&quot;,&quot;DUBOIS Gabriel&quot;],&quot;relays&quot;:[[5,3],[8,10],[15,12]],&quot;winner&quot;:null}" ID="1" NetID="8ba9fdec">
+      <Equipe REF="39"/>
+      <Equipe REF="34"/>
+     </Match>
+     <Match ID="2" NetID="c2027c48">
+      <Equipe REF="25"/>
+      <Equipe REF="6"/>
+     </Match>
+     <Match ID="3" NetID="7ba5abe6">
+      <Equipe REF="22"/>
+      <Equipe REF="37"/>
+     </Match>
+     <Match ID="4" NetID="ed01561">
+      <Equipe REF="7"/>
+      <Equipe REF="40"/>
+     </Match>
+    </Tableau>
+    <Tableau ID="A4" NetID="f5b9ae25" Titre="Semi-final" Taille="4">
+     <Match ID="1" NetID="644dc050"/>
+     <Match ID="2" NetID="4379adb1"/>
+    </Tableau>
+    <Tableau ID="A2" NetID="2c16f775" Titre="Final" Taille="2">
+     <Match ID="1" NetID="3386b857"/>
+    </Tableau>
+   </SuiteDeTableaux>
+  </PhaseDeTableaux>
+  <ClassementGeneral PhaseID="2" ID="" Affichage="Classement,Nom,Prenom,Club,Ligue,Region,Nation" AffichageClassement="Classement,Nom,Prenom,Club,Ligue,Region,Nation"/>
+ </Phases>
+</CompetitionParEquipes>

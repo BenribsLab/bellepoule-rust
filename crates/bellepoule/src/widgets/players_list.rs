@@ -175,10 +175,6 @@ impl PlayersListView {
         *self.inner.on_activate.borrow_mut() = Some(Rc::new(f));
     }
 
-    pub fn connect_selection_changed(&self, f: impl Fn() + 'static) {
-        *self.inner.on_selection.borrow_mut() = Some(Rc::new(f));
-    }
-
     /// Gèle ou dégèle les cases à cocher.
     pub fn set_locked(&self, locked: bool) {
         self.inner.locked.set(locked);

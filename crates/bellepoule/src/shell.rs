@@ -114,8 +114,9 @@ impl Shell {
         art.set_opacity(0.48);
         art.set_margin_top(12);
         sidebar.append(&art);
-        let brand = gtk::Label::new(Some("BellePoule"));
-        brand.add_css_class("bp-sidebar-brand");
+        let brand = visuals::brand_header(118, 36);
+        brand.set_halign(gtk::Align::Center);
+        brand.set_margin_top(6);
         sidebar.append(&brand);
         let version = gtk::Label::new(Some(&format!("Rust · {}", bp_core::contest::VERSION)));
         version.add_css_class("bp-muted");
@@ -155,10 +156,7 @@ impl Shell {
             }
         });
         brandbar.append(&toggle);
-        brandbar.append(&visuals::icon("swords", 28));
-        let title = gtk::Label::new(Some("BellePoule"));
-        title.add_css_class("bp-brand-title");
-        brandbar.append(&title);
+        brandbar.append(&visuals::brand_header(131, 40));
         let subtitle = gtk::Label::new(Some(&tr("Fencing tournament")));
         subtitle.add_css_class("bp-muted");
         subtitle.set_hexpand(true);
@@ -251,6 +249,15 @@ impl Shell {
             }
         });
         actions.append(&new);
+        let youth = gtk::Button::with_label(&tr("New youth training"));
+        youth.add_css_class("suggested-action");
+        let weak = Rc::downgrade(app);
+        youth.connect_clicked(move |_| {
+            if let Some(app) = weak.upgrade() {
+                app.on_new_youth();
+            }
+        });
+        actions.append(&youth);
         let open = gtk::Button::with_label(&tr("Open a competition"));
         let weak = Rc::downgrade(app);
         open.connect_clicked(move |_| {

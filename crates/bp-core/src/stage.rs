@@ -104,6 +104,10 @@ pub struct ContestSettings {
     pub gender: String,
     pub team_event: bool,
     pub minimum_team_size: u32,
+    /// Tireurs d'une équipe dans une rencontre (fixé à l'appel).
+    pub team_size: u32,
+    /// Remplaçants d'une équipe (fixé à l'appel).
+    pub substitutes: u32,
     pub default_classification: u32,
     pub manual_classification: bool,
     /// « ScoreAleatoire » : saisie automatique de scores (tests).
@@ -117,6 +121,8 @@ impl Default for ContestSettings {
             gender: "M".into(),
             team_event: false,
             minimum_team_size: 3,
+            team_size: 3,
+            substitutes: 1,
             default_classification: 10000,
             manual_classification: false,
             score_stuffing_allowed: false,
@@ -182,6 +188,7 @@ pub struct StageBase {
     pub rand_seed: u32,
     /// `ScoreMax` (absent pour les phases sans matchs).
     pub max_score: Option<u32>,
+    pub bout_timing: crate::officiating::BoutTiming,
     /// `NbQualifies` : nombre de qualifiés pour la phase suivante.
     pub nb_qualified: Option<u32>,
     /// Identifiant réseau (`NetID`, hexadécimal).
@@ -205,6 +212,7 @@ impl StageBase {
             locked: false,
             rand_seed: 0,
             max_score: None,
+            bout_timing: crate::officiating::BoutTiming { period_seconds: 180, periods: if kind == StageKind::TableSupervisor { 3 } else { 1 }, relay: Default::default() },
             nb_qualified: None,
             net_id: 0,
             attendees: Vec::new(),
@@ -221,6 +229,7 @@ impl StageBase {
 
     /// `Stage::LoadConfiguration` (attributs communs).
     pub fn load_configuration(&mut self, node: roxmltree::Node) {
+        self.bout_timing.load(node);
         if let Some(name) = node.attribute("ID") {
             self.name = name.to_string();
         }
@@ -238,6 +247,7 @@ impl StageBase {
     /// `Stage::SaveConfiguration` (attributs communs). `phase_id` est l'ID
     /// réellement écrit (l'allocateur écrit celui de la phase suivante).
     pub fn save_configuration(&self, w: &mut XmlWriter, phase_id: u32) {
+        self.bout_timing.save(w);
         w.attr_fmt("PhaseID", phase_id);
         w.attr("ID", &self.name);
         if self.net_id != 0 {
@@ -309,6 +319,10 @@ pub trait Stage: Any + Send {
     fn bout_max_score(&self) -> Option<u32> {
         self.base().max_score
     }
+
+    fn bout_timing(&self) -> crate::officiating::BoutTiming { self.base().bout_timing }
+
+    fn set_bout_timing(&mut self, timing: crate::officiating::BoutTiming) { self.base_mut().bout_timing = timing; }
 
     /// Quota de qualifiés de la phase.
     fn qualified_quota(&self) -> Option<u32> {

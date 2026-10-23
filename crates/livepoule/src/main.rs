@@ -44,6 +44,32 @@ fn main() -> glib::ExitCode {
 
     let smoke_test = std::env::args().any(|a| a == "--smoke-test");
 
+    // `--live <adresse>` : liaison au serveur BellePoule Web (adresse affichée
+    // par BellePoule › BellePoule2D › SmartPoule…) ; `--piste <n>` : piste de
+    // l'écran. Les deux sont mémorisés pour les lancements suivants.
+    {
+        let args: Vec<String> = std::env::args().collect();
+        let value = |flag: &str| args.iter().position(|a| a == flag).and_then(|i| args.get(i + 1)).cloned();
+        let mut settings = livepoule::web_link::Settings::load();
+        let mut changed = false;
+        if let Some(url) = value("--live") {
+            match livepoule::web_link::LiveAddress::parse(&url) {
+                Some(a) => {
+                    settings.address = Some(a);
+                    changed = true;
+                }
+                None => eprintln!("Adresse de liaison invalide : {url}"),
+            }
+        }
+        if let Some(p) = value("--piste").and_then(|p| p.parse::<u32>().ok()).filter(|p| *p > 0) {
+            settings.piste = Some(p);
+            changed = true;
+        }
+        if changed {
+            settings.save();
+        }
+    }
+
     let app = gtk::Application::builder()
         .application_id("org.bellepoule.LivePoule")
         .flags(gio::ApplicationFlags::NON_UNIQUE)

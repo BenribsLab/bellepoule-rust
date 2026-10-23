@@ -72,6 +72,10 @@ pub fn edit(ui: &Rc<Ui>, job: JobKey) {
             .filter(|(_, b)| b.is_active())
             .map(|(r, _)| *r)
             .collect();
+        let conflicts = ui.hall.borrow().club_conflicts(job, &refs);
+        if !super::group_dialog::confirm_conflicts(ui, &conflicts) {
+            continue;
+        }
         let result = ui.hall.borrow_mut().set_job_referees(job, &refs);
         match result {
             Ok(()) => {

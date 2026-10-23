@@ -1,0 +1,8 @@
+<Arbitres>
+ <Arbitre ID="20000" Nom="GARNIER" Prenom="Sophie" Arme="F" Club="YERRES CE" Exporte="0" Statut="F"/>
+ <Arbitre ID="20001" Nom="CHEVALIER" Prenom="Marc" Arme="F" Club="MELUN AE" Exporte="0" Statut="F"/>
+ <Arbitre ID="20002" Nom="PERRIN" Prenom="Julie" Arme="F" Club="BRUNOY AE" Exporte="0" Statut="F"/>
+ <Arbitre ID="20003" Nom="ROBIN" Prenom="Antoine" Arme="F" Club="MONTGERON ESC" Exporte="0" Statut="F"/>
+ <Arbitre ID="20004" Nom="CLEMENT" Prenom="Claire" Arme="F" Club="VIGNEUX CS" Exporte="0" Statut="F"/>
+ <Arbitre ID="20005" Nom="GAUTHIER" Prenom="Pierre" Arme="F" Club="CRETEIL US" Exporte="0" Statut="F"/>
+</Arbitres>

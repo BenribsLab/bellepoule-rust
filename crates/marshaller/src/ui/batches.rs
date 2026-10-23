@@ -31,6 +31,64 @@ struct BatchWidgets {
     status: gtk::Image,
     separator: gtk::Separator,
     updating: Rc<Cell<bool>>,
+    /// « À placer : n · placés : m ».
+    summary: gtk::Label,
+    /// « Placer un groupe… » (entraînement des jeunes).
+    group_button: gtk::Button,
+}
+
+// Colonnes de la liste des matchs.
+const COL_ICON: u32 = 0;
+const COL_NAME: u32 = 1;
+const COL_BACKGROUND: u32 = 2;
+const COL_GROUP: u32 = 3;
+const COL_PISTE: u32 = 4;
+const COL_TIME: u32 = 5;
+const COL_REFEREES: u32 = 6;
+const COL_STATE: u32 = 7;
+const COL_STATE_COLOR: u32 = 8;
+const COL_WEIGHT: u32 = 9;
+
+/// Liste des matchs d'un lot : état bien visible (« À placer » d'abord),
+/// groupe, piste, heure et arbitres.
+fn setup_job_list(tree: &gtk::TreeView) -> gtk::ListStore {
+    let s = String::static_type();
+    let store = gtk::ListStore::new(&[s, s, s, s, s, s, s, s, s, i32::static_type()]);
+    tree.set_model(Some(&store));
+    for column in tree.columns() {
+        tree.remove_column(&column);
+    }
+    tree.set_headers_visible(true);
+    let text_column = |title: &str, col: u32, expand: bool| {
+        let renderer = gtk::CellRendererText::new();
+        let column = gtk::TreeViewColumn::new();
+        column.set_title(title);
+        column.pack_start(&renderer, true);
+        column.add_attribute(&renderer, "text", col as i32);
+        column.set_resizable(true);
+        column.set_expand(expand);
+        (column, renderer)
+    };
+    let column = gtk::TreeViewColumn::new();
+    column.set_title(&tr("State"));
+    let icon = gtk::CellRendererPixbuf::new();
+    column.pack_start(&icon, false);
+    column.add_attribute(&icon, "icon-name", COL_ICON as i32);
+    let state = gtk::CellRendererText::new();
+    column.pack_start(&state, true);
+    column.add_attribute(&state, "text", COL_STATE as i32);
+    column.add_attribute(&state, "foreground", COL_STATE_COLOR as i32);
+    column.add_attribute(&state, "weight", COL_WEIGHT as i32);
+    tree.append_column(&column);
+    let (name, renderer) = text_column(&tr("Match"), COL_NAME, false);
+    name.add_attribute(&renderer, "background", COL_BACKGROUND as i32);
+    name.add_attribute(&renderer, "weight", COL_WEIGHT as i32);
+    tree.append_column(&name);
+    for (title, col, expand) in [(tr("Group"), COL_GROUP, false), (tr("Piste"), COL_PISTE, false), (tr("Time"), COL_TIME, false), (tr("Referees"), COL_REFEREES, true)] {
+        let (column, _) = text_column(&title, col, expand);
+        tree.append_column(&column);
+    }
+    store
 }
 
 /// Onglet d'une compétition (`competition.glade`).
@@ -155,9 +213,18 @@ impl BatchesView {
         let glade = Glade::new("batch.ui").expect("batch.ui");
         let root: gtk::Widget = glade.get("root");
         Glade::detach_from_parent(&root);
-        let store: gtk::ListStore = glade.get("liststore");
         let tree: gtk::TreeView = glade.get("competition_treeview");
-        tree.set_model(Some(&store));
+        let store = setup_job_list(&tree);
+        let toolbar: gtk::Box = glade.get("toolbar1");
+        let group_button = gtk::Button::with_label(&tr("Place a group…"));
+        group_button.set_tooltip_text(Some(&tr("Youth training: place all the pools of a group on one or several pistes")));
+        group_button.set_visible(false);
+        toolbar.append(&group_button);
+        let summary = gtk::Label::new(None);
+        summary.set_hexpand(true);
+        summary.set_halign(gtk::Align::End);
+        summary.set_margin_end(6);
+        toolbar.append(&summary);
         tree.selection().set_mode(gtk::SelectionMode::Multiple);
         let rows: Rc<RefCell<Vec<JobKey>>> = Rc::new(RefCell::new(Vec::new()));
 
@@ -192,6 +259,15 @@ impl BatchesView {
                 paths.iter().filter_map(|p| p.indices().first().and_then(|i| rows.borrow().get(*i as usize).copied())).collect()
             }
         };
+        {
+            let weak = weak.clone();
+            let selected = selected.clone();
+            group_button.connect_clicked(move |_| {
+                if let Some(ui) = weak.upgrade().and_then(|v| v.ui()) {
+                    super::group_dialog::place_group(&ui, c, b, selected().first().copied());
+                }
+            });
+        }
         {
             let weak = weak.clone();
             let selected = selected.clone();
@@ -285,7 +361,7 @@ impl BatchesView {
         let label = gtk::Label::new(Some("Full"));
         let progress = gtk::ProgressBar::new();
         progress.set_size_request(50, 5);
-        let status = gtk::Image::from_icon_name("dialog-question");
+        let status = gtk::Image::from_icon_name("dialog-question-symbolic");
         grid.attach(&radio, 0, row + 1, 1, 2);
         grid.attach(&label, 1, row + 1, 1, 1);
         grid.attach(&progress, 1, row + 2, 1, 1);
@@ -309,7 +385,7 @@ impl BatchesView {
         }
         page.glade.get::<gtk::Box>("batch_vbox").append(&root);
         root.set_visible(false);
-        page.batches.insert(b, BatchWidgets { glade, root, store, tree, rows, radio, label, progress, status, separator, updating });
+        page.batches.insert(b, BatchWidgets { glade, root, store, tree, rows, radio, label, progress, status, separator, updating, summary, group_button });
     }
 
     fn refresh_batch(&self, ui: &Rc<Ui>, c: u32, b: u32, w: &BatchWidgets, current: bool) {
@@ -347,29 +423,71 @@ impl BatchesView {
         };
         w.glade.get::<gtk::CheckButton>(ext).set_active(true);
 
-        // Liste des matchs (sélection conservée)
-        let jobs: Vec<JobKey> = batch.rows.iter().map(|r| r.job).collect();
+        // Liste des matchs (sélection conservée) : à placer d'abord.
+        let mut ordered: Vec<&crate::model::JobRow> = batch.rows.iter().collect();
+        ordered.sort_by_key(|r| hall.jobs.get(&r.job).map(|j| j.slot.is_some()).unwrap_or(true));
+        let jobs: Vec<JobKey> = ordered.iter().map(|r| r.job).collect();
         let (paths, _) = w.tree.selection().selected_rows();
         let selected: Vec<JobKey> = paths
             .iter()
             .filter_map(|p| p.indices().first().and_then(|i| w.rows.borrow().get(*i as usize).copied()))
             .collect();
         w.store.clear();
-        for row in &batch.rows {
+        let mut pending = 0;
+        for row in &ordered {
             let Some(job) = hall.jobs.get(&row.job) else { continue };
             let icon = match row.status {
-                JobStatus::None => None,
-                JobStatus::Question => Some("dialog-question"),
-                JobStatus::Error => Some("dialog-error"),
+                JobStatus::None => "",
+                JobStatus::Question => "dialog-question-symbolic",
+                JobStatus::Error => "dialog-error-symbolic",
             };
+            let slot = job.slot.and_then(|sk| hall.slots.get(&sk));
+            let pistes = slot
+                .map(|s| s.pistes().iter().filter_map(|k| hall.piste(*k)).map(|p| p.id.to_string()).collect::<Vec<_>>().join(", "))
+                .unwrap_or_default();
+            let time = slot.map(|s| s.start.format("%H:%M").to_string()).unwrap_or_default();
+            let referees = slot
+                .map(|s| s.referees.iter().filter_map(|r| hall.referees.get(*r)).map(|r| r.player.name()).collect::<Vec<_>>().join(", "))
+                .unwrap_or_default();
+            let (state, color, weight) = if slot.is_none() {
+                pending += 1;
+                (tr("To place"), "#b45309", 700)
+            } else if pistes.is_empty() {
+                (tr("Referees only"), "#1f5ae0", 400)
+            } else {
+                (tr("Placed"), "#15803d", 400)
+            };
+            let background = row.warning.map(|c| c.to_css()).unwrap_or_else(|| if slot.is_none() { "#fff7e0".to_string() } else { "#ffffff".to_string() });
+            let group = job.group.map(|g| g.to_string()).unwrap_or_default();
             let iter = w.store.append();
-            w.store.set(&iter, &[(0, &job.name), (5, &job.position)]);
-            if let Some(i) = icon {
-                w.store.set(&iter, &[(3, &i)]);
-            }
-            if let Some(c) = row.warning {
-                w.store.set(&iter, &[(4, &c.to_css())]);
-            }
+            w.store.set(
+                &iter,
+                &[
+                    (COL_ICON, &icon),
+                    (COL_NAME, &job.name),
+                    (COL_BACKGROUND, &background),
+                    (COL_GROUP, &group),
+                    (COL_PISTE, &pistes),
+                    (COL_TIME, &time),
+                    (COL_REFEREES, &referees),
+                    (COL_STATE, &state),
+                    (COL_STATE_COLOR, &color),
+                    (COL_WEIGHT, &weight),
+                ],
+            );
+        }
+        let placed = jobs.len() - pending;
+        w.summary.set_markup(&format!(
+            "<b>{}</b> {}  ·  {} {}",
+            pending,
+            gtk::glib::markup_escape_text(&tr("to place")),
+            placed,
+            gtk::glib::markup_escape_text(&tr("placed"))
+        ));
+        let has_groups = !hall.batch_groups(c, b).is_empty();
+        w.group_button.set_visible(has_groups);
+        if let Some(column) = w.tree.column(2) {
+            column.set_visible(has_groups);
         }
         *w.rows.borrow_mut() = jobs.clone();
         for (i, j) in jobs.iter().enumerate() {
@@ -664,7 +782,7 @@ impl JobBoard {
                 }
                 row.append(&label);
                 if modifiable {
-                    let remove = gtk::Button::from_icon_name("list-remove");
+                    let remove = gtk::Button::from_icon_name("list-remove-symbolic");
                     remove.set_has_frame(false);
                     remove.set_tooltip_text(Some(&tr("Remove")));
                     let w = Rc::downgrade(self);

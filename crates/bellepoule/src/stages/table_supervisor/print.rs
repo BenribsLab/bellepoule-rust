@@ -120,6 +120,7 @@ fn score_sheet(snapshot: &Snapshot, node: NodeId) -> Option<crate::widgets::scor
     let max_score = set.bout(node).map(|m| m.max_score).unwrap_or(0);
     Some(crate::widgets::score_sheet::SheetInfo {
         name: sheet.name,
+        officiating: set.bout(node).and_then(|m| m.officiating.as_ref()).map(|s| s.summary()).unwrap_or_default(),
         referee: sheet.referee,
         piste: sheet.piste,
         fencers: sheet

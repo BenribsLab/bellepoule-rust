@@ -1045,6 +1045,14 @@ impl TableScreen {
             }
             return;
         }
+        // Entraînement des jeunes : toujours la page complète du groupe
+        // (poules et tableau, remplis au fil des résultats).
+        if let Some(page) = self.page.upgrade() {
+            if let Some(pools) = page.with_contest(|c| c.youth_pool_stage()).flatten() {
+                super::group_print::print(&page, pools, None);
+                return;
+            }
+        }
         self.finish_printing(&snapshot, parent.as_ref(), print::choose_and_print(parent.as_ref(), &snapshot));
     }
     /// Marque les feuilles imprimées (seulement après une impression confirmée).
@@ -1077,6 +1085,11 @@ impl TableScreen {
         self.print_sheets(None, None);
     }
     fn print_sheets(&self, table: Option<usize>, node: Option<NodeId>) {
+        // Rencontres par équipes : feuilles de match en relais.
+        if let Some(page) = self.page.upgrade().filter(|p| super::relay_print::is_team(p)) {
+            super::relay_print::print(&page, self.index, None, false);
+            return;
+        }
         let Some(snapshot) = self.snapshot() else {
             return;
         };
@@ -1125,7 +1138,7 @@ impl StageScreen for TableScreen {
             .set_text(&snapshot.base.name);
         self.glade
             .get::<gtk::Entry>("max_score_entry")
-            .set_text(&snapshot.base.max_score.unwrap_or(10).to_string());
+            .set_text(&snapshot.base.max_score.unwrap_or(15).to_string());
         self.glade
             .get::<gtk::CheckButton>("all_radiobutton")
             .set_active(snapshot.base.nb_qualified.is_none());

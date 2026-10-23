@@ -64,6 +64,14 @@ fn html_export_contains_every_round() {
 }
 
 #[test]
+fn html_export_final_classification_only() {
+    let mut c = finished_competition(12);
+    let html = c.dump_to_html_scope(None, true);
+    assert_eq!(html.matches("OnTabClicked ('round_").count(), 1, "le classement final seul");
+    assert!(html.contains("TIREUR00"));
+}
+
+#[test]
 fn fff_export_lists_every_fencer() {
     let c = finished_competition(12);
     let bytes = c.export_final_classification_fff(0).expect("classement final");

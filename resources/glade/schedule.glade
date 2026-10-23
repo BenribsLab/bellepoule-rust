@@ -46,6 +46,38 @@
               </packing>
             </child>
             <child>
+              <object class="GtkToolButton" id="move_stage_up_toolbutton">
+                <property name="visible">True</property>
+                <property name="sensitive">False</property>
+                <property name="can_focus">False</property>
+                <property name="use_action_appearance">False</property>
+                <property name="label" translatable="yes">Move up</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-go-up</property>
+                <signal name="clicked" handler="on_move_stage_up_toolbutton_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkToolButton" id="move_stage_down_toolbutton">
+                <property name="visible">True</property>
+                <property name="sensitive">False</property>
+                <property name="can_focus">False</property>
+                <property name="use_action_appearance">False</property>
+                <property name="label" translatable="yes">Move down</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-go-down</property>
+                <signal name="clicked" handler="on_move_stage_down_toolbutton_clicked" swapped="no"/>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkSeparatorToolItem" id="separatortoolitem1">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>

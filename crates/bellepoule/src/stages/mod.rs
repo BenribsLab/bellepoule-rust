@@ -13,6 +13,8 @@ pub mod allocator;
 pub mod barrage;
 pub mod checkin;
 pub mod general_classification;
+pub(crate) mod group_print;
+pub(crate) mod relay_print;
 mod pillow;
 pub mod pool_supervisor;
 pub mod table_supervisor;

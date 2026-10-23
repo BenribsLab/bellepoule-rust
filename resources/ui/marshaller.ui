@@ -85,7 +85,7 @@
         </section>
       </submenu>
       <submenu id="menu2">
-        <attribute name="label">BellePoule</attribute>
+        <attribute name="label">ManageComp</attribute>
         <attribute name="bp-id">ring_menuitem</attribute>
         <section>
           <item>
@@ -138,7 +138,7 @@
     </data>
   </object>
   <object class="GtkWindow" id="root">
-    <property name="title" translatable="yes">BellePoule - Fencing tournament</property>
+    <property name="title" translatable="yes">ManageComp - Fencing tournament</property>
     <signal name="close-request" handler="on_root_delete_event" swapped="no" />
     <child>
       <object class="GtkEventControllerKey">
@@ -252,7 +252,7 @@
   <object class="GtkAboutDialog" id="about_dialog">
     <property name="modal">True</property>
     <property name="transient-for">root</property>
-    <property name="program-name">BellePoule</property>
+    <property name="program-name">ManageComp</property>
     <property name="version">0.01/02</property>
     <property name="copyright">Copyright © 2009-2017 Yannick Le Roux (亚尼可).</property>
     <property name="comments" translatable="yes">Fencing tournament management software.
@@ -1060,7 +1060,7 @@ Public License instead of this License.  But first, please read
           <object class="GtkLabel" id="label6">
             <property name="label" translatable="yes">Enter your WIFI network settings here.
 They will be used to automatically configure
-the smarthphones running &lt;b&gt;SmartPoule&lt;/b&gt;</property>
+the smartphones running &lt;b&gt;ManageComp Arbitre&lt;/b&gt;</property>
             <property name="use-markup">True</property>
             <property name="justify">center</property>
           </object>
@@ -1075,7 +1075,7 @@ the smarthphones running &lt;b&gt;SmartPoule&lt;/b&gt;</property>
                 <property name="has-frame">False</property>
                 <child>
                   <object class="GtkLabel" id="label7">
-                    <property name="label">SmartPoule</property>
+                    <property name="label">ManageComp Arbitre</property>
                     <attributes>
                       <attribute name="underline" value="True" />
                       <attribute name="foreground" value="#13be37adc79a" />
@@ -1152,7 +1152,7 @@ the smarthphones running &lt;b&gt;SmartPoule&lt;/b&gt;</property>
                             </child>
                             <child>
                               <object class="GtkLabel" id="label11">
-                                <property name="label" translatable="yes">Scan this code with &lt;b&gt;SmartPoule&lt;/b&gt;
+                                <property name="label" translatable="yes">Scan this code with &lt;b&gt;ManageComp Arbitre&lt;/b&gt;
 to make your smarphone
 a score sheet scanner.</property>
                                 <property name="use-markup">True</property>
@@ -1169,7 +1169,7 @@ a score sheet scanner.</property>
                                     <property name="has-frame">False</property>
                                     <child>
                                       <object class="GtkLabel" id="label9">
-                                        <property name="label">SmartPoule</property>
+                                        <property name="label">ManageComp Arbitre</property>
                                         <attributes>
                                           <attribute name="underline" value="True" />
                                           <attribute name="foreground" value="#13be37adc79a" />
@@ -1244,7 +1244,7 @@ a score sheet scanner.</property>
     <property name="message-type">error</property>
     <property name="buttons">ok</property>
     <property name="text" translatable="yes">Connection rejected</property>
-    <property name="secondary-text" translatable="yes">BellePoule2D is already operating on the network.</property>
+    <property name="secondary-text" translatable="yes">Organisation is already operating on the network.</property>
     <child internal-child="content_area">
       <object class="GtkBox" id="dialog-vbox1">
         <property name="orientation">vertical</property>
@@ -1253,7 +1253,7 @@ a score sheet scanner.</property>
     </child>
   </object>
   <object class="GtkMessageDialog" id="pairing_dialog">
-    <property name="text" translatable="yes">Connection to &lt;b&gt;BellePoule&lt;/b&gt;</property>
+    <property name="text" translatable="yes">Connection to &lt;b&gt;ManageComp&lt;/b&gt;</property>
     <property name="use-markup">True</property>
     <child internal-child="content_area">
       <object class="GtkBox" id="dialog-vbox2">
@@ -1367,7 +1367,7 @@ a score sheet scanner.</property>
                 <property name="sensitive">False</property>
                 <property name="xalign">0</property>
                 <property name="label" translatable="yes">Plug it now in a computer where
-&lt;b&gt;BellePoule&lt;/b&gt; is running.</property>
+&lt;b&gt;ManageComp&lt;/b&gt; is running.</property>
                 <property name="use-markup">True</property>
                 <property name="hexpand">True</property>
                 <property name="vexpand">True</property>
@@ -1398,7 +1398,7 @@ a score sheet scanner.</property>
   </object>
   <object class="GtkMessageDialog" id="pin_code_dialog">
     <property name="buttons">ok</property>
-    <property name="text" translatable="yes">Connection to &lt;b&gt;BellePoule&lt;/b&gt;</property>
+    <property name="text" translatable="yes">Connection to &lt;b&gt;ManageComp&lt;/b&gt;</property>
     <property name="use-markup">True</property>
     <property name="secondary-use-markup">True</property>
     <child internal-child="content_area">
@@ -1455,7 +1455,7 @@ a score sheet scanner.</property>
                 <child>
                   <object class="GtkLabel" id="label15">
                     <property name="label" translatable="yes">Scan the other QRCode on the partner application
- (menu &lt;b&gt;BellePoule2D&lt;/b&gt;).</property>
+ (menu &lt;b&gt;Organisation&lt;/b&gt;).</property>
                     <property name="use-markup">True</property>
                   </object>
                 </child>

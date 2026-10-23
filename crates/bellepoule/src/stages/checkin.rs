@@ -35,6 +35,8 @@ struct Snapshot {
     team_event: bool,
     locked: bool,
     minimum_team_size: u32,
+    team_size: u32,
+    substitutes: u32,
     manual_classification: bool,
     default_classification: u32,
     team_names: Vec<String>,
@@ -51,6 +53,9 @@ pub struct CheckinScreen {
     search: RefCell<String>,
     attending_filter: Cell<Option<bool>>,
     footer: gtk::Label,
+    /// Composition des équipes d'une rencontre : tireurs et remplaçants.
+    team_players: gtk::SpinButton,
+    team_substitutes: gtk::SpinButton,
 }
 
 impl CheckinScreen {
@@ -76,6 +81,18 @@ impl CheckinScreen {
             form.add_page(PlayerClass::Team, "Team", &team);
         }
 
+        // Composition des équipes, à côté de la taille minimale.
+        let team_players = gtk::SpinButton::with_range(1.0, 20.0, 1.0);
+        let team_substitutes = gtk::SpinButton::with_range(0.0, 10.0, 1.0);
+        if let Some(row) = glade.object::<gtk::Box>("hbox5") {
+            for (label, spin) in [("Tireurs par équipe", &team_players), ("Remplaçants", &team_substitutes)] {
+                let l = gtk::Label::new(Some(label));
+                l.set_margin_start(12);
+                row.append(&l);
+                row.append(spin);
+            }
+        }
+
         let screen = Rc::new(CheckinScreen {
             page: Rc::downgrade(page),
             glade,
@@ -86,7 +103,17 @@ impl CheckinScreen {
             search: RefCell::new(String::new()),
             attending_filter: Cell::new(None),
             footer,
+            team_players,
+            team_substitutes,
         });
+        for spin in [&screen.team_players, &screen.team_substitutes] {
+            let weak = Rc::downgrade(&screen);
+            spin.connect_value_changed(move |_| {
+                if let Some(s) = weak.upgrade() {
+                    s.on_team_size();
+                }
+            });
+        }
         screen.connect();
         screen.add_search_controls();
         screen.refresh();
@@ -260,6 +287,8 @@ impl CheckinScreen {
             team_event,
             locked: checkin.base().locked,
             minimum_team_size: settings.minimum_team_size,
+            team_size: settings.team_size,
+            substitutes: settings.substitutes,
             manual_classification: settings.manual_classification,
             default_classification: settings.default_classification,
             team_names: checkin.team_names(store),
@@ -278,6 +307,8 @@ impl CheckinScreen {
         self.glade.get::<gtk::Widget>("team_hbox").set_visible(s.team_event);
         self.glade.get::<gtk::Widget>("tree_control_hbox").set_visible(s.team_event);
         self.glade.get::<gtk::SpinButton>("teamsize_entry").set_value(s.minimum_team_size as f64);
+        self.team_players.set_value(s.team_size as f64);
+        self.team_substitutes.set_value(s.substitutes as f64);
         self.glade.get::<gtk::CheckButton>("manual_radiobutton").set_active(s.manual_classification);
         self.glade.get::<gtk::CheckButton>("derived_radiobutton").set_active(!s.manual_classification);
         let worst: gtk::Entry = self.glade.get("worst_entry");
@@ -338,6 +369,9 @@ impl CheckinScreen {
     fn on_form_event(self: &Rc<Self>, event: FormEvent) {
         match event {
             FormEvent::New(class, values) => {
+                if self.team_full(None, &values) {
+                    return;
+                }
                 let mut player = new_player(class);
                 for (code, value) in &values {
                     if let Some(v) = value {
@@ -349,6 +383,9 @@ impl CheckinScreen {
                 self.edit(|ch, ctx| ch.form_new_player(ctx, player));
             }
             FormEvent::Update(r, values) => {
+                if self.team_full(Some(r), &values) {
+                    return;
+                }
                 self.edit(|ch, ctx| {
                     for (code, value) in &values {
                         ch.set_player_attribute(ctx, r, code, value.as_deref());
@@ -522,6 +559,40 @@ impl CheckinScreen {
         let window = page.window();
         if let Err(e) = document.print(window.as_ref()) {
             dialogs::error(window.as_ref(), &e.to_string());
+        }
+    }
+
+    /// Tireurs et remplaçants d'une équipe (le score des rencontres en relais suit).
+    fn on_team_size(self: &Rc<Self>) {
+        if self.updating.get() {
+            return;
+        }
+        let Some(page) = self.page() else { return };
+        let (players, subs) = (self.team_players.value_as_int() as u32, self.team_substitutes.value_as_int() as u32);
+        if page.with_contest(|c| c.set_team_size(players, subs)).unwrap_or(false) {
+            page.mark_dirty();
+            if let Some(view) = page.schedule.borrow().clone() {
+                view.refresh_sensitivity();
+            }
+        }
+    }
+
+    /// Une équipe ne dépasse pas ses tireurs et remplaçants : message sinon.
+    fn team_full(&self, fencer: Option<PlayerRef>, values: &[(String, Option<String>)]) -> bool {
+        let Some(team) = values.iter().find(|(code, _)| code == "team").and_then(|(_, v)| v.clone()) else { return false };
+        let Some(page) = self.page() else { return false };
+        let error = page
+            .with_contest(|c| {
+                let settings = c.settings.clone();
+                c.schedule.checkin().and_then(|ch| ch.team_full_error(&c.players, &settings, fencer, &team))
+            })
+            .flatten();
+        match error {
+            Some(message) => {
+                dialogs::error(page.window().as_ref(), &message);
+                true
+            }
+            None => false,
         }
     }
 

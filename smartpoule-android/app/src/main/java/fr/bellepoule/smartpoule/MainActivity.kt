@@ -77,11 +77,11 @@ class MainActivity : AppCompatActivity() {
     // --------------------------------------------------------- appairage
 
     private fun showPairing() {
-        title = "SmartPoule"
+        title = "ManageComp Arbitre"
         content.removeAllViews()
         content.addView(Ui.text(this, "Bienvenue", 26f, true))
         content.addView(Ui.space(this, 8))
-        content.addView(Ui.text(this, "Scannez le QR code d'arbitre que vous a remis l'organisation (BellePoule › BellePoule2D › SmartPoule…).", 16f, color = Ui.MUTED))
+        content.addView(Ui.text(this, "Scannez le QR code d'arbitre que vous a remis l'organisation (ManageComp › Organisation › Arbitres sur téléphone…).", 16f, color = Ui.MUTED))
         content.addView(Ui.space(this, 24))
         content.addView(Ui.button(this, "Scanner le QR code") {
             scan.launch(ScanOptions().apply {
@@ -109,7 +109,7 @@ class MainActivity : AppCompatActivity() {
     private fun pair(text: String) {
         val p = Pairing.parse(text)
         if (p == null) {
-            alert("Ce QR code n'est pas un QR code SmartPoule.")
+            alert("Ce QR code n'est pas un QR code d'arbitre ManageComp.")
             return
         }
         val candidate = Api(p)
@@ -136,13 +136,13 @@ class MainActivity : AppCompatActivity() {
         if (content.childCount == 0) {
             content.addView(Ui.text(this, message, color = Ui.RED))
         } else {
-            title = "SmartPoule · hors ligne"
+            title = "ManageComp Arbitre · hors ligne"
         }
     }
 
     private fun show(data: JSONObject) {
         val name = data.optString("name")
-        title = name.ifEmpty { "SmartPoule" }
+        title = name.ifEmpty { "ManageComp Arbitre" }
         content.removeAllViews()
         content.addView(Ui.text(this, data.optString("club"), 14f, color = Ui.MUTED))
         content.addView(Ui.text(this, if (pairing?.isAdmin == true) "Tous les matchs" else "Mes matchs", 24f, true))

@@ -332,6 +332,13 @@ impl ContestPage {
 
     pub fn show_properties(self: &Rc<Self>) { self.on_properties(); }
 
+    /// Onglet des propriétés : 0 = événement, 1 = formule (captures de la documentation).
+    pub fn select_properties_tab(&self, index: u32) {
+        if let Some(notebook) = self.glade.object::<gtk::Notebook>("properties_notebook") {
+            notebook.set_current_page(Some(index));
+        }
+    }
+
     pub fn refresh_header(&self) {
         if let Some((name, subtitle, meta, phase)) = self.try_with_contest(|c| {
             let subtitle = format!("{} · {} · {}", c.weapon.label(), c.gender_label(), c.category_label());
@@ -427,7 +434,7 @@ impl ContestPage {
     fn choose_save_name(&self, config_key: &str) -> gtk::ResponseType {
         let title = tr("Choose a file...");
         let mut chooser = FileChooser::new(&title, gtk::FileChooserAction::Save);
-        chooser.filters.push(dialogs::file_filter(Some(&tr("BellePoule files")), &["*.cotcot"]));
+        chooser.filters.push(dialogs::file_filter(Some(&tr("ManageComp files")), &["*.cotcot"]));
         chooser.filters.push(dialogs::all_files_filter());
         let Some(app) = self.app() else { return gtk::ResponseType::Cancel };
         chooser.current_folder =
@@ -543,7 +550,7 @@ impl ContestPage {
                 (tr("Close without saving"), gtk::ResponseType::Reject),
                 (tr("_Save"), gtk::ResponseType::Accept),
             ];
-            chooser.filters.push(dialogs::file_filter(Some(&tr("BellePoule files")), &["*.cotcot"]));
+            chooser.filters.push(dialogs::file_filter(Some(&tr("ManageComp files")), &["*.cotcot"]));
             chooser.filters.push(dialogs::all_files_filter());
             chooser.current_name = self.with_contest(|c| c.default_file_name());
             let (response, file) = chooser.run();

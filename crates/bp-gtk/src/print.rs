@@ -235,7 +235,7 @@ fn draw_frame(
     let bottom = height - 0.3 * k;
     if layout.show_footer {
         let markup = if layout.footer_text.is_empty() {
-            "BellePoule fencing software <span foreground=\"blue\" underline=\"single\">http://betton.escrime.free.fr</span>"
+            "ManageComp, logiciel libre dérivé de BellePoule <span foreground=\"blue\" underline=\"single\">https://managecomp.org</span>"
                 .to_string()
         } else {
             gtk::glib::markup_escape_text(&layout.footer_text).to_string()
@@ -411,7 +411,7 @@ pub fn edit_layout(parent: Option<&gtk::Window>) -> bool {
     add(&tr("Footer"), show_footer.upcast_ref());
     let footer_text = gtk::Entry::new();
     footer_text.set_text(&current.footer_text);
-    footer_text.set_placeholder_text(Some("BellePoule fencing software"));
+    footer_text.set_placeholder_text(Some("ManageComp, logiciel libre dérivé de BellePoule"));
     add(&tr("Footer text"), footer_text.upcast_ref());
     let page_numbers = gtk::CheckButton::new();
     page_numbers.set_active(current.show_page_numbers);
@@ -455,11 +455,29 @@ pub fn run_document(
     job_name: &str,
     make: impl Fn() -> Box<dyn PageSource> + 'static,
 ) -> Result<bool, gtk::glib::Error> {
+    run_document_with(parent, job_name, make, current_header())
+}
+
+/// Comme [`run_document`], sans le bandeau de la compétition : pour les
+/// documents qui ont leur propre en-tête (feuilles de match par équipes).
+pub fn run_document_without_header(
+    parent: Option<&gtk::Window>,
+    job_name: &str,
+    make: impl Fn() -> Box<dyn PageSource> + 'static,
+) -> Result<bool, gtk::glib::Error> {
+    run_document_with(parent, job_name, make, None)
+}
+
+fn run_document_with(
+    parent: Option<&gtk::Window>,
+    job_name: &str,
+    make: impl Fn() -> Box<dyn PageSource> + 'static,
+    header: Option<PageHeader>,
+) -> Result<bool, gtk::glib::Error> {
     use std::cell::{Cell, RefCell};
     use std::rc::Rc;
 
     let make: Rc<dyn Fn() -> Box<dyn PageSource>> = Rc::new(make);
-    let header = current_header();
 
     // Aperçu
     let setup = gtk::PageSetup::new();

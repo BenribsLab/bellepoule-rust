@@ -329,7 +329,7 @@ impl AllocatorScreen {
         store.clear();
         for (i, (size, nb)) in s.configs.iter().enumerate() {
             let iter = store.append();
-            let icon = if Some(i) == s.best { "help-about" } else { "" };
+            let icon = if Some(i) == s.best { "help-about-symbolic" } else { "" };
             store.set(&iter, &[(0, size), (1, nb), (2, &icon)]);
         }
         let nb_combo: gtk::ComboBox = self.glade.get("nb_pools_combobox");
@@ -701,6 +701,11 @@ impl AllocatorScreen {
 
     fn on_print(self: &Rc<Self>) {
         let Some(page) = self.page() else { return };
+        // Entraînement des jeunes : on imprime toujours le groupe complet.
+        if super::group_print::is_youth(&page, self.index) {
+            super::group_print::print(&page, self.index, None);
+            return;
+        }
         let data = page
             .with_contest(|c| {
                 let title = format!("{} — {}", c.name, tr("Allocation"));

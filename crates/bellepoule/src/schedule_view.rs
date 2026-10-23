@@ -116,6 +116,18 @@ impl ScheduleView {
         true
     }
 
+    /// Sélectionne dans la formule la première phase de ce type et affiche ses
+    /// préférences (captures de la documentation).
+    pub fn select_stage_kind(self: &Rc<Self>, kind: StageKind) {
+        let Some(page) = self.page() else { return };
+        let index = page.with_contest(|c| c.schedule.stages().position(|s| s.kind() == kind)).flatten();
+        if let Some(i) = index {
+            self.select_index(i);
+            self.refresh_sensitivity();
+            self.show_configuration();
+        }
+    }
+
     pub fn visible_stage_kind(&self) -> Option<StageKind> {
         let current = self.notebook.current_page()?;
         self.screens.borrow().iter().flatten()
@@ -137,6 +149,8 @@ impl ScheduleView {
         on!("on_previous_stage_toolbutton_clicked", on_previous);
         on!("on_next_stage_toolbutton_clicked", on_next);
         on!("on_remove_stage_toolbutton_clicked", on_remove);
+        on!("on_move_stage_up_toolbutton_clicked", on_move_up);
+        on!("on_move_stage_down_toolbutton_clicked", on_move_down);
         on!("on_formula_treeview_cursor_changed", on_stage_selected);
         on!("on_print_schedule_toolbutton_clicked", on_print);
     }
@@ -234,7 +248,7 @@ impl ScheduleView {
         self.store.clear();
         for (kind, purpose, _, locked) in &stages {
             let iter = self.store.append();
-            let lock = if *locked { "dialog-password" } else { "" };
+            let lock = if *locked { "dialog-password-symbolic" } else { "" };
             self.store.set(
                 &iter,
                 &[
@@ -358,18 +372,24 @@ impl ScheduleView {
 
         // Boutons « Ajouter » / « Supprimer » selon la phase sélectionnée
         let selected = self.selected_index();
-        let (can_add, can_remove) = page
+        let (can_add, can_remove, can_up, can_down) = page
             .with_contest(|c| match selected {
-                Some(i) => (c.schedule.can_add_after(i), c.schedule.can_remove(i)),
-                None => (true, false),
+                Some(i) => (c.schedule.can_add_after(i), c.schedule.can_remove(i), c.schedule.can_move(i, true), c.schedule.can_move(i, false)),
+                None => (true, false, false, false),
             })
-            .unwrap_or((false, false));
+            .unwrap_or((false, false, false, false));
         self.glade
             .get::<gtk::Widget>("add_stage_toolbutton")
             .set_sensitive(can_add);
         self.glade
             .get::<gtk::Widget>("remove_stage_toolbutton")
             .set_sensitive(can_remove);
+        self.glade
+            .get::<gtk::Widget>("move_stage_up_toolbutton")
+            .set_sensitive(can_up);
+        self.glade
+            .get::<gtk::Widget>("move_stage_down_toolbutton")
+            .set_sensitive(can_down);
     }
 
     // ----------------------------------------------------------------------
@@ -409,7 +429,9 @@ impl ScheduleView {
             screen.refresh();
             if let Some(configuration) = screen.configuration() {
                 Glade::detach_from_parent(&configuration);
-                hook.set_child(Some(&configuration));
+                if matches!(kind, StageKind::PoolSupervisor | StageKind::TableSupervisor | StageKind::Barrage) {
+                    hook.set_child(Some(&crate::widgets::bout_timing::wrap(&configuration, &page, index)));
+                } else { hook.set_child(Some(&configuration)); }
             }
         }
     }
@@ -436,6 +458,44 @@ impl ScheduleView {
         page.with_contest(|c| c.with_schedule(|s, ctx| s.remove_user_stage(ctx, index)));
         page.mark_dirty();
         self.refresh();
+    }
+
+    fn on_move_up(self: &Rc<Self>) {
+        self.move_stage(true);
+    }
+
+    fn on_move_down(self: &Rc<Self>) {
+        self.move_stage(false);
+    }
+
+    /// Monte ou descend la phase sélectionnée (avec sa composition de poules).
+    fn move_stage(self: &Rc<Self>, up: bool) {
+        let Some(page) = self.page() else { return };
+        let Some(index) = self.selected_index() else {
+            return;
+        };
+        let Some(moved) = page.with_contest(|c| c.with_schedule(|s, _| s.move_user_stage(index, up))).flatten() else {
+            return;
+        };
+        // Les écrans des phases déplacées sont reconstruits à leur nouvelle place.
+        {
+            let mut screens = self.screens.borrow_mut();
+            // Seules les phases après la phase courante bougent (avec leur composition).
+            let current = page.with_contest(|c| c.schedule.current_index()).unwrap_or(0);
+            let from = index.min(moved).saturating_sub(1).max(current + 1);
+            for slot in screens.iter_mut().skip(from) {
+                if let Some((_, screen)) = slot.take() {
+                    if let Some(n) = self.notebook.page_num(&screen.widget()) {
+                        self.notebook.remove_page(Some(n));
+                    }
+                }
+            }
+        }
+        page.mark_dirty();
+        self.refresh();
+        self.select_index(moved);
+        self.refresh_sensitivity();
+        self.show_configuration();
     }
 
     /// `on_previous_stage_toolbutton_clicked`.

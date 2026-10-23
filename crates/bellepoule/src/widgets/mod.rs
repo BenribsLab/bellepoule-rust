@@ -6,6 +6,7 @@ pub mod players_list;
 pub mod render;
 pub mod list_document;
 pub mod score_sheet;
+pub mod bout_timing;
 
 use gtk4 as gtk;
 use gtk::prelude::*;

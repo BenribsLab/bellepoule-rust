@@ -63,7 +63,11 @@ class SheetActivity : AppCompatActivity() {
             content.addView(Ui.space(this, 6))
         }
         val max = sheet.optInt("max_score", 5)
-        val bouts = sheet.optJSONArray("bouts") ?: return
+        val bouts = sheet.optJSONArray("bouts")
+        if (bouts == null || bouts.length() == 0) {
+            content.addView(Ui.text(this, "Aucun match à saisir pour l'instant : la composition des poules n'est pas encore validée dans ManageComp.", 16f, color = Ui.MUTED))
+            return
+        }
         for (i in 0 until bouts.length()) {
             val bout = bouts.getJSONObject(i)
             val fencers = bout.optJSONArray("fencers") ?: continue
@@ -80,12 +84,46 @@ class SheetActivity : AppCompatActivity() {
             card.addView(head)
             card.addView(line(a))
             card.addView(line(b))
+            bout.optJSONObject("officiating")?.optJSONArray("cards")?.let { cards ->
+                for (ci in 0 until cards.length()) {
+                    val event = cards.getJSONObject(ci)
+                    val who = if (event.optInt("side") == 0) a.optString("name") else b.optString("name")
+                    val color = when(event.optString("color")) { "yellow" -> "jaune"; "red" -> "rouge"; else -> "noir" }
+                    val seconds = (event.optLong("remaining_ms") + 999) / 1000
+                    card.addView(Ui.text(this, "$who : $color · M${event.optInt("period")} %02d:%02d".format(seconds / 60, seconds % 60) + if (event.optBoolean("cancelled")) " (annulé)" else "", 12f, color = Ui.MUTED))
+                }
+            }
+            val relay = sheet.optJSONObject("relay")
             card.setOnClickListener {
+                // Compétition par équipes : rencontre en relais.
+                if (relay != null) {
+                    startActivity(
+                        Intent(this, TeamBoutActivity::class.java)
+                            .putExtra("token", token)
+                            .putExtra("bout", bout.optInt("index"))
+                            .putExtra("relay", relay.toString())
+                            .putExtra("timing", (sheet.optJSONObject("timing") ?: JSONObject()).toString())
+                            .putExtra("relay_log", bout.optJSONObject("relay_log")?.toString())
+                            .putExtra("piste", bout.optInt("piste"))
+                            .putExtra("competition", sheet.optString("competition"))
+                            .putExtra("color", sheet.optString("color"))
+                            .putExtra("title", sheet.optString("name") + " · " + bout.optString("name"))
+                            .putExtra("a", a.toString())
+                            .putExtra("b", b.toString())
+                    )
+                    return@setOnClickListener
+                }
                 startActivity(
                     Intent(this, BoutActivity::class.java)
                         .putExtra("token", token)
                         .putExtra("bout", bout.optInt("index"))
                         .putExtra("max", max)
+                        .putExtra("timing", (sheet.optJSONObject("timing") ?: JSONObject().put("period_seconds", 180).put("periods", if (sheet.optString("kind") == "match") 3 else 1)).toString())
+                        .putExtra("officiating", bout.optJSONObject("officiating")?.toString())
+                        .putExtra("over", bout.optBoolean("over"))
+                        .putExtra("piste", bout.optInt("piste"))
+                        .putExtra("competition", sheet.optString("competition"))
+                        .putExtra("color", sheet.optString("color"))
                         .putExtra("title", sheet.optString("name") + " · " + bout.optString("name"))
                         .putExtra("a", a.toString())
                         .putExtra("b", b.toString())

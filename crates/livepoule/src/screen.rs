@@ -69,6 +69,10 @@ pub struct Screen {
     wpa: Wpa,
     wpa_done: RefCell<Option<Receiver<()>>>,
     timer_source: RefCell<Option<glib::SourceId>>,
+    /// Numéro de piste partagé avec le lien web.
+    strip_shared: Arc<std::sync::atomic::AtomicU32>,
+    /// Scores en direct relus sur le serveur BellePoule Web.
+    web: Option<crate::web_link::WebLink>,
 }
 
 fn object<T: IsA<glib::Object>>(builder: &gtk::Builder, id: &str) -> T {
@@ -125,12 +129,23 @@ impl Screen {
             }
         };
 
+        let settings = crate::web_link::Settings::load();
+        let strip_shared = Arc::new(std::sync::atomic::AtomicU32::new(settings.piste.unwrap_or(1)));
+        let web = settings.address.clone().map(|a| {
+            log::info!("Scores en direct : {}", a.url());
+            crate::web_link::WebLink::start(a, strip_shared.clone())
+        });
+
         let screen = Rc::new(Screen {
             builder,
             w,
             css,
             backgrounds: RefCell::new(backgrounds),
-            model: RefCell::new(ScreenModel::new()),
+            model: RefCell::new({
+                let mut m = ScreenModel::new();
+                m.strip_id = settings.piste.unwrap_or(1);
+                m
+            }),
             gpio: RefCell::new(GpioHub::new(default_backend())),
             lights: RefCell::new(LightBoard::new()),
             buttons: RefCell::new(screen_buttons()),
@@ -139,6 +154,8 @@ impl Screen {
             wpa: Wpa::new(),
             wpa_done: RefCell::new(None),
             timer_source: RefCell::new(None),
+            strip_shared,
+            web,
         });
 
         // Boutons
@@ -326,9 +343,14 @@ impl Screen {
         self.apply_css();
     }
 
-    /// `Screen::ChangeStripId`.
+    /// `Screen::ChangeStripId` (mémorisé : l'écran redémarre sur sa piste).
     fn change_strip_id(&self, step: i32) {
         self.model.borrow_mut().change_strip_id(step);
+        let strip = self.model.borrow().strip_id;
+        self.strip_shared.store(strip, std::sync::atomic::Ordering::Relaxed);
+        let mut settings = crate::web_link::Settings::load();
+        settings.piste = Some(strip);
+        settings.save();
         self.sync_view();
     }
 
@@ -439,6 +461,9 @@ impl Screen {
                     Some(m) => s.on_message(&m),
                     None => break,
                 }
+            }
+            while let Some(m) = s.web.as_ref().and_then(|w| w.try_recv()) {
+                s.on_message(&m);
             }
             let events = s.gpio.borrow().pending_events();
             for pin in events {

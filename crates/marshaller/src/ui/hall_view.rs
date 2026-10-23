@@ -484,7 +484,19 @@ impl HallView {
                 allowed
             }
             Some(Payload::Referee(r)) if ui.hall.borrow().referee_drop_allowed(r, piste) => {
-                ui.hall.borrow_mut().drop_referee(r, piste);
+                let conflicts = ui.hall.borrow().referee_drop_conflicts(r, piste);
+                if conflicts.is_empty() {
+                    ui.hall.borrow_mut().drop_referee(r, piste);
+                } else {
+                    // Confirmation hors du glisser-déposer.
+                    let ui = ui.clone();
+                    gtk::glib::idle_add_local_once(move || {
+                        if super::group_dialog::confirm_conflicts(&ui, &conflicts) {
+                            ui.hall.borrow_mut().drop_referee(r, piste);
+                            ui.after_change();
+                        }
+                    });
+                }
                 true
             }
             _ => false,
@@ -567,7 +579,7 @@ impl HallView {
         let overlaps = ui.hall.borrow().overlaps.clone();
         for o in &overlaps {
             let iter = store.append();
-            store.set(&iter, &[(0, &"dialog-warning"), (1, &o.message), (3, &o.color.to_css())]);
+            store.set(&iter, &[(0, &"dialog-warning-symbolic"), (1, &o.message), (3, &o.color.to_css())]);
         }
         self.glade.get::<gtk::Widget>("scrolledwindow1").set_visible(!overlaps.is_empty());
         self.resize_area();

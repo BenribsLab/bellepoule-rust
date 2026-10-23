@@ -15,6 +15,7 @@ const SHEET_WIDTH: f64 = 120.0;
 
 pub struct SheetInfo {
     pub name: String,
+    pub officiating: String,
     /// Nom et prénom de l'arbitre.
     pub referee: Option<(String, String)>,
     /// « 03 @ 14:20 ».
@@ -119,6 +120,10 @@ pub fn sheet_canvas(info: &SheetInfo) -> Canvas {
         canvas.set(signature, [Prop::FillColor("grey85".into()), Prop::NoStroke]);
         let t = canvas.text(root, &tr("Signature"), signature_x + 16.0, y, -1.0, Anchor::Center);
         canvas.set(t, [Prop::Font(font(3.5, true)), Prop::FillColor("grey95".into())]);
+    }
+    if !info.officiating.is_empty() {
+        let text = canvas.text(root, &format!("Cartons (T1/T2)\n{}", info.officiating), 0.0, 22.0 + info.fencers.len() as f64 * row_height, SHEET_WIDTH, Anchor::NW);
+        canvas.set(text, [Prop::Font(font(1.6, false))]);
     }
     canvas
 }

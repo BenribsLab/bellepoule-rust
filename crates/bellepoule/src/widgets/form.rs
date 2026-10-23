@@ -203,6 +203,7 @@ impl PlayerForm {
         if desc.has_discrete_value() {
             let items = discrete_items(desc.code_name, None);
             let combo = if desc.free_value_allowed { gtk::ComboBoxText::with_entry() } else { gtk::ComboBoxText::new() };
+            bp_gtk::util::scroll_passes_through(&combo);
             for (_, long) in &items {
                 combo.append_text(long);
             }
@@ -310,10 +311,6 @@ impl PlayerForm {
         }
         drop(pages);
         self.window.present();
-    }
-
-    pub fn hide(&self) {
-        self.window.set_visible(false);
     }
 
     fn load_field(field: &Field, player: &Player) {

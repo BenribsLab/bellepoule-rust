@@ -129,7 +129,7 @@ pub fn process_post(body: &[u8], iv: Option<&str>, url: &str, secret: &SecretKey
 /// Première adresse IPv4 hors boucle locale, sinon `127.0.0.1`
 /// (`Ring::GuessIpV4Addresses`).
 pub fn local_ipv4_address() -> String {
-    if let Ok(interfaces) = get_if_addrs::get_if_addrs() {
+    if let Ok(interfaces) = if_addrs::get_if_addrs() {
         for iface in interfaces {
             if iface.is_loopback() {
                 continue;

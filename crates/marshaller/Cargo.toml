@@ -8,7 +8,7 @@ license.workspace = true
 path = "src/lib.rs"
 
 [[bin]]
-name = "marshaller"
+name = "managecomp-organisation"
 path = "src/main.rs"
 required-features = ["gui"]
 
@@ -42,3 +42,6 @@ rand = { workspace = true }
 qrcode = { workspace = true }
 encoding_rs = { workspace = true }
 ureq = { workspace = true }
+
+[build-dependencies]
+winresource = "0.1"

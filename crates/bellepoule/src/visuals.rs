@@ -36,15 +36,26 @@ pub fn install_backgrounds() {
     let uri = |file: &str| gtk::gio::File::for_path(resources::resources_dir().join("visuals").join(file)).uri();
     let css = format!(
         ".bp-hero-art {{ background-image: url(\"{}\"); background-size: cover; background-position: right center; background-repeat: no-repeat; }}\n\
-         .bp-sidebar-art {{ background-image: url(\"{}\"); background-size: contain; background-position: center; background-repeat: no-repeat; }}\n",
+         .bp-sidebar-art {{ background-image: url(\"{}\"); background-size: contain; background-position: center; background-repeat: no-repeat; }}\n\
+         .bp-brand-header {{ background-image: url(\"{}\"); background-size: contain; background-position: left center; background-repeat: no-repeat; }}\n",
         uri("fencing-header.png"),
-        uri("fencers-sidebar.png")
+        uri("fencers-sidebar.png"),
+        gtk::gio::File::for_path(resources::resources_dir().join("branding").join("header.png")).uri()
     );
     let provider = gtk::CssProvider::new();
     provider.load_from_data(&css);
     if let Some(display) = gtk::gdk::Display::default() {
         gtk::style_context_add_provider_for_display(&display, &provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
+}
+
+/// Logo et titre « ManageComp » (`resources/branding/header.png`).
+pub fn brand_header(width: i32, height: i32) -> gtk::Box {
+    let area = background_art("bp-brand-header", height);
+    area.set_width_request(width);
+    area.set_valign(gtk::Align::Center);
+    area.set_tooltip_text(Some("ManageComp"));
+    area
 }
 
 /// Zone décorative de hauteur fixe dont l'image est un fond CSS.

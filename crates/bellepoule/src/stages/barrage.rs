@@ -476,6 +476,7 @@ impl SheetsSource {
         crate::widgets::score_sheet::SheetInfo {
             name: if self.stage.is_empty() { bout.name.clone() } else { format!("{} — {}", self.stage, bout.name) },
             referee: None,
+            officiating: String::new(),
             piste: None,
             fencers: bout.markups.clone(),
             max_score: self.max_score,

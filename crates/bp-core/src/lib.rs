@@ -5,6 +5,9 @@
 
 pub mod attribute;
 pub mod bout;
+pub mod officiating;
+pub mod relay;
+pub mod relay_sheet;
 pub mod i18n;
 pub mod sort;
 pub mod player;
@@ -26,6 +29,7 @@ pub mod rounds;
 // Formats d'import/export
 pub mod formats;
 pub mod net;
+pub mod group_sheets;
 pub mod smartpoule;
 
 pub use player::{Owner, Player, PlayerClass, PlayerRef, PlayerStore};

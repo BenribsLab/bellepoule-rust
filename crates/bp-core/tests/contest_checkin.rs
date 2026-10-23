@@ -113,3 +113,33 @@ fn team_events_refuse_to_toggle_a_team_directly() {
     c.with_schedule(|s, ctx| s.checkin_mut().unwrap().remove(ctx, t));
     assert!(c.players.get(f).is_none());
 }
+
+
+#[test]
+fn team_capacity_and_missing_fencers_are_checked_at_checkin() {
+    use bp_core::player::{AttrId, PlayerClass};
+    let mut c = Contest::new_with_default_stages(None);
+    c.set_team_event(true);
+    c.set_team_size(3, 1);
+    let mut members = Vec::new();
+    for i in 0..4 {
+        let mut p = bp_core::contest::players::new_player(PlayerClass::Fencer);
+        p.set_str(&AttrId::global("name"), &format!("TIREUR{i}"));
+        p.set_str(&AttrId::global("team"), "YERRES");
+        p.set_uint(&AttrId::global("attending"), 1);
+        members.push(c.with_schedule(|s, ctx| s.checkin_mut().unwrap().add(ctx, p)));
+    }
+    let settings = c.settings.clone();
+    let ch = c.schedule.checkin().unwrap();
+    // 3 tireurs + 1 remplaçant : un cinquième est refusé.
+    assert!(ch.team_full_error(&c.players, &settings, None, "YERRES").is_some());
+    assert!(ch.team_full_error(&c.players, &settings, Some(members[0]), "YERRES").is_none());
+    assert!(ch.team_full_error(&c.players, &settings, None, "MELUN").is_none());
+    // Deux absents : il manque un tireur.
+    for m in &members[..2] {
+        c.with_schedule(|s, ctx| s.checkin_mut().unwrap().set_attending(ctx, *m, false));
+    }
+    let settings = c.settings.clone();
+    let missing = c.schedule.checkin().unwrap().incomplete_teams(&c.players, &settings);
+    assert_eq!(missing, vec![("YERRES".to_string(), 2)]);
+}

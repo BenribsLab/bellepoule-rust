@@ -303,7 +303,7 @@
     <property name="border_width">5</property>
     <property name="type_hint">dialog</property>
     <property name="skip_taskbar_hint">True</property>
-    <property name="text" translatable="yes">Connection to &lt;b&gt;BellePoule2D&lt;/b&gt;</property>
+    <property name="text" translatable="yes">Connection to &lt;b&gt;Organisation&lt;/b&gt;</property>
     <property name="use_markup">True</property>
     <child internal-child="vbox">
       <object class="GtkVBox" id="dialog-vbox13">
@@ -445,7 +445,7 @@
                 <property name="can_focus">False</property>
                 <property name="xalign">0</property>
                 <property name="label" translatable="yes">Plug it now in a computer where
-&lt;b&gt;BellePoule2D&lt;/b&gt; is running.</property>
+&lt;b&gt;Organisation&lt;/b&gt; is running.</property>
                 <property name="use_markup">True</property>
               </object>
               <packing>
@@ -487,7 +487,7 @@
   </object>
   <object class="GtkWindow" id="root">
     <property name="can_focus">False</property>
-    <property name="title" translatable="yes">BellePoule - Fencing tournament</property>
+    <property name="title" translatable="yes">ManageComp - Fencing tournament</property>
     <property name="icon">images/supervisor.png</property>
     <accel-groups>
       <group name="accelgroup1"/>
@@ -736,7 +736,7 @@
             </child>
             <child>
               <object class="GtkImageMenuItem" id="ring_menuitem">
-                <property name="label">BellePoule2D</property>
+                <property name="label">Organisation</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="image">partner_indicator</property>
@@ -2008,7 +2008,7 @@ Public License instead of this License.  But first, please read
     <property name="type_hint">dialog</property>
     <property name="skip_taskbar_hint">True</property>
     <property name="buttons">ok</property>
-    <property name="text" translatable="yes">Connection to &lt;b&gt;BellePoule2D&lt;/b&gt;</property>
+    <property name="text" translatable="yes">Connection to &lt;b&gt;Organisation&lt;/b&gt;</property>
     <property name="use_markup">True</property>
     <child internal-child="vbox">
       <object class="GtkVBox" id="dialog-vbox9">
@@ -2126,7 +2126,7 @@ Public License instead of this License.  But first, please read
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="label" translatable="yes">Scan the other QRCode on the partner application
- (menu &lt;b&gt;BellePoule&lt;/b&gt;).</property>
+ (menu &lt;b&gt;ManageComp&lt;/b&gt;).</property>
                     <property name="use_markup">True</property>
                   </object>
                   <packing>

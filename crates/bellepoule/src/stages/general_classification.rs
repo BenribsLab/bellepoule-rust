@@ -234,15 +234,13 @@ impl ClassificationScreen {
         }
     }
 
-    /// Impression : le classement final seul, ou les résultats complets de
-    /// l'événement (poules, tableaux, puis classement final).
-    fn on_print(&self) {
-        let Some(page) = self.page.upgrade() else {
-            return;
-        };
+    /// Choix du contenu : `Some(true)` pour les résultats complets,
+    /// `Some(false)` pour le classement final seul, `None` si annulé.
+    /// Entraînement des jeunes : les résultats complets par défaut.
+    fn ask_scope(&self, page: &ContestPage, title: &str) -> Option<bool> {
         let parent = page.window();
         let dialog = gtk::Dialog::new();
-        dialog.set_title(Some(&tr("Print")));
+        dialog.set_title(Some(title));
         dialog.set_transient_for(parent.as_ref());
         dialog.set_resizable(false);
         let content = dialog.content_area();
@@ -254,7 +252,9 @@ impl ClassificationScreen {
         let final_radio = gtk::CheckButton::with_label(&tr("Final classification"));
         let complete_radio = gtk::CheckButton::with_label(&tr("Complete results"));
         complete_radio.set_group(Some(&final_radio));
-        final_radio.set_active(true);
+        let youth = page.with_contest(|c| c.youth_pool_stage()).flatten().is_some();
+        complete_radio.set_active(youth);
+        final_radio.set_active(!youth);
         content.append(&final_radio);
         content.append(&complete_radio);
         dialog.add_button(&tr("_Cancel"), gtk::ResponseType::Cancel);
@@ -262,29 +262,22 @@ impl ClassificationScreen {
         let accepted = dialogs::run_dialog(&dialog) == gtk::ResponseType::Ok;
         let complete = complete_radio.is_active();
         dialog.destroy();
-        if !accepted {
-            return;
-        }
-        if !complete {
-            let Some(document) = self.document() else {
-                return;
-            };
-            if let Err(e) = document.print(parent.as_ref()) {
-                dialogs::error(parent.as_ref(), &e.to_string());
-            }
-            return;
-        }
-        let weak = self.page.clone();
-        let index = self.index;
-        let final_document = self.document();
-        let job = page.with_contest(|c| c.name.clone()).unwrap_or_default();
-        let result = bp_gtk::print::run_document(parent.as_ref(), &job, move || {
-            let mut parts: Vec<Box<dyn bp_gtk::print::PageSource>> = Vec::new();
-            if let Some(page) = weak.upgrade() {
+        accepted.then_some(complete)
+    }
+
+    /// Pages à imprimer ou à exporter en PDF : le classement final, précédé
+    /// des poules et des tableaux (résultats complets). Entraînement des
+    /// jeunes : le classement, puis chaque groupe avec ses poules et son
+    /// tableau remplis (matchs de classement compris).
+    fn pages(page: &Weak<ContestPage>, index: usize, final_document: Option<&ListDocument>, complete: bool) -> Box<dyn bp_gtk::print::PageSource> {
+        let mut parts: Vec<Box<dyn bp_gtk::print::PageSource>> = Vec::new();
+        let page = page.upgrade();
+        let youth = page.as_ref().and_then(|p| p.with_contest(|c| c.youth_pool_stage()).flatten());
+        if complete && youth.is_none() {
+            if let Some(page) = &page {
                 page.with_contest(|c| {
                     for i in 0..index {
-                        let kind = c.schedule.stage(i).map(|s| s.kind());
-                        match kind {
+                        match c.schedule.stage(i).map(|s| s.kind()) {
                             Some(StageKind::PoolSupervisor) => parts.extend(super::pool_supervisor::results_sources(c, i)),
                             Some(StageKind::TableSupervisor) => parts.extend(super::table_supervisor::results_sources(c, i)),
                             _ => {}
@@ -292,10 +285,32 @@ impl ClassificationScreen {
                     }
                 });
             }
-            if let Some(document) = final_document.as_ref() {
-                parts.push(document.source());
+        }
+        if let Some(document) = final_document {
+            parts.push(document.source());
+        }
+        if let (true, Some(pools), Some(page)) = (complete, youth, &page) {
+            if let Some(groups) = super::group_print::source(page, pools) {
+                parts.push(groups);
             }
-            Box::new(bp_gtk::print::Concat::new(parts))
+        }
+        Box::new(bp_gtk::print::Concat::new(parts))
+    }
+
+    /// Impression : le classement final seul, ou les résultats complets de
+    /// l'événement.
+    fn on_print(&self) {
+        let Some(page) = self.page.upgrade() else {
+            return;
+        };
+        let Some(complete) = self.ask_scope(&page, &tr("Print")) else {
+            return;
+        };
+        let parent = page.window();
+        let (weak, index, final_document) = (self.page.clone(), self.index, self.document());
+        let job = page.with_contest(|c| c.name.clone()).unwrap_or_default();
+        let result = bp_gtk::print::run_document(parent.as_ref(), &job, move || {
+            Self::pages(&weak, index, final_document.as_ref(), complete)
         });
         if let Err(e) = result {
             dialogs::error(parent.as_ref(), &e.to_string());
@@ -308,6 +323,13 @@ impl ClassificationScreen {
         };
         let Some(app) = page.app.upgrade() else {
             return;
+        };
+        let complete = match format {
+            ExportType::Html | ExportType::Pdf => match self.ask_scope(&page, &tr("Export")) {
+                Some(complete) => complete,
+                None => return,
+            },
+            _ => true,
         };
         let chooser: gtk::FileChooserDialog = self.glade.get("filechooserdialog");
         chooser.set_transient_for(page.window().as_ref());
@@ -358,15 +380,15 @@ impl ClassificationScreen {
         )
         .saturating_sub(1);
         let result = match format {
-            ExportType::Pdf => self
-                .document()
-                .ok_or_else(|| tr("Competition not found"))
-                .and_then(|d| d.export_pdf(&path)),
+            ExportType::Pdf => {
+                let document = self.document();
+                bp_gtk::print::export_pdf(Self::pages(&self.page, self.index, document.as_ref(), complete).as_mut(), &path)
+            }
             _ => {
                 let youth = page.with_contest(Self::youth_document).flatten().map(|d| d.to_html());
                 let bytes = page
                     .with_contest(|c| match format {
-                        ExportType::Html => Some(c.dump_to_html_with(youth).into_bytes()),
+                        ExportType::Html => Some(c.dump_to_html_scope(youth, !complete).into_bytes()),
                         ExportType::Fff => c.export_final_classification_fff(offset),
                         ExportType::Frd => Some(c.export_askfred().into_bytes()),
                         ExportType::Pdf => unreachable!(),

@@ -6,4 +6,10 @@
         <item name="colorAccent">#1F5AE0</item>
         <item name="android:windowBackground">@android:color/white</item>
     </style>
+    <style name="Theme.SmartPoule.Match" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">#1F5AE0</item>
+        <item name="colorPrimaryDark">#143C9A</item>
+        <item name="colorAccent">#1F5AE0</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
 </resources>

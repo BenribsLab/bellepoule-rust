@@ -65,6 +65,58 @@
               </object>
             </child>
             <child>
+              <object class="GtkButton" id="move_stage_up_toolbutton">
+                <property name="sensitive">False</property>
+                <signal name="clicked" handler="on_move_stage_up_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Move up</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-up</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Move up</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkButton" id="move_stage_down_toolbutton">
+                <property name="sensitive">False</property>
+                <signal name="clicked" handler="on_move_stage_down_toolbutton_clicked" swapped="no" />
+                <property name="has-frame">False</property>
+                <property name="tooltip-text" translatable="yes">Move down</property>
+                <child>
+                  <object class="GtkBox">
+                    <property name="orientation">vertical</property>
+                    <property name="spacing">2</property>
+                    <child>
+                      <object class="GtkImage">
+                        <property name="icon-name">go-down</property>
+                        <property name="icon-size">large</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkLabel">
+                        <property name="label" translatable="yes">Move down</property>
+                        <property name="use-underline">True</property>
+                      </object>
+                    </child>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
               <object class="GtkSeparator" id="separatortoolitem1">
                 <property name="orientation">vertical</property>
               </object>
